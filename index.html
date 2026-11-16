@@ -7,6 +7,8 @@
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore-compat.js"></script>
+    <!-- TonConnect UI Library CDN -->
+    <script src="https://unpkg.com/@tonconnect/ui@latest/dist/tonconnect-ui.min.js"></script>
     <style>
         :root {
             --bg-dark: #060B14;
@@ -287,6 +289,11 @@
             document.getElementById('profileAvatar').innerText = initial;
         }
 
+        // TonConnect UI Initialization (Fixed Modal)
+        const tonConnectUI = new TON_CONNECT_UI.TonConnectUI({
+            manifestUrl: 'https://mtrdex-app.vercel.app/tonconnect-manifest.json'
+        });
+
         let walletConnected = false;
         let connectedWalletAddress = "";
         let isVerified = false;
@@ -295,6 +302,26 @@
         let refRewardBalance = 0.0000;
         let referralCount = 0;
         let completedTasks = {};
+
+        // Listen to TonConnect Status Changes
+        tonConnectUI.onStatusChange(walletInfo => {
+            if (walletInfo) {
+                walletConnected = true;
+                connectedWalletAddress = walletInfo.account.address;
+                db.collection("users").doc(userId).update({
+                    walletConnected: true,
+                    walletAddress: connectedWalletAddress
+                }, { merge: true });
+            } else {
+                walletConnected = false;
+                connectedWalletAddress = "";
+                db.collection("users").doc(userId).update({
+                    walletConnected: false,
+                    walletAddress: ""
+                }, { merge: true });
+            }
+            updateUI();
+        });
 
         // Admin Settings Sync
         db.collection("settings").doc("config").onSnapshot((doc) => {
@@ -338,7 +365,6 @@
             updateUI();
         });
 
-        // Realtime listener for user updates
         db.collection("users").doc(userId).onSnapshot((doc) => {
             if(doc.exists) {
                 let data = doc.data();
@@ -349,33 +375,38 @@
             }
         });
 
-        function connectWalletPrompt() {
-            let userWalletInput = prompt("Enter your TON Wallet Address (e.g. UQ...):", connectedWalletAddress);
-            if (userWalletInput && userWalletInput.length > 20) {
-                walletConnected = true;
-                connectedWalletAddress = userWalletInput;
-                db.collection("users").doc(userId).update({
-                    walletConnected: true,
-                    walletAddress: connectedWalletAddress
-                });
-                alert("Wallet connected successfully!");
-                updateUI();
-            } else if (userWalletInput !== null) {
-                alert("Invalid TON wallet address!");
+        // Open TonConnect Wallet Modal
+        async function connectWalletPrompt() {
+            try {
+                await tonConnectUI.openModal();
+            } catch (error) {
+                console.error("Wallet connection error:", error);
             }
         }
 
-        function handleMainAction() {
+        async function handleMainAction() {
             if (!walletConnected) {
                 connectWalletPrompt();
             } else if (!isVerified) {
-                let confirmPay = confirm("Account Verification requires a 0.1 TON network fee sent to project treasury. Proceed?");
-                if (confirmPay) {
-                    window.open(`ton://transfer?address=${RECEIVER_WALLET}&amount=100000000&text=MTR_Verification`, '_blank');
+                const transaction = {
+                    validUntil: Math.floor(Date.now() / 1000) + 60,
+                    messages: [
+                        {
+                            address: RECEIVER_WALLET,
+                            amount: "100000000" // 0.1 TON in nanotons
+                        }
+                    ]
+                };
+
+                try {
+                    await tonConnectUI.sendTransaction(transaction);
                     isVerified = true;
                     db.collection("users").doc(userId).update({ verified: true });
-                    alert("Verification completed! Mining started.");
+                    alert("Verification payment successful! Mining started.");
                     updateUI();
+                } catch (error) {
+                    console.error("Transaction failed or cancelled", error);
+                    alert("Transaction cancelled or failed.");
                 }
             } else {
                 totalBalance += sessionMined;
@@ -485,7 +516,7 @@
                 badge.innerText = "Unverified";
                 rate.innerText = "Verify account (0.1 TON) to unlock mining";
                 btn.className = "main-btn btn-verify";
-                btn.innerText = "Verify (0.1 TON)";
+                btn.innerText = "Verify & Pay 0.1 TON";
             } else {
                 badge.innerText = "Unverified";
                 rate.innerText = "Connect TON Wallet to begin";
