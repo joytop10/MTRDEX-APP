@@ -7,8 +7,8 @@
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore-compat.js"></script>
-    <!-- TonConnect UI Library CDN -->
     <script src="https://unpkg.com/@tonconnect/ui@latest/dist/tonconnect-ui.min.js"></script>
+
     <style>
         :root {
             --bg-dark: #060B14;
@@ -22,6 +22,7 @@
         }
 
         * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Segoe UI', Roboto, sans-serif; user-select: none; }
+
         body {
             background-color: var(--bg-dark);
             background-image: radial-gradient(circle at 50% 20%, rgba(0, 119, 255, 0.15) 0%, transparent 60%);
@@ -31,21 +32,26 @@
             flex-direction: column;
             justify-content: space-between;
         }
+
         .header {
             display: flex; justify-content: space-between; align-items: center;
             padding: 15px 18px; background: rgba(13, 21, 34, 0.85); border-bottom: 1px solid rgba(0, 119, 255, 0.3);
         }
+
         .user-info { display: flex; align-items: center; gap: 10px; }
+
         .avatar {
             width: 38px; height: 38px; border-radius: 50%;
             background: linear-gradient(135deg, var(--gold-light), var(--gold-dark));
             display: flex; align-items: center; justify-content: center; font-weight: bold; color: #000; overflow: hidden;
         }
+
         .avatar img { width: 100%; height: 100%; object-fit: cover; }
         .user-details h4 { font-size: 14px; color: var(--gold-light); }
+
         .status-badge { font-size: 11px; padding: 2px 8px; border-radius: 10px; background: rgba(255, 59, 48, 0.2); color: #FF453A; border: 1px solid #FF453A; }
         .status-badge.verified { background: rgba(52, 199, 89, 0.2); color: #32D74B; border-color: #32D74B; }
-        
+
         .container { flex: 1; padding: 20px 16px 90px 16px; display: none; flex-direction: column; align-items: center; }
         .container.active { display: flex; }
 
@@ -53,18 +59,21 @@
             width: 100%; background: var(--card-bg); border: 1px solid rgba(245, 196, 67, 0.4);
             border-radius: 16px; padding: 16px; text-align: center; margin-bottom: 20px;
         }
+
         .balance-label { font-size: 12px; color: var(--text-muted); text-transform: uppercase; }
         .balance-amount { font-size: 30px; font-weight: 800; color: var(--gold-light); margin: 5px 0; }
         .mining-rate { font-size: 13px; color: var(--cyan-glow); }
 
         .coin-wrapper { position: relative; width: 180px; height: 180px; margin: 10px 0 20px 0; display: flex; align-items: center; justify-content: center; }
         .coin-glow { position: absolute; width: 100%; height: 100%; border-radius: 50%; border: 3px solid var(--neon-blue); box-shadow: 0 0 25px var(--neon-blue); }
+
         .coin-circle {
             width: 160px; height: 160px; border-radius: 50%;
             background: radial-gradient(circle at 30% 30%, #152238, #060B14);
             border: 4px solid var(--gold-light); display: flex; flex-direction: column; align-items: center; justify-content: center; z-index: 2;
             box-shadow: 0 0 20px rgba(245, 196, 67, 0.4);
         }
+
         .coin-crown { font-size: 22px; color: var(--gold-light); }
         .coin-text { font-size: 36px; font-weight: 900; color: var(--gold-light); }
         .coin-sub { font-size: 9px; letter-spacing: 2px; color: var(--gold-light); }
@@ -73,6 +82,7 @@
             width: 100%; max-width: 320px; padding: 15px; border-radius: 14px; border: none;
             font-size: 16px; font-weight: 800; text-transform: uppercase; cursor: pointer; box-shadow: 0 0 20px rgba(0, 119, 255, 0.4);
         }
+
         .btn-connect { background: linear-gradient(90deg, var(--neon-blue), #0051B3); color: #FFF; }
         .btn-verify { background: linear-gradient(90deg, var(--gold-light), var(--gold-dark)); color: #000; }
         .btn-claim { background: linear-gradient(90deg, #F5C443, #D99B16); color: #060B14; }
@@ -81,17 +91,21 @@
             width: 100%; background: var(--card-bg); border: 1px solid rgba(0, 119, 255, 0.25);
             border-radius: 12px; padding: 12px 15px; margin-bottom: 10px; display: flex; justify-content: space-between; align-items: center;
         }
+
         .list-card.highlight { border-color: var(--gold-light); background: rgba(245, 196, 67, 0.08); }
+
         .rank-badge {
             width: 28px; height: 28px; border-radius: 50%; background: rgba(0, 119, 255, 0.2);
             border: 1px solid var(--neon-blue); display: flex; align-items: center; justify-content: center; font-size: 13px; color: var(--cyan-glow); margin-right: 12px;
         }
+
         .rank-1 { background: var(--gold-light) !important; color: #000 !important; border-color: #FFF !important; }
 
         .task-btn {
             background: linear-gradient(90deg, var(--gold-light), var(--gold-dark));
             color: #000; border: none; padding: 6px 14px; border-radius: 8px; font-weight: bold; font-size: 12px; cursor: pointer;
         }
+
         .task-btn.claimed { background: rgba(52, 199, 89, 0.2); color: #32D74B; border: 1px solid #32D74B; cursor: default; }
 
         .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); justify-content: center; align-items: center; z-index: 1000; padding: 20px; }
@@ -101,12 +115,15 @@
             position: fixed; bottom: 0; left: 0; width: 100%; background: rgba(6, 11, 20, 0.95);
             border-top: 1px solid rgba(0, 119, 255, 0.35); display: flex; justify-content: space-around; padding: 8px 0; z-index: 100;
         }
+
         .nav-item { display: flex; flex-direction: column; align-items: center; color: var(--text-muted); font-size: 10px; cursor: pointer; gap: 3px; width: 20%; }
         .nav-item.active { color: var(--gold-light); }
         .nav-icon { font-size: 18px; }
+
         .copy-box { width: 100%; background: #09101D; border: 1px dashed var(--gold-light); padding: 10px; border-radius: 8px; font-size: 12px; color: var(--cyan-glow); word-break: break-all; margin: 10px 0; text-align: center; }
     </style>
 </head>
+
 <body>
 
     <div class="header">
@@ -117,6 +134,7 @@
                 <span class="status-badge" id="verifyStatus">Unverified</span>
             </div>
         </div>
+
         <div id="walletDisplay" style="font-size: 12px; color: var(--cyan-glow); font-weight: bold; background: rgba(0,119,255,0.15); padding: 6px 10px; border-radius: 8px; border: 1px solid var(--neon-blue); cursor: pointer;" onclick="handleWalletClick()">
             Connect Wallet
         </div>
@@ -129,6 +147,7 @@
             <div class="balance-amount"><span id="totalBalance">0.0000</span> MTR</div>
             <div class="mining-rate" id="miningRateText">Connect wallet to start mining</div>
         </div>
+
         <div class="coin-wrapper">
             <div class="coin-glow"></div>
             <div class="coin-circle">
@@ -137,9 +156,11 @@
                 <div class="coin-sub">MASTER</div>
             </div>
         </div>
+
         <p style="font-size: 13px; color: var(--text-muted); margin-bottom: 12px;">
             Mined in session: <strong style="color: #FFF;" id="sessionMined">0.0000</strong> MTR
         </p>
+
         <button class="main-btn btn-connect" id="actionBtn" onclick="handleMainAction()">Connect Wallet</button>
     </div>
 
@@ -148,6 +169,7 @@
         <div style="width: 100%; font-size: 16px; font-weight: 700; color: var(--gold-light); margin-bottom: 12px;">
             🏆 Global Live Leaderboard
         </div>
+
         <div class="list-card highlight" style="margin-bottom: 15px;">
             <div style="display: flex; align-items: center;">
                 <div class="rank-badge" id="myRank">0</div>
@@ -158,6 +180,7 @@
             </div>
             <div style="font-weight: bold; color: var(--gold-light);" id="myRankBalance">0.00 MTR</div>
         </div>
+
         <div id="liveLeaderboardList" style="width: 100%;"></div>
     </div>
 
@@ -166,6 +189,7 @@
         <div style="width: 100%; font-size: 16px; font-weight: 700; color: var(--gold-light); margin-bottom: 12px;">
             📋 Earn Extra MTR (Tasks)
         </div>
+
         <div id="dynamicTasksList" style="width: 100%;">
             <p style="color: var(--text-muted); font-size: 13px;">Loading tasks...</p>
         </div>
@@ -176,21 +200,28 @@
         <div style="width: 100%; font-size: 16px; font-weight: 700; color: var(--gold-light); margin-bottom: 12px;">
             🤝 Referral Program (10% Commission)
         </div>
+
         <div class="balance-card">
             <div class="balance-label">Total Referrals (Team)</div>
             <div class="balance-amount" id="referralCount">0 Members</div>
+
             <div style="display: flex; justify-content: space-around; margin: 10px 0; font-size: 12px; color: var(--text-muted);">
                 <span>✅ Verified: <strong id="verifiedRef" style="color: #32D74B;">0</strong></span>
                 <span>❌ Unverified: <strong id="unverifiedRef" style="color: #FF453A;">0</strong></span>
             </div>
+
             <div class="mining-rate">Unclaimed Commission: <span id="refRewardBalance" style="color:var(--gold-light);">0.0000</span> MTR</div>
+
             <button class="main-btn btn-claim" style="margin-top: 15px; padding: 12px; font-size: 14px;" onclick="claimRefReward()">Claim Referral Reward</button>
         </div>
+
         <div class="balance-card" style="text-align: left;">
             <p style="font-size: 13px; color: var(--text-muted); line-height: 1.5; margin-bottom: 10px;">
                 Share your invite link and earn <strong style="color: var(--gold-light);">10% commission</strong> from your friends!
             </p>
+
             <div class="copy-box" id="refLinkBox">https://t.me/MTRDex_bot?start=ref</div>
+
             <div style="display: flex; gap: 10px;">
                 <button class="main-btn btn-verify" style="padding: 10px; font-size: 13px; flex: 1;" onclick="copyRefLink()">📋 Copy Link</button>
                 <button class="main-btn btn-connect" style="padding: 10px; font-size: 13px; flex: 1;" onclick="shareRefLink()">↗️ Share Link</button>
@@ -203,6 +234,7 @@
         <div style="width: 100%; font-size: 16px; font-weight: 700; color: var(--gold-light); margin-bottom: 12px;">
             👤 User Profile & Withdraw
         </div>
+
         <div class="list-card" style="padding: 15px;">
             <div style="display: flex; align-items: center; gap: 12px;">
                 <div class="avatar" id="profileAvatar" style="width: 48px; height: 48px; font-size: 18px;">M</div>
@@ -212,14 +244,15 @@
                 </div>
             </div>
         </div>
+
         <div class="list-card"><span>Telegram ID</span><strong style="color: #FFF;" id="profileTelegramId">123456789</strong></div>
         <div class="list-card"><span>Total Mined Balance</span><strong style="color: var(--gold-light);" id="profileBalance">0.0000 MTR</strong></div>
+
         <div class="list-card" style="cursor: pointer;" onclick="handleWalletClick()">
             <span>Connected Wallet</span>
             <strong style="font-size: 11px; color: var(--cyan-glow);" id="profileWalletAddr">Not Connected</strong>
         </div>
-        
-        <!-- Withdraw Button -->
+
         <button class="main-btn btn-verify" style="margin-top: 15px; font-size: 14px; padding: 14px;" onclick="handleWithdraw()">
             📤 Withdraw MTR
         </button>
@@ -227,16 +260,19 @@
         <button class="main-btn btn-connect" style="margin-top: 10px; font-size: 14px; padding: 12px;" onclick="openTokenomicsModal()">📊 View MTR Tokenomics</button>
     </div>
 
-    <!-- CUSTOM WALLET MANAGEMENT MODAL -->
+    <!-- WALLET MANAGEMENT MODAL -->
     <div class="modal" id="walletModal">
         <div class="modal-content">
             <div style="font-size: 16px; font-weight: bold; color: var(--gold-light); margin-bottom: 10px;">Connected Wallet</div>
             <div style="font-size: 11px; color: var(--text-muted); margin-bottom: 15px;">Your connected mining wallet</div>
+
             <div class="copy-box" id="modalWalletAddr" style="font-size: 11px; word-break: break-all;">-</div>
+
             <div style="display: flex; gap: 10px; margin-top: 15px;">
                 <button class="main-btn btn-verify" style="padding: 10px; font-size: 12px; flex: 1;" onclick="copyWalletAddress()">Copy Address</button>
                 <button class="main-btn" style="padding: 10px; font-size: 12px; flex: 1; background: #FF453A; color: #FFF;" onclick="disconnectWallet()">Disconnect</button>
             </div>
+
             <button class="main-btn btn-connect" style="padding: 8px; font-size: 12px; margin-top: 10px;" onclick="closeWalletModal()">Close</button>
         </div>
     </div>
@@ -270,6 +306,7 @@
             appId: "1:1086565020372:web:908ecf8369e83c4d6dc141",
             measurementId: "G-YP1ZKWZPL6"
         };
+
         firebase.initializeApp(firebaseConfig);
         const db = firebase.firestore();
 
@@ -277,7 +314,7 @@
         tg.expand();
 
         const RECEIVER_WALLET = "UQDrRYyguNesj8KzZsCLzLs8eELMS26VdcqkOcDWh774kWB4";
-        
+
         let userId = "";
         let userName = "Master Miner";
         let userUsername = "@master_miner";
@@ -287,12 +324,15 @@
 
         if (tg.initDataUnsafe && tg.initDataUnsafe.user) {
             const user = tg.initDataUnsafe.user;
+
             userId = "u_" + user.id;
             userName = user.first_name + (user.last_name ? " " + user.last_name : "");
             userUsername = user.username ? "@" + user.username : "@user_" + user.id;
+
             if (user.photo_url) userPhotoUrl = user.photo_url;
         } else {
             userId = localStorage.getItem("mtr_local_uid");
+
             if (!userId) {
                 userId = "u_local_" + Math.floor(Math.random() * 1000000);
                 localStorage.setItem("mtr_local_uid", userId);
@@ -326,6 +366,7 @@
 
         let walletConnected = false;
         let connectedWalletAddress = "";
+        let connectedWalletRawAddress = "";
         let isVerified = false;
         let totalBalance = 0.0000;
         let sessionMined = 0.0000;
@@ -333,205 +374,293 @@
         let referralCount = 0;
         let completedTasks = {};
 
-        // Function to extract raw or friendly address directly from live TonConnect session without caching
-        function getLiveWalletAddress() {
-            if (tonConnectUI.wallet && tonConnectUI.wallet.account) {
-                const account = tonConnectUI.wallet.account;
-                let address = account.address;
-                
-                // Convert raw address (0:...) to user-friendly format (UQ...) if necessary
-                try {
-                    if (window.TonConnectSDK && window.TonConnectSDK.Address) {
-                        return new window.TonConnectSDK.Address(address).toString({ bounceable: true, urlSafe: true });
-                    }
-                } catch(e) {}
-                return address;
+        // Convert TON raw address (0:hash) into friendly UQ/EQ address.
+        function rawToFriendlyAddress(rawAddress, bounceable = false) {
+            if (!rawAddress) return "";
+
+            const match = rawAddress.match(/^(-?\d+):([0-9a-fA-F]{64})$/);
+
+            // If the address is already in friendly format, keep it unchanged.
+            if (!match) return rawAddress;
+
+            const workchain = Number(match[1]);
+
+            if (!Number.isInteger(workchain) || workchain < -128 || workchain > 127) {
+                throw new Error("Invalid TON workchain");
             }
+
+            const hashBytes = match[2].match(/.{2}/g).map(byte => parseInt(byte, 16));
+
+            const addressBytes = [
+                bounceable ? 0x11 : 0x51,
+                workchain & 0xff,
+                ...hashBytes
+            ];
+
+            // CRC16-XMODEM checksum
+            let crc = 0x0000;
+
+            for (const byte of addressBytes) {
+                crc ^= byte << 8;
+
+                for (let i = 0; i < 8; i++) {
+                    if (crc & 0x8000) {
+                        crc = (crc << 1) ^ 0x1021;
+                    } else {
+                        crc = crc << 1;
+                    }
+
+                    crc &= 0xffff;
+                }
+            }
+
+            addressBytes.push((crc >> 8) & 0xff);
+            addressBytes.push(crc & 0xff);
+
+            const binary = String.fromCharCode(...addressBytes);
+
+            return btoa(binary)
+                .replace(/\+/g, "-")
+                .replace(/\//g, "_")
+                .replace(/=/g, "");
+        }
+
+        // Always read the currently connected TonConnect wallet.
+        function getLiveWalletRawAddress() {
+            const wallet = tonConnectUI.wallet;
+
+            if (wallet && wallet.account && wallet.account.address) {
+                return wallet.account.address;
+            }
+
             return "";
         }
 
-        // Real-time TonConnect status listener
-        tonConnectUI.onStatusChange(wallet => {
-            if (wallet && wallet.account) {
-                walletConnected = true;
-                connectedWalletAddress = getLiveWalletAddress();
+        function getLiveWalletAddress() {
+            const rawAddress = getLiveWalletRawAddress();
 
-                db.collection("users").doc(userId).update({
+            if (!rawAddress) return "";
+
+            return rawToFriendlyAddress(rawAddress, false);
+        }
+
+        // TonConnect wallet connection status listener.
+        tonConnectUI.onStatusChange(wallet => {
+            if (wallet && wallet.account && wallet.account.address) {
+                connectedWalletRawAddress = wallet.account.address;
+                connectedWalletAddress = rawToFriendlyAddress(connectedWalletRawAddress, false);
+                walletConnected = true;
+
+                db.collection("users").doc(userId).set({
                     walletConnected: true,
-                    walletAddress: connectedWalletAddress
+                    walletAddress: connectedWalletAddress,
+                    walletRawAddress: connectedWalletRawAddress
                 }, { merge: true });
+
             } else {
                 walletConnected = false;
+                connectedWalletRawAddress = "";
                 connectedWalletAddress = "";
                 isVerified = false;
-                db.collection("users").doc(userId).update({
+
+                db.collection("users").doc(userId).set({
                     walletConnected: false,
                     walletAddress: "",
+                    walletRawAddress: "",
                     verified: false
                 }, { merge: true });
             }
+
             updateUI();
+
+            const modal = document.getElementById("walletModal");
+
+            if (walletConnected && modal.style.display === "flex") {
+                document.getElementById("modalWalletAddr").innerText = connectedWalletAddress;
+            }
         });
 
         db.collection("settings").doc("config").onSnapshot((doc) => {
-            if(doc.exists) {
+            if (doc.exists) {
                 isWithdrawOpen = doc.data().withdrawOpen || false;
             }
         });
 
+        // Load user data without treating an old saved wallet as currently connected.
         db.collection("users").doc(userId).get().then(async (doc) => {
-            // Force check live TonConnect first
-            let liveAddr = getLiveWalletAddress();
-            if (liveAddr) {
-                walletConnected = true;
-                connectedWalletAddress = liveAddr;
-            } else if (doc.exists) {
-                let data = doc.data();
+            const liveRaw = getLiveWalletRawAddress();
+
+            if (doc.exists) {
+                const data = doc.data();
+
                 totalBalance = data.balance || 0;
                 refRewardBalance = data.refReward || 0;
                 completedTasks = data.tasks || {};
-                isVerified = data.verified || false;
-                walletConnected = data.walletConnected || false;
-                connectedWalletAddress = data.walletAddress || "";
+
+                if (liveRaw) {
+                    walletConnected = true;
+                    connectedWalletRawAddress = liveRaw;
+                    connectedWalletAddress = rawToFriendlyAddress(liveRaw, false);
+                    isVerified = data.verified || false;
+                } else {
+                    walletConnected = false;
+                    connectedWalletRawAddress = "";
+                    connectedWalletAddress = "";
+                    isVerified = false;
+                }
+
             } else {
+                walletConnected = !!liveRaw;
+                connectedWalletRawAddress = liveRaw || "";
+                connectedWalletAddress = liveRaw ? rawToFriendlyAddress(liveRaw, false) : "";
+                isVerified = false;
+
                 await db.collection("users").doc(userId).set({
                     name: userName,
                     balance: 0,
                     refReward: 0,
                     verified: false,
-                    walletConnected: false,
-                    walletAddress: "",
+                    walletConnected: walletConnected,
+                    walletAddress: connectedWalletAddress,
+                    walletRawAddress: connectedWalletRawAddress,
                     tasks: {},
                     referredBy: referrerId || null,
                     createdAt: firebase.firestore.FieldValue.serverTimestamp()
                 });
-
-                if (referrerId && referrerId !== userId) {
-                    const refDocRef = db.collection("users").doc(referrerId);
-                    const refSnap = await refDocRef.get();
-                    if (refSnap.exists) {
-                        let currentCount = refSnap.data().referralCount || 0;
-                        await refDocRef.update({ referralCount: currentCount + 1 });
-                    }
-                }
             }
+
             updateUI();
+
+        }).catch(error => {
+            console.error("User loading error:", error);
         });
 
-        db.collection("users").where("referredBy", "==", userId).onSnapshot((snapshot) => {
-            let total = snapshot.size;
-            let verified = 0;
-            snapshot.forEach((doc) => {
-                if (doc.data().verified) {
-                    verified++;
-                }
-            });
-            let unverified = total - verified;
-            
-            document.getElementById('referralCount').innerText = total + " Members";
-            document.getElementById('verifiedRef').innerText = verified;
-            document.getElementById('unverifiedRef').innerText = unverified;
-
-            db.collection("users").doc(userId).update({ referralCount: total });
-        });
-
-        db.collection("users").doc(userId).onSnapshot((doc) => {
-            if(doc.exists) {
-                let data = doc.data();
-                refRewardBalance = data.refReward || 0;
-                document.getElementById('refRewardBalance').innerText = refRewardBalance.toFixed(4);
-            }
-        });
-
+        // Wallet button click
         async function handleWalletClick() {
-            let liveAddr = getLiveWalletAddress();
+            const liveAddr = getLiveWalletAddress();
+
             if (liveAddr) {
                 walletConnected = true;
                 connectedWalletAddress = liveAddr;
-            }
+                connectedWalletRawAddress = getLiveWalletRawAddress();
 
-            if (walletConnected && connectedWalletAddress) {
-                document.getElementById('modalWalletAddr').innerText = connectedWalletAddress;
-                document.getElementById('walletModal').style.display = 'flex';
+                document.getElementById("modalWalletAddr").innerText = liveAddr;
+                document.getElementById("walletModal").style.display = "flex";
+
             } else {
+                walletConnected = false;
+                connectedWalletAddress = "";
+                connectedWalletRawAddress = "";
+
                 try {
                     await tonConnectUI.openModal();
                 } catch (error) {
                     console.error("Wallet modal error:", error);
                 }
             }
+
+            updateUI();
         }
 
         function closeWalletModal() {
             document.getElementById('walletModal').style.display = 'none';
         }
 
+        // Copy only the currently connected wallet address.
         function copyWalletAddress() {
-            let liveAddr = getLiveWalletAddress() || connectedWalletAddress;
-            navigator.clipboard.writeText(liveAddr);
-            alert("Wallet address copied!");
+            const address = getLiveWalletAddress();
+
+            if (!address) {
+                alert("No wallet connected!");
+                return;
+            }
+
+            navigator.clipboard.writeText(address)
+                .then(() => {
+                    alert("Wallet address copied!");
+                })
+                .catch(error => {
+                    console.error("Copy error:", error);
+                    alert("Unable to copy address.");
+                });
         }
 
+        // Disconnect current wallet.
         async function disconnectWallet() {
             try {
                 await tonConnectUI.disconnect();
-                // Clear all local storage cache related to tonconnect to prevent sticky old address
-                for (let i = 0; i < localStorage.length; i++) {
-                    let key = localStorage.key(i);
-                    if (key && key.includes('ton-connect')) {
-                        localStorage.removeItem(key);
-                    }
-                }
+
                 walletConnected = false;
                 connectedWalletAddress = "";
+                connectedWalletRawAddress = "";
                 isVerified = false;
-                db.collection("users").doc(userId).update({
+
+                await db.collection("users").doc(userId).set({
                     walletConnected: false,
                     walletAddress: "",
+                    walletRawAddress: "",
                     verified: false
-                });
+                }, { merge: true });
+
                 closeWalletModal();
                 updateUI();
+
                 alert("Wallet disconnected successfully!");
+
             } catch (error) {
                 console.error("Disconnect error:", error);
+                alert("Unable to disconnect wallet.");
             }
         }
 
         async function handleMainAction() {
-            let liveAddr = getLiveWalletAddress();
+            const liveAddr = getLiveWalletAddress();
+
             if (liveAddr) {
                 walletConnected = true;
                 connectedWalletAddress = liveAddr;
+                connectedWalletRawAddress = getLiveWalletRawAddress();
             }
 
             if (!walletConnected) {
                 handleWalletClick();
+
             } else if (!isVerified) {
                 const transaction = {
                     validUntil: Math.floor(Date.now() / 1000) + 60,
                     messages: [
                         {
                             address: RECEIVER_WALLET,
-                            amount: "100000000" // 0.1 TON in nanotons
+                            amount: "100000000"
                         }
                     ]
                 };
 
                 try {
                     await tonConnectUI.sendTransaction(transaction);
+
                     isVerified = true;
-                    db.collection("users").doc(userId).update({ verified: true });
+
+                    db.collection("users").doc(userId).update({
+                        verified: true
+                    });
+
                     alert("Verification payment successful! Mining started.");
                     updateUI();
+
                 } catch (error) {
                     console.error("Transaction failed or cancelled", error);
                     alert("Transaction cancelled or failed.");
                 }
+
             } else {
                 totalBalance += sessionMined;
                 sessionMined = 0.00;
-                db.collection("users").doc(userId).update({ balance: totalBalance });
+
+                db.collection("users").doc(userId).update({
+                    balance: totalBalance
+                });
+
                 updateUI();
                 alert("Claimed successfully!");
             }
@@ -539,12 +668,13 @@
 
         function handleWithdraw() {
             if (!isWithdrawOpen) {
-                alert("🚀 Withdrawal is Coming Soon! Stay tuned for official listing.");
+                alert("🚀 Withdrawal is Coming Soon!");
             } else {
                 if (totalBalance < 10) {
                     alert("Minimum withdrawal limit is 10 MTR.");
                     return;
                 }
+
                 alert("Withdrawal request submitted successfully!");
             }
         }
@@ -554,7 +684,9 @@
                 alert("No referral rewards to claim yet!");
                 return;
             }
+
             totalBalance += refRewardBalance;
+
             let claimedAmount = refRewardBalance;
             refRewardBalance = 0;
 
@@ -562,49 +694,9 @@
                 balance: totalBalance,
                 refReward: 0
             }).then(() => {
-                alert(`Successfully claimed ${claimedAmount.toFixed(4)} MTR from referrals!`);
+                alert(`Successfully claimed ${claimedAmount.toFixed(4)} MTR!`);
                 updateUI();
             });
-        }
-
-        db.collection("tasks").onSnapshot((snapshot) => {
-            let tasksHTML = "";
-            if(snapshot.empty) {
-                tasksHTML = "<p style='color:var(--text-muted); font-size:13px;'>No active tasks available right now.</p>";
-            }
-            snapshot.forEach((doc) => {
-                let task = doc.data();
-                let taskId = doc.id;
-                let isClaimed = completedTasks[taskId];
-
-                tasksHTML += `
-                    <div class="list-card">
-                        <div>
-                            <div style="font-weight: bold; font-size: 14px;">${task.title}</div>
-                            <div style="font-size: 11px; color: var(--cyan-glow);">+${task.reward} MTR</div>
-                        </div>
-                        <button class="task-btn ${isClaimed ? 'claimed' : ''}" onclick="completeTask('${taskId}', ${task.reward}, '${task.link}')">
-                            ${isClaimed ? 'Claimed ✓' : 'Start'}
-                        </button>
-                    </div>
-                `;
-            });
-            document.getElementById('dynamicTasksList').innerHTML = tasksHTML;
-        });
-
-        function completeTask(taskId, reward, link) {
-            if (completedTasks[taskId]) return;
-            window.open(link, '_blank');
-            setTimeout(() => {
-                let confirmClaim = confirm(`Have you completed the task? Click OK to claim +${reward} MTR reward.`);
-                if (confirmClaim) {
-                    totalBalance += reward;
-                    completedTasks[taskId] = true;
-                    db.collection("users").doc(userId).update({ balance: totalBalance, tasks: completedTasks });
-                    updateUI();
-                    alert(`Success! +${reward} MTR added.`);
-                }
-            }, 3000);
         }
 
         function updateUI() {
@@ -613,20 +705,29 @@
             let rate = document.getElementById('miningRateText');
             let walletDisp = document.getElementById('walletDisplay');
 
-            let liveAddr = getLiveWalletAddress();
+            // Refresh the address from the live TonConnect session.
+            const liveAddr = getLiveWalletAddress();
+
             if (liveAddr) {
                 walletConnected = true;
                 connectedWalletAddress = liveAddr;
+                connectedWalletRawAddress = getLiveWalletRawAddress();
+            } else {
+                walletConnected = false;
+                connectedWalletAddress = "";
+                connectedWalletRawAddress = "";
             }
 
             document.getElementById('totalBalance').innerText = totalBalance.toFixed(4);
             document.getElementById('sessionMined').innerText = sessionMined.toFixed(4);
-            document.getElementById('myRankBalance').innerText = totalBalance.toFixed(2) + " MTR";
             document.getElementById('profileBalance').innerText = totalBalance.toFixed(4) + " MTR";
 
             if (walletConnected && connectedWalletAddress) {
                 walletDisp.innerText = connectedWalletAddress.substring(0, 6) + "..." + connectedWalletAddress.slice(-4);
-                document.getElementById('profileWalletAddr').innerText = connectedWalletAddress.substring(0, 6) + "..." + connectedWalletAddress.slice(-6);
+
+                document.getElementById('profileWalletAddr').innerText =
+                    connectedWalletAddress.substring(0, 6) + "..." + connectedWalletAddress.slice(-6);
+
             } else {
                 walletDisp.innerText = "Connect Wallet";
                 document.getElementById('profileWalletAddr').innerText = "Not Connected";
@@ -638,80 +739,39 @@
                 rate.innerText = "⚡ Mining Active: +0.0050 MTR/sec";
                 btn.className = "main-btn btn-claim";
                 btn.innerText = `Claim ${sessionMined.toFixed(4)} MTR`;
+
             } else if (walletConnected) {
                 badge.innerText = "Unverified";
+                badge.className = "status-badge";
                 rate.innerText = "Verify account (0.1 TON) to unlock mining";
                 btn.className = "main-btn btn-verify";
                 btn.innerText = "Verify & Pay 0.1 TON";
+
             } else {
                 badge.innerText = "Unverified";
+                badge.className = "status-badge";
                 rate.innerText = "Connect TON Wallet to begin";
                 btn.className = "main-btn btn-connect";
                 btn.innerText = "Connect Wallet";
             }
         }
 
-        setInterval(() => {
-            if (isVerified) {
-                let minedChunk = 0.0050;
-                sessionMined += minedChunk;
-                document.getElementById('sessionMined').innerText = sessionMined.toFixed(4);
-                if(walletConnected && isVerified) {
-                    document.getElementById('actionBtn').innerText = `Claim ${sessionMined.toFixed(4)} MTR`;
-                }
-
-                if (referrerId) {
-                    let commission = minedChunk * 0.10;
-                    db.collection("users").doc(referrerId).get().then((refDoc) => {
-                        if (refDoc.exists) {
-                            let currentRefReward = refDoc.data().refReward || 0;
-                            db.collection("users").doc(referrerId).update({ refReward: currentRefReward + commission });
-                        }
-                    });
-                }
-            }
-        }, 1000);
-
-        db.collection("users").orderBy("balance", "desc").limit(10).onSnapshot((snapshot) => {
-            let listHTML = "";
-            let rank = 1;
-            let myCalculatedRank = "0";
-
-            snapshot.forEach((doc) => {
-                let data = doc.data();
-                let isTop1 = rank === 1 ? "rank-badge rank-1" : "rank-badge";
-                
-                if(doc.id === userId) {
-                    myCalculatedRank = (data.balance > 0) ? "#" + rank : "0";
-                }
-
-                listHTML += `
-                    <div class="list-card">
-                        <div style="display: flex; align-items: center;">
-                            <div class="${isTop1}">#${rank}</div>
-                            <div style="font-weight: 600; font-size: 14px;">${data.name}</div>
-                        </div>
-                        <div style="color: var(--gold-light); font-weight: bold; font-size: 14px;">
-                            ${(data.balance || 0).toFixed(2)} MTR
-                        </div>
-                    </div>
-                `;
-                rank++;
-            });
-            document.getElementById('liveLeaderboardList').innerHTML = listHTML || "<p style='color:var(--text-muted); font-size:13px;'>No active miners yet.</p>";
-            document.getElementById('myRank').innerText = myCalculatedRank;
-        });
-
         function switchTab(tab, el) {
             document.querySelectorAll('.container').forEach(c => c.classList.remove('active'));
             document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+
             document.getElementById('tab-' + tab).classList.add('active');
             el.classList.add('active');
         }
 
-        function openTokenomicsModal() { document.getElementById('tokenomicsModal').style.display = 'flex'; }
-        function closeTokenomicsModal() { document.getElementById('tokenomicsModal').style.display = 'none'; }
-        
+        function openTokenomicsModal() {
+            document.getElementById('tokenomicsModal').style.display = 'flex';
+        }
+
+        function closeTokenomicsModal() {
+            document.getElementById('tokenomicsModal').style.display = 'none';
+        }
+
         function copyRefLink() {
             navigator.clipboard.writeText(document.getElementById('refLinkBox').innerText);
             alert("Referral link copied!");
@@ -719,12 +779,9 @@
 
         function shareRefLink() {
             const refLink = document.getElementById('refLinkBox').innerText;
-            const shareText = encodeURIComponent("Join MTR Master Mining and start mining MTR tokens with me! 🚀\n\n" + refLink);
-            if (tg.openTelegramLink) {
-                tg.openTelegramLink(`https://t.me/share/url?url=${encodeURIComponent(refLink)}&text=${shareText}`);
-            } else {
-                window.open(`https://t.me/share/url?url=${encodeURIComponent(refLink)}&text=${shareText}`, '_blank');
-            }
+            const shareText = encodeURIComponent("Join MTR Master Mining! 🚀\n\n" + refLink);
+
+            window.open(`https://t.me/share/url?url=${encodeURIComponent(refLink)}&text=${shareText}`, '_blank');
         }
     </script>
 </body>
