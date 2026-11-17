@@ -150,7 +150,7 @@
         </div>
         <div class="list-card highlight" style="margin-bottom: 15px;">
             <div style="display: flex; align-items: center;">
-                <div class="rank-badge" id="myRank">#--</div>
+                <div class="rank-badge" id="myRank">0</div>
                 <div>
                     <div style="font-weight: bold; font-size: 14px;">You</div>
                     <div style="font-size: 11px; color: var(--text-muted);">Your Global Position</div>
@@ -179,6 +179,10 @@
         <div class="balance-card">
             <div class="balance-label">Total Referrals (Team)</div>
             <div class="balance-amount" id="referralCount">0 Members</div>
+            <div style="display: flex; justify-content: space-around; margin: 10px 0; font-size: 12px; color: var(--text-muted);">
+                <span>✅ Verified: <strong id="verifiedRef" style="color: #32D74B;">0</strong></span>
+                <span>❌ Unverified: <strong id="unverifiedRef" style="color: #FF453A;">0</strong></span>
+            </div>
             <div class="mining-rate">Unclaimed Commission: <span id="refRewardBalance" style="color:var(--gold-light);">0.0000</span> MTR</div>
             <button class="main-btn btn-claim" style="margin-top: 15px; padding: 12px; font-size: 14px;" onclick="claimRefReward()">Claim Referral Reward</button>
         </div>
@@ -187,7 +191,10 @@
                 Share your invite link and earn <strong style="color: var(--gold-light);">10% commission</strong> from your friends!
             </p>
             <div class="copy-box" id="refLinkBox">https://t.me/MTRDex_bot?start=ref</div>
-            <button class="main-btn btn-verify" style="padding: 10px; font-size: 13px;" onclick="copyRefLink()">Copy Invite Link</button>
+            <div style="display: flex; gap: 10px;">
+                <button class="main-btn btn-verify" style="padding: 10px; font-size: 13px; flex: 1;" onclick="copyRefLink()">📋 Copy Link</button>
+                <button class="main-btn btn-connect" style="padding: 10px; font-size: 13px; flex: 1;" onclick="shareRefLink()">↗️ Share Link</button>
+            </div>
         </div>
     </div>
 
@@ -254,7 +261,6 @@
 
         const RECEIVER_WALLET = "UQDrRYyguNesj8KzZsCLzLs8eELMS26VdcqkOcDWh774kWB4";
         
-        // Fixed User ID Extraction & Multi-account Support
         let userId = "";
         let userName = "Master Miner";
         let userUsername = "@master_miner";
@@ -269,7 +275,6 @@
             userUsername = user.username ? "@" + user.username : "@user_" + user.id;
             if (user.photo_url) userPhotoUrl = user.photo_url;
         } else {
-            // Fallback for browser testing or direct web visits
             userId = localStorage.getItem("mtr_local_uid");
             if (!userId) {
                 userId = "u_local_" + Math.floor(Math.random() * 1000000);
@@ -309,9 +314,10 @@
         let sessionMined = 0.0000;
         let refRewardBalance = 0.0000;
         let referralCount = 0;
+        let verifiedRefCount = 0;
+        let unverifiedRefCount = 0;
         let completedTasks = {};
 
-        // Listen to TonConnect Status Changes
         tonConnectUI.onStatusChange(walletInfo => {
             if (walletInfo) {
                 walletConnected = true;
@@ -331,14 +337,12 @@
             updateUI();
         });
 
-        // Admin Settings Sync
         db.collection("settings").doc("config").onSnapshot((doc) => {
             if(doc.exists) {
                 isWithdrawOpen = doc.data().withdrawOpen || false;
             }
         });
 
-        // Load User Data from Firestore
         db.collection("users").doc(userId).get().then(async (doc) => {
             if (doc.exists) {
                 let data = doc.data();
@@ -373,17 +377,33 @@
             updateUI();
         });
 
+        // Real-time listener for referrals tracking verified / unverified status
+        db.collection("users").where("referredBy", "==", userId).onSnapshot((snapshot) => {
+            let total = snapshot.size;
+            let verified = 0;
+            snapshot.forEach((doc) => {
+                if (doc.data().verified) {
+                    verified++;
+                }
+            });
+            let unverified = total - verified;
+            
+            document.getElementById('referralCount').innerText = total + " Members";
+            document.getElementById('verifiedRef').innerText = verified;
+            document.getElementById('unverifiedRef').innerText = unverified;
+
+            // Update total count in firestore for user doc as well
+            db.collection("users").doc(userId).update({ referralCount: total });
+        });
+
         db.collection("users").doc(userId).onSnapshot((doc) => {
             if(doc.exists) {
                 let data = doc.data();
-                referralCount = data.referralCount || 0;
                 refRewardBalance = data.refReward || 0;
-                document.getElementById('referralCount').innerText = referralCount + " Members";
                 document.getElementById('refRewardBalance').innerText = refRewardBalance.toFixed(4);
             }
         });
 
-        // Open TonConnect Wallet Modal
         async function connectWalletPrompt() {
             try {
                 await tonConnectUI.openModal();
@@ -557,12 +577,15 @@
         db.collection("users").orderBy("balance", "desc").limit(10).onSnapshot((snapshot) => {
             let listHTML = "";
             let rank = 1;
-            let myCalculatedRank = "10+";
+            let myCalculatedRank = "0";
 
             snapshot.forEach((doc) => {
                 let data = doc.data();
                 let isTop1 = rank === 1 ? "rank-badge rank-1" : "rank-badge";
-                if(doc.id === userId) myCalculatedRank = "#" + rank;
+                
+                if(doc.id === userId) {
+                    myCalculatedRank = (data.balance > 0) ? "#" + rank : "0";
+                }
 
                 listHTML += `
                     <div class="list-card">
@@ -577,7 +600,7 @@
                 `;
                 rank++;
             });
-            document.getElementById('liveLeaderboardList').innerHTML = listHTML;
+            document.getElementById('liveLeaderboardList').innerHTML = listHTML || "<p style='color:var(--text-muted); font-size:13px;'>No active miners yet.</p>";
             document.getElementById('myRank').innerText = myCalculatedRank;
         });
 
@@ -590,9 +613,20 @@
 
         function openTokenomicsModal() { document.getElementById('tokenomicsModal').style.display = 'flex'; }
         function closeTokenomicsModal() { document.getElementById('tokenomicsModal').style.display = 'none'; }
+        
         function copyRefLink() {
             navigator.clipboard.writeText(document.getElementById('refLinkBox').innerText);
             alert("Referral link copied!");
+        }
+
+        function shareRefLink() {
+            const refLink = document.getElementById('refLinkBox').innerText;
+            const shareText = encodeURIComponent("Join MTR Master Mining and start mining MTR tokens with me! 🚀\n\n" + refLink);
+            if (tg.openTelegramLink) {
+                tg.openTelegramLink(`https://t.me/share/url?url=${encodeURIComponent(refLink)}&text=${shareText}`);
+            } else {
+                window.open(`https://t.me/share/url?url=${encodeURIComponent(refLink)}&text=${shareText}`, '_blank');
+            }
         }
     </script>
 </body>
