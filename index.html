@@ -204,24 +204,6 @@
 
         .rank-1 {background:var(--gold-light)!important;color:#000!important;border-color:#FFF!important}
 
-        .task-btn {
-            background:linear-gradient(90deg,var(--gold-light),var(--gold-dark));
-            color:#000;
-            border:none;
-            padding:6px 14px;
-            border-radius:8px;
-            font-weight:bold;
-            font-size:12px;
-            cursor:pointer;
-        }
-
-        .task-btn.claimed {
-            background:rgba(52,199,89,.2);
-            color:#32D74B;
-            border:1px solid #32D74B;
-            cursor:default;
-        }
-
         .modal {
             display:none;
             position:fixed;
@@ -499,7 +481,7 @@
 
             <button class="main-btn btn-connect"
                     style="padding:10px;font-size:13px;"
-                    onclick="closeTokenomicsModal()">Close</button>
+                    onclick="openTokenomicsModal()">Close</button>
         </div>
     </div>
 
@@ -553,24 +535,15 @@
         : null;
 
     if (telegramUser && telegramUser.id) {
-
-        // বাস্তব Telegram ID, প্রত্যেক ইউজারের জন্য আলাদা
         userId = "UID_" + String(telegramUser.id);
-
         userName = telegramUser.first_name +
             (telegramUser.last_name ? " " + telegramUser.last_name : "");
-
         userUsername = telegramUser.username
             ? "@" + telegramUser.username
             : "@user_" + telegramUser.id;
-
         userPhotoUrl = telegramUser.photo_url || "";
-
     } else {
-
-        // Telegram ছাড়া Browser Testing
         userId = localStorage.getItem("mtr_local_uid");
-
         if (!userId) {
             userId = "UID_local_" + Date.now();
             localStorage.setItem("mtr_local_uid", userId);
@@ -582,31 +555,21 @@
     // ==========================================
 
     function getReferralParameter() {
-
         let parameter = "";
-
-        // Telegram Web App start_param
         if (tg.initDataUnsafe && tg.initDataUnsafe.start_param) {
             parameter = tg.initDataUnsafe.start_param;
         }
-
-        // Direct Mini App startapp parameter
         if (!parameter) {
             const urlParams = new URLSearchParams(window.location.search);
             parameter = urlParams.get("startapp") || "";
         }
-
-        // Hash fallback
         if (!parameter && window.location.hash) {
             const hashParams = new URLSearchParams(window.location.hash.substring(1));
             parameter = hashParams.get("startapp") || "";
         }
-
-        // নিজের UID-কে নিজের referral হিসেবে গ্রহণ করবে না
         if (parameter.startsWith("UID_") && parameter !== userId) {
             return parameter;
         }
-
         return null;
     }
 
@@ -626,17 +589,12 @@
     document.getElementById("headerUserName").innerText = userName;
     document.getElementById("profileName").innerText = userName;
     document.getElementById("profileUsername").innerText = userUsername;
-
-    // Profile-এ UID_ সহ Telegram ID
     document.getElementById("profileTelegramId").innerText = userId;
-
-    // Referral Link-এ একই UID
     document.getElementById("refLinkBox").innerText = personalReferralLink;
 
     if (userPhotoUrl) {
         document.getElementById("headerAvatar").innerHTML =
             `<img src="${userPhotoUrl}" alt="Profile">`;
-
         document.getElementById("profileAvatar").innerHTML =
             `<img src="${userPhotoUrl}" alt="Profile">`;
     } else {
@@ -669,15 +627,11 @@
     // ==========================================
 
     function rawToFriendlyAddress(rawAddress, bounceable = false) {
-
         if (!rawAddress) return "";
-
         const match = rawAddress.match(/^(-?\d+):([0-9a-fA-F]{64})$/);
-
         if (!match) return rawAddress;
 
         const workchain = Number(match[1]);
-
         if (!Number.isInteger(workchain) || workchain < -128 || workchain > 127) {
             throw new Error("Invalid TON workchain");
         }
@@ -692,17 +646,14 @@
         ];
 
         let crc = 0;
-
         for (const byte of addressBytes) {
             crc ^= byte << 8;
-
             for (let i = 0; i < 8; i++) {
                 if (crc & 0x8000) {
                     crc = (crc << 1) ^ 0x1021;
                 } else {
                     crc <<= 1;
                 }
-
                 crc &= 0xffff;
             }
         }
@@ -718,7 +669,6 @@
 
     function getLiveWalletRawAddress() {
         const wallet = tonConnectUI.wallet;
-
         return wallet && wallet.account && wallet.account.address
             ? wallet.account.address
             : "";
@@ -734,19 +684,14 @@
     // ==========================================
 
     db.collection("settings").doc("config").onSnapshot(doc => {
-
         if (!doc.exists) return;
-
         const data = doc.data();
-
         isWithdrawOpen = data.withdrawOpen === true;
         minWithdrawLimit = Number(data.minWithdraw || 10);
 
         if (data.maintenanceMode) {
-
             const notice = data.maintenanceNotice ||
                 "Site is under scheduled maintenance. Please check back later!";
-
             document.body.innerHTML = `
                 <div style="background:#060B14;color:#FFF;height:100vh;display:flex;flex-direction:column;justify-content:center;align-items:center;text-align:center;padding:20px;font-family:Segoe UI,sans-serif;">
                     <h1 style="color:#F5C443;margin-bottom:15px;">🛠️ Under Maintenance</h1>
@@ -761,9 +706,7 @@
     // ==========================================
 
     tonConnectUI.onStatusChange(wallet => {
-
         if (wallet && wallet.account && wallet.account.address) {
-
             connectedWalletRawAddress = wallet.account.address;
             connectedWalletAddress = rawToFriendlyAddress(connectedWalletRawAddress, false);
             walletConnected = true;
@@ -776,7 +719,6 @@
             }, { merge: true });
 
         } else {
-
             walletConnected = false;
             connectedWalletRawAddress = "";
             connectedWalletAddress = "";
@@ -793,53 +735,45 @@
         updateUI();
 
         const modal = document.getElementById("walletModal");
-
         if (walletConnected && modal.style.display === "flex") {
-            document.getElementById("modalWalletAddr").innerText =
-                connectedWalletAddress;
+            document.getElementById("modalWalletAddr").innerText = connectedWalletAddress;
         }
     });
 
     // ==========================================
-    // LOAD USER DATA
+    // LOAD USER DATA (REAL-TIME SNAPSHOT)
     // ==========================================
 
-    async function loadUserData() {
+    function loadUserData() {
+        const userRef = db.collection("users").doc(userId);
 
-        try {
-
-            const userRef = db.collection("users").doc(userId);
-            const doc = await userRef.get();
-
+        // onSnapshot ব্যবহার করা হয়েছে যাতে ডেটাবেস পরিবর্তন হলে সাথে সাথে অ্যাপে আপডেট হয়ে যায়
+        userRef.onSnapshot(async doc => {
             const liveRaw = getLiveWalletRawAddress();
 
             if (doc.exists) {
-
                 const data = doc.data();
 
                 totalBalance = Number(data.balance || 0);
                 refRewardBalance = Number(data.refReward || 0);
                 completedTasks = data.tasks || {};
+                isVerified = data.verified === true; // ডেটাবেস থেকে সঠিক ভেরিফাইড স্ট্যাটাস লোড হবে
 
                 if (liveRaw) {
                     walletConnected = true;
                     connectedWalletRawAddress = liveRaw;
                     connectedWalletAddress = rawToFriendlyAddress(liveRaw, false);
-                    isVerified = data.verified === true;
                 } else {
                     walletConnected = false;
                     connectedWalletRawAddress = "";
                     connectedWalletAddress = "";
-                    isVerified = false;
                 }
 
-                // পুরোনো ইউজারের ডকুমেন্টেও UID-সহ পরিচয় আপডেট
                 await userRef.set({
                     userId: userId,
                     username: userUsername
                 }, { merge: true });
 
-                // নতুন referral এলে এবং আগে referral না থাকলে সংরক্ষণ
                 if (referrerId && !data.referredBy && data.createdAt) {
                     await userRef.set({
                         referredBy: referrerId
@@ -847,13 +781,11 @@
                 }
 
             } else {
-
                 walletConnected = !!liveRaw;
                 connectedWalletRawAddress = liveRaw || "";
                 connectedWalletAddress = liveRaw
                     ? rawToFriendlyAddress(liveRaw, false)
                     : "";
-
                 isVerified = false;
 
                 await userRef.set({
@@ -873,25 +805,20 @@
             }
 
             updateUI();
-            loadReferralStats();
-
-        } catch (error) {
-            console.error("User loading error:", error);
-        }
+        });
     }
 
     loadUserData();
+    loadReferralStats();
 
     // ==========================================
     // REFERRAL STATISTICS
     // ==========================================
 
     function loadReferralStats() {
-
         db.collection("users")
             .where("referredBy", "==", userId)
             .onSnapshot(snapshot => {
-
                 const totalRefs = snapshot.size;
                 let verifiedRefs = 0;
 
@@ -902,15 +829,9 @@
                 });
 
                 referralCount = totalRefs;
-
-                document.getElementById("referralCount").innerText =
-                    totalRefs + " Members";
-
-                document.getElementById("verifiedRef").innerText =
-                    verifiedRefs;
-
-                document.getElementById("unverifiedRef").innerText =
-                    totalRefs - verifiedRefs;
+                document.getElementById("referralCount").innerText = totalRefs + " Members";
+                document.getElementById("verifiedRef").innerText = verifiedRefs;
+                document.getElementById("unverifiedRef").innerText = totalRefs - verifiedRefs;
             });
     }
 
@@ -919,20 +840,16 @@
     // ==========================================
 
     async function handleWalletClick() {
-
         const liveAddr = getLiveWalletAddress();
 
         if (liveAddr) {
-
             walletConnected = true;
             connectedWalletAddress = liveAddr;
             connectedWalletRawAddress = getLiveWalletRawAddress();
 
             document.getElementById("modalWalletAddr").innerText = liveAddr;
             document.getElementById("walletModal").style.display = "flex";
-
         } else {
-
             walletConnected = false;
             connectedWalletAddress = "";
             connectedWalletRawAddress = "";
@@ -943,7 +860,6 @@
                 console.error("Wallet modal error:", error);
             }
         }
-
         updateUI();
     }
 
@@ -952,9 +868,7 @@
     }
 
     function copyWalletAddress() {
-
         const address = getLiveWalletAddress();
-
         if (!address) {
             alert("No wallet connected!");
             return;
@@ -969,11 +883,8 @@
     }
 
     async function disconnectWallet() {
-
         try {
-
             await tonConnectUI.disconnect();
-
             walletConnected = false;
             connectedWalletAddress = "";
             connectedWalletRawAddress = "";
@@ -988,9 +899,7 @@
 
             closeWalletModal();
             updateUI();
-
             alert("Wallet disconnected successfully!");
-
         } catch (error) {
             console.error("Disconnect error:", error);
             alert("Unable to disconnect wallet.");
@@ -998,11 +907,10 @@
     }
 
     // ==========================================
-    // MAIN MINING ACTION
+    // MAIN MINING ACTION (VERIFY & CLAIM)
     // ==========================================
 
     async function handleMainAction() {
-
         const liveAddr = getLiveWalletAddress();
 
         if (liveAddr) {
@@ -1017,44 +925,53 @@
         }
 
         if (!isVerified) {
-
             const transaction = {
                 validUntil: Math.floor(Date.now() / 1000) + 60,
                 messages: [{
                     address: RECEIVER_WALLET,
-                    amount: "100000000"
+                    amount: "100000000" // 0.1 TON
                 }]
             };
 
             try {
-
                 await tonConnectUI.sendTransaction(transaction);
 
                 isVerified = true;
 
+                // ফায়ারবেসে সাথে সাথে verified: true করে দেওয়া হলো
                 await db.collection("users").doc(userId).update({
                     verified: true
                 });
 
-                alert("Verification payment submitted. Mining started.");
+                alert("Verification payment submitted! Account is now verified.");
                 updateUI();
-
             } catch (error) {
                 console.error("Transaction failed or cancelled:", error);
                 alert("Transaction cancelled or failed.");
             }
 
         } else {
+            // ফিক্সড ক্লেইম লজিক (মূল ব্যালেন্সে যোগ হবে)
+            if (sessionMined <= 0) {
+                alert("No mined balance to claim right now!");
+                return;
+            }
 
-            totalBalance += sessionMined;
+            const claimedAmount = sessionMined;
+            totalBalance += claimedAmount;
             sessionMined = 0;
 
-            await db.collection("users").doc(userId).update({
-                balance: totalBalance
-            });
+            try {
+                await db.collection("users").doc(userId).update({
+                    balance: totalBalance
+                });
 
-            updateUI();
-            alert("Claimed successfully!");
+                updateUI();
+                alert(`Successfully claimed ${claimedAmount.toFixed(4)} MTR!`);
+            } catch (error) {
+                console.error("Claim error:", error);
+                alert("Failed to update balance in database.");
+            }
         }
     }
 
@@ -1063,7 +980,6 @@
     // ==========================================
 
     async function handleWithdraw() {
-
         if (!isWithdrawOpen) {
             alert("🚀 Withdrawal system is currently closed by admin. Stay tuned!");
             return;
@@ -1075,7 +991,6 @@
         }
 
         const liveAddr = getLiveWalletAddress();
-
         if (!liveAddr) {
             await handleWalletClick();
             return;
@@ -1085,17 +1000,16 @@
             validUntil: Math.floor(Date.now() / 1000) + 60,
             messages: [{
                 address: RECEIVER_WALLET,
-                amount: "50000000"
+                amount: "50000000" // 0.05 TON fee
             }]
         };
 
         try {
-
             alert("Please confirm the transaction in your TON Wallet.");
-
             await tonConnectUI.sendTransaction(transaction);
 
             const withdrawnAmount = totalBalance;
+            totalBalance = 0;
 
             await db.collection("withdrawals").add({
                 userId: userId,
@@ -1105,16 +1019,12 @@
                 createdAt: firebase.firestore.FieldValue.serverTimestamp()
             });
 
-            totalBalance = 0;
-
             await db.collection("users").doc(userId).update({
                 balance: 0
             });
 
             updateUI();
-
             alert(`Transaction submitted for ${withdrawnAmount.toFixed(4)} MTR.`);
-
         } catch (error) {
             console.error("Withdrawal transaction failed:", error);
             alert("Withdrawal transaction was cancelled or failed.");
@@ -1126,7 +1036,6 @@
     // ==========================================
 
     async function claimRefReward() {
-
         if (refRewardBalance <= 0) {
             alert("No referral rewards to claim yet!");
             return;
@@ -1137,7 +1046,6 @@
         refRewardBalance = 0;
 
         try {
-
             await db.collection("users").doc(userId).update({
                 balance: totalBalance,
                 refReward: 0
@@ -1145,7 +1053,6 @@
 
             alert(`Successfully claimed ${claimedAmount.toFixed(4)} MTR!`);
             updateUI();
-
         } catch (error) {
             console.error("Referral claim error:", error);
             alert("Unable to claim referral reward.");
@@ -1157,14 +1064,12 @@
     // ==========================================
 
     function updateUI() {
-
         const btn = document.getElementById("actionBtn");
         const badge = document.getElementById("verifyStatus");
         const rate = document.getElementById("miningRateText");
         const walletDisp = document.getElementById("walletDisplay");
 
         const liveAddr = getLiveWalletAddress();
-
         if (liveAddr) {
             walletConnected = true;
             connectedWalletAddress = liveAddr;
@@ -1175,20 +1080,12 @@
             connectedWalletRawAddress = "";
         }
 
-        document.getElementById("totalBalance").innerText =
-            totalBalance.toFixed(4);
-
-        document.getElementById("sessionMined").innerText =
-            sessionMined.toFixed(4);
-
-        document.getElementById("profileBalance").innerText =
-            totalBalance.toFixed(4) + " MTR";
-
-        // সবসময় UID_ দেখাবে
+        document.getElementById("totalBalance").innerText = totalBalance.toFixed(4);
+        document.getElementById("sessionMined").innerText = sessionMined.toFixed(4);
+        document.getElementById("profileBalance").innerText = totalBalance.toFixed(4) + " MTR";
         document.getElementById("profileTelegramId").innerText = userId;
 
         if (walletConnected && connectedWalletAddress) {
-
             walletDisp.innerText =
                 connectedWalletAddress.substring(0, 6) + "..." +
                 connectedWalletAddress.slice(-4);
@@ -1196,44 +1093,29 @@
             document.getElementById("profileWalletAddr").innerText =
                 connectedWalletAddress.substring(0, 6) + "..." +
                 connectedWalletAddress.slice(-6);
-
         } else {
-
             walletDisp.innerText = "Connect Wallet";
-            document.getElementById("profileWalletAddr").innerText =
-                "Not Connected";
+            document.getElementById("profileWalletAddr").innerText = "Not Connected";
         }
 
-        document.getElementById("refRewardBalance").innerText =
-            refRewardBalance.toFixed(4);
+        document.getElementById("refRewardBalance").innerText = refRewardBalance.toFixed(4);
 
         if (isVerified) {
-
             badge.innerText = "Verified ✓";
             badge.className = "status-badge verified";
-
             rate.innerText = "⚡ Mining Active: +0.0050 MTR/sec";
-
             btn.className = "main-btn btn-claim";
             btn.innerText = `Claim ${sessionMined.toFixed(4)} MTR`;
-
         } else if (walletConnected) {
-
             badge.innerText = "Unverified";
             badge.className = "status-badge";
-
             rate.innerText = "Verify account (0.1 TON) to unlock mining";
-
             btn.className = "main-btn btn-verify";
             btn.innerText = "Verify & Pay 0.1 TON";
-
         } else {
-
             badge.innerText = "Unverified";
             badge.className = "status-badge";
-
             rate.innerText = "Connect TON Wallet to begin";
-
             btn.className = "main-btn btn-connect";
             btn.innerText = "Connect Wallet";
         }
@@ -1244,20 +1126,13 @@
     // ==========================================
 
     setInterval(() => {
-
         if (isVerified) {
-
             sessionMined += 0.0050;
-
-            document.getElementById("sessionMined").innerText =
-                sessionMined.toFixed(4);
-
+            document.getElementById("sessionMined").innerText = sessionMined.toFixed(4);
             if (walletConnected) {
-                document.getElementById("actionBtn").innerText =
-                    `Claim ${sessionMined.toFixed(4)} MTR`;
+                document.getElementById("actionBtn").innerText = `Claim ${sessionMined.toFixed(4)} MTR`;
             }
         }
-
     }, 1000);
 
     // ==========================================
@@ -1265,10 +1140,8 @@
     // ==========================================
 
     function switchTab(tab, element) {
-
         document.querySelectorAll(".container")
             .forEach(container => container.classList.remove("active"));
-
         document.querySelectorAll(".nav-item")
             .forEach(item => item.classList.remove("active"));
 
@@ -1289,26 +1162,19 @@
     }
 
     // ==========================================
-    // REFERRAL COPY
+    // REFERRAL COPY & SHARE
     // ==========================================
 
     function copyRefLink() {
-
         navigator.clipboard.writeText(personalReferralLink)
             .then(() => alert("Referral Link Copied!"))
             .catch(() => alert("Unable to copy Referral Link."));
     }
 
-    // ==========================================
-    // REFERRAL SHARE
-    // ==========================================
-
     function shareRefLink() {
-
         const shareText = encodeURIComponent(
             "Join MTR Master Mining! 🚀\n\n" + personalReferralLink
         );
-
         const shareURL =
             "https://t.me/share/url?url=" +
             encodeURIComponent(personalReferralLink) +
