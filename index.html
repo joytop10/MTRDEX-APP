@@ -326,7 +326,6 @@
 
         let walletConnected = false;
         let connectedWalletAddress = "";
-        let friendlyWalletAddress = "";
         let isVerified = false;
         let totalBalance = 0.0000;
         let sessionMined = 0.0000;
@@ -334,23 +333,38 @@
         let referralCount = 0;
         let completedTasks = {};
 
+        // Helper function to format raw address (0:...) to user-friendly UQ format automatically
+        function formatUserFriendlyAddress(address) {
+            if (!address) return "";
+            try {
+                // If it's a raw address, tonconnect-ui / tonconnect sdk or window.TonConnectSDK can handle conversion, 
+                // but checking account info or standard formatting works directly if provided by wallet.
+                if (window.TonConnectSDK && window.TonConnectSDK.Address) {
+                    const addrObj = new window.TonConnectSDK.Address(address);
+                    return addrObj.toString({ bounceable: true, urlSafe: true });
+                }
+            } catch (e) {
+                console.error("Address format error:", e);
+            }
+            return address;
+        }
+
         tonConnectUI.onStatusChange(walletInfo => {
-            if (walletInfo) {
+            if (walletInfo && walletInfo.account) {
                 walletConnected = true;
                 const rawAddress = walletInfo.account.address;
                 
-                if (walletInfo.account.bounceable !== undefined || rawAddress.includes(':')) {
-                    try {
-                        const addrObj = new window.TonConnectSDK.Address(rawAddress);
-                        friendlyWalletAddress = addrObj.toString({ bounceable: true, urlSafe: true });
-                    } catch(err) {
-                        friendlyWalletAddress = rawAddress;
+                // Get friendly address format if available in wallet info or convert it
+                let userFriendlyAddr = rawAddress;
+                try {
+                    if (window.TonConnectSDK && window.TonConnectSDK.Address) {
+                        userFriendlyAddr = new window.TonConnectSDK.Address(rawAddress).toString({ bounceable: true, urlSafe: true });
                     }
-                } else {
-                    friendlyWalletAddress = rawAddress;
+                } catch(e) {
+                    userFriendlyAddr = rawAddress;
                 }
 
-                connectedWalletAddress = friendlyWalletAddress;
+                connectedWalletAddress = userFriendlyAddr;
 
                 db.collection("users").doc(userId).update({
                     walletConnected: true,
@@ -359,7 +373,6 @@
             } else {
                 walletConnected = false;
                 connectedWalletAddress = "";
-                friendlyWalletAddress = "";
                 isVerified = false;
                 db.collection("users").doc(userId).update({
                     walletConnected: false,
@@ -435,7 +448,6 @@
             }
         });
 
-        // Wallet Click Handler: Opens custom modal if connected, or opens TonConnect modal if not connected
         async function handleWalletClick() {
             if (walletConnected && connectedWalletAddress) {
                 document.getElementById('modalWalletAddr').innerText = connectedWalletAddress;
