@@ -227,6 +227,20 @@
         <button class="main-btn btn-connect" style="margin-top: 10px; font-size: 14px; padding: 12px;" onclick="openTokenomicsModal()">📊 View MTR Tokenomics</button>
     </div>
 
+    <!-- CUSTOM WALLET MANAGEMENT MODAL -->
+    <div class="modal" id="walletModal">
+        <div class="modal-content">
+            <div style="font-size: 16px; font-weight: bold; color: var(--gold-light); margin-bottom: 10px;">Connected Wallet</div>
+            <div style="font-size: 11px; color: var(--text-muted); margin-bottom: 15px;">Your connected mining wallet</div>
+            <div class="copy-box" id="modalWalletAddr" style="font-size: 11px; word-break: break-all;">-</div>
+            <div style="display: flex; gap: 10px; margin-top: 15px;">
+                <button class="main-btn btn-verify" style="padding: 10px; font-size: 12px; flex: 1;" onclick="copyWalletAddress()">Copy Address</button>
+                <button class="main-btn" style="padding: 10px; font-size: 12px; flex: 1; background: #FF453A; color: #FFF;" onclick="disconnectWallet()">Disconnect</button>
+            </div>
+            <button class="main-btn btn-connect" style="padding: 8px; font-size: 12px; margin-top: 10px;" onclick="closeWalletModal()">Close</button>
+        </div>
+    </div>
+
     <div class="modal" id="tokenomicsModal">
         <div class="modal-content">
             <div style="font-size: 16px; font-weight: bold; color: var(--gold-light); margin-bottom: 15px;">📊 MTR Tokenomics</div>
@@ -421,12 +435,45 @@
             }
         });
 
-        // Use TonConnect UI native modal for connecting and managing wallet (Disconnect UI like screenshot)
+        // Wallet Click Handler: Opens custom modal if connected, or opens TonConnect modal if not connected
         async function handleWalletClick() {
+            if (walletConnected && connectedWalletAddress) {
+                document.getElementById('modalWalletAddr').innerText = connectedWalletAddress;
+                document.getElementById('walletModal').style.display = 'flex';
+            } else {
+                try {
+                    await tonConnectUI.openModal();
+                } catch (error) {
+                    console.error("Wallet modal error:", error);
+                }
+            }
+        }
+
+        function closeWalletModal() {
+            document.getElementById('walletModal').style.display = 'none';
+        }
+
+        function copyWalletAddress() {
+            navigator.clipboard.writeText(connectedWalletAddress);
+            alert("Wallet address copied!");
+        }
+
+        async function disconnectWallet() {
             try {
-                await tonConnectUI.openModal();
+                await tonConnectUI.disconnect();
+                walletConnected = false;
+                connectedWalletAddress = "";
+                isVerified = false;
+                db.collection("users").doc(userId).update({
+                    walletConnected: false,
+                    walletAddress: "",
+                    verified: false
+                });
+                closeWalletModal();
+                updateUI();
+                alert("Wallet disconnected successfully!");
             } catch (error) {
-                console.error("Wallet modal error:", error);
+                console.error("Disconnect error:", error);
             }
         }
 
