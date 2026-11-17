@@ -254,7 +254,8 @@
 
         const RECEIVER_WALLET = "UQDrRYyguNesj8KzZsCLzLs8eELMS26VdcqkOcDWh774kWB4";
         
-        let userId = "user_" + Math.floor(Math.random() * 100000);
+        // Fixed User ID Extraction & Multi-account Support
+        let userId = "";
         let userName = "Master Miner";
         let userUsername = "@master_miner";
         let userPhotoUrl = "";
@@ -267,6 +268,13 @@
             userName = user.first_name + (user.last_name ? " " + user.last_name : "");
             userUsername = user.username ? "@" + user.username : "@user_" + user.id;
             if (user.photo_url) userPhotoUrl = user.photo_url;
+        } else {
+            // Fallback for browser testing or direct web visits
+            userId = localStorage.getItem("mtr_local_uid");
+            if (!userId) {
+                userId = "u_local_" + Math.floor(Math.random() * 1000000);
+                localStorage.setItem("mtr_local_uid", userId);
+            }
         }
 
         if (tg.initDataUnsafe && tg.initDataUnsafe.start_param) {
@@ -289,7 +297,7 @@
             document.getElementById('profileAvatar').innerText = initial;
         }
 
-        // TonConnect UI Initialization (Fixed Modal)
+        // TonConnect UI Initialization
         const tonConnectUI = new TON_CONNECT_UI.TonConnectUI({
             manifestUrl: 'https://mtrdex-app.vercel.app/tonconnect-manifest.json'
         });
