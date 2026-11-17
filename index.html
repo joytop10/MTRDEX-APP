@@ -346,7 +346,7 @@
                 walletConnected = false;
                 connectedWalletAddress = "";
                 friendlyWalletAddress = "";
-                isVerified = false; // Reset verification status on disconnect if needed
+                isVerified = false;
                 db.collection("users").doc(userId).update({
                     walletConnected: false,
                     walletAddress: "",
@@ -421,33 +421,12 @@
             }
         });
 
-        // Handle wallet click: if connected, show disconnect option; else open connect modal
+        // Use TonConnect UI native modal for connecting and managing wallet (Disconnect UI like screenshot)
         async function handleWalletClick() {
-            if (walletConnected) {
-                let confirmDisconnect = confirm("আপনি কি আপনার ওয়ালেট ডিসকানেক্ট করতে চান?");
-                if (confirmDisconnect) {
-                    try {
-                        await tonConnectUI.disconnect();
-                        walletConnected = false;
-                        connectedWalletAddress = "";
-                        isVerified = false;
-                        db.collection("users").doc(userId).update({
-                            walletConnected: false,
-                            walletAddress: "",
-                            verified: false
-                        });
-                        updateUI();
-                        alert("ওয়ালেট সফলভাবে ডিসকানেক্ট করা হয়েছে!");
-                    } catch (error) {
-                        console.error("Disconnect error:", error);
-                    }
-                }
-            } else {
-                try {
-                    await tonConnectUI.openModal();
-                } catch (error) {
-                    console.error("Wallet connection error:", error);
-                }
+            try {
+                await tonConnectUI.openModal();
+            } catch (error) {
+                console.error("Wallet modal error:", error);
             }
         }
 
