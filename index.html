@@ -309,19 +309,47 @@
 
         let walletConnected = false;
         let connectedWalletAddress = "";
+        let friendlyWalletAddress = "";
         let isVerified = false;
         let totalBalance = 0.0000;
         let sessionMined = 0.0000;
         let refRewardBalance = 0.0000;
         let referralCount = 0;
-        let verifiedRefCount = 0;
-        let unverifiedRefCount = 0;
         let completedTasks = {};
+
+        // Helper function to convert raw TON address to user-friendly UQ format if needed
+        function formatAddress(address) {
+            if (!address) return "";
+            try {
+                if (address.includes(':')) {
+                    const parseAddress = new TonWeb.Address(address);
+                    return parseAddress.toString(true, true, true);
+                }
+            } catch (e) {
+                // fallback if conversion fails
+            }
+            return address;
+        }
 
         tonConnectUI.onStatusChange(walletInfo => {
             if (walletInfo) {
                 walletConnected = true;
-                connectedWalletAddress = walletInfo.account.address;
+                const rawAddress = walletInfo.account.address;
+                
+                // Convert raw address (0:...) to user-friendly format (UQ...) using TonConnect built-in property or formatting
+                if (walletInfo.account.bounceable !== undefined || rawAddress.includes(':')) {
+                    try {
+                        const addrObj = new window.TonConnectSDK.Address(rawAddress);
+                        friendlyWalletAddress = addrObj.toString({ bounceable: true, urlSafe: true });
+                    } catch(err) {
+                        friendlyWalletAddress = rawAddress;
+                    }
+                } else {
+                    friendlyWalletAddress = rawAddress;
+                }
+
+                connectedWalletAddress = friendlyWalletAddress;
+
                 db.collection("users").doc(userId).update({
                     walletConnected: true,
                     walletAddress: connectedWalletAddress
@@ -329,6 +357,7 @@
             } else {
                 walletConnected = false;
                 connectedWalletAddress = "";
+                friendlyWalletAddress = "";
                 db.collection("users").doc(userId).update({
                     walletConnected: false,
                     walletAddress: ""
@@ -377,7 +406,6 @@
             updateUI();
         });
 
-        // Real-time listener for referrals tracking verified / unverified status
         db.collection("users").where("referredBy", "==", userId).onSnapshot((snapshot) => {
             let total = snapshot.size;
             let verified = 0;
@@ -392,7 +420,6 @@
             document.getElementById('verifiedRef').innerText = verified;
             document.getElementById('unverifiedRef').innerText = unverified;
 
-            // Update total count in firestore for user doc as well
             db.collection("users").doc(userId).update({ referralCount: total });
         });
 
@@ -526,7 +553,7 @@
             document.getElementById('myRankBalance').innerText = totalBalance.toFixed(2) + " MTR";
             document.getElementById('profileBalance').innerText = totalBalance.toFixed(4) + " MTR";
 
-            if (walletConnected) {
+            if (walletConnected && connectedWalletAddress) {
                 walletDisp.innerText = connectedWalletAddress.substring(0, 6) + "..." + connectedWalletAddress.slice(-4);
                 document.getElementById('profileWalletAddr').innerText = connectedWalletAddress;
             } else {
