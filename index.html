@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>MTR Master Mining</title>
+
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore-compat.js"></script>
@@ -11,116 +12,279 @@
 
     <style>
         :root {
-            --bg-dark: #060B14;
-            --card-bg: #0D1522;
-            --gold-light: #F5C443;
-            --gold-dark: #C68B17;
-            --neon-blue: #0077FF;
-            --cyan-glow: #00D4FF;
-            --text-main: #FFFFFF;
-            --text-muted: #8E9BAE;
+            --bg-dark:#060B14;
+            --card-bg:#0D1522;
+            --gold-light:#F5C443;
+            --gold-dark:#C68B17;
+            --neon-blue:#0077FF;
+            --cyan-glow:#00D4FF;
+            --text-main:#FFFFFF;
+            --text-muted:#8E9BAE;
         }
 
-        * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Segoe UI', Roboto, sans-serif; user-select: none; }
+        * {
+            box-sizing:border-box;
+            margin:0;
+            padding:0;
+            font-family:'Segoe UI',Roboto,sans-serif;
+            user-select:none;
+        }
 
         body {
-            background-color: var(--bg-dark);
-            background-image: radial-gradient(circle at 50% 20%, rgba(0, 119, 255, 0.15) 0%, transparent 60%);
-            color: var(--text-main);
-            min-height: 100vh;
-            display: flex;
-            flex-direction: column;
-            justify-content: space-between;
+            background-color:var(--bg-dark);
+            background-image:radial-gradient(circle at 50% 20%,rgba(0,119,255,.15) 0%,transparent 60%);
+            color:var(--text-main);
+            min-height:100vh;
+            display:flex;
+            flex-direction:column;
+            justify-content:space-between;
         }
 
         .header {
-            display: flex; justify-content: space-between; align-items: center;
-            padding: 15px 18px; background: rgba(13, 21, 34, 0.85); border-bottom: 1px solid rgba(0, 119, 255, 0.3);
+            display:flex;
+            justify-content:space-between;
+            align-items:center;
+            padding:15px 18px;
+            background:rgba(13,21,34,.85);
+            border-bottom:1px solid rgba(0,119,255,.3);
         }
 
-        .user-info { display: flex; align-items: center; gap: 10px; }
+        .user-info {display:flex;align-items:center;gap:10px}
 
         .avatar {
-            width: 38px; height: 38px; border-radius: 50%;
-            background: linear-gradient(135deg, var(--gold-light), var(--gold-dark));
-            display: flex; align-items: center; justify-content: center; font-weight: bold; color: #000; overflow: hidden;
+            width:38px;
+            height:38px;
+            border-radius:50%;
+            background:linear-gradient(135deg,var(--gold-light),var(--gold-dark));
+            display:flex;
+            align-items:center;
+            justify-content:center;
+            font-weight:bold;
+            color:#000;
+            overflow:hidden;
         }
 
-        .avatar img { width: 100%; height: 100%; object-fit: cover; }
-        .user-details h4 { font-size: 14px; color: var(--gold-light); }
+        .avatar img {width:100%;height:100%;object-fit:cover}
+        .user-details h4 {font-size:14px;color:var(--gold-light)}
 
-        .status-badge { font-size: 11px; padding: 2px 8px; border-radius: 10px; background: rgba(255, 59, 48, 0.2); color: #FF453A; border: 1px solid #FF453A; }
-        .status-badge.verified { background: rgba(52, 199, 89, 0.2); color: #32D74B; border-color: #32D74B; }
+        .status-badge {
+            font-size:11px;
+            padding:2px 8px;
+            border-radius:10px;
+            background:rgba(255,59,48,.2);
+            color:#FF453A;
+            border:1px solid #FF453A;
+        }
 
-        .container { flex: 1; padding: 20px 16px 90px 16px; display: none; flex-direction: column; align-items: center; }
-        .container.active { display: flex; }
+        .status-badge.verified {
+            background:rgba(52,199,89,.2);
+            color:#32D74B;
+            border-color:#32D74B;
+        }
+
+        .container {
+            flex:1;
+            padding:20px 16px 90px;
+            display:none;
+            flex-direction:column;
+            align-items:center;
+        }
+
+        .container.active {display:flex}
 
         .balance-card {
-            width: 100%; background: var(--card-bg); border: 1px solid rgba(245, 196, 67, 0.4);
-            border-radius: 16px; padding: 16px; text-align: center; margin-bottom: 20px;
+            width:100%;
+            background:var(--card-bg);
+            border:1px solid rgba(245,196,67,.4);
+            border-radius:16px;
+            padding:16px;
+            text-align:center;
+            margin-bottom:20px;
         }
 
-        .balance-label { font-size: 12px; color: var(--text-muted); text-transform: uppercase; }
-        .balance-amount { font-size: 30px; font-weight: 800; color: var(--gold-light); margin: 5px 0; }
-        .mining-rate { font-size: 13px; color: var(--cyan-glow); }
+        .balance-label {
+            font-size:12px;
+            color:var(--text-muted);
+            text-transform:uppercase;
+        }
 
-        .coin-wrapper { position: relative; width: 180px; height: 180px; margin: 10px 0 20px 0; display: flex; align-items: center; justify-content: center; }
-        .coin-glow { position: absolute; width: 100%; height: 100%; border-radius: 50%; border: 3px solid var(--neon-blue); box-shadow: 0 0 25px var(--neon-blue); }
+        .balance-amount {
+            font-size:30px;
+            font-weight:800;
+            color:var(--gold-light);
+            margin:5px 0;
+        }
+
+        .mining-rate {font-size:13px;color:var(--cyan-glow)}
+
+        .coin-wrapper {
+            position:relative;
+            width:180px;
+            height:180px;
+            margin:10px 0 20px;
+            display:flex;
+            align-items:center;
+            justify-content:center;
+        }
+
+        .coin-glow {
+            position:absolute;
+            width:100%;
+            height:100%;
+            border-radius:50%;
+            border:3px solid var(--neon-blue);
+            box-shadow:0 0 25px var(--neon-blue);
+        }
 
         .coin-circle {
-            width: 160px; height: 160px; border-radius: 50%;
-            background: radial-gradient(circle at 30% 30%, #152238, #060B14);
-            border: 4px solid var(--gold-light); display: flex; flex-direction: column; align-items: center; justify-content: center; z-index: 2;
-            box-shadow: 0 0 20px rgba(245, 196, 67, 0.4);
+            width:160px;
+            height:160px;
+            border-radius:50%;
+            background:radial-gradient(circle at 30% 30%,#152238,#060B14);
+            border:4px solid var(--gold-light);
+            display:flex;
+            flex-direction:column;
+            align-items:center;
+            justify-content:center;
+            z-index:2;
+            box-shadow:0 0 20px rgba(245,196,67,.4);
         }
 
-        .coin-crown { font-size: 22px; color: var(--gold-light); }
-        .coin-text { font-size: 36px; font-weight: 900; color: var(--gold-light); }
-        .coin-sub { font-size: 9px; letter-spacing: 2px; color: var(--gold-light); }
+        .coin-crown {font-size:22px;color:var(--gold-light)}
+        .coin-text {font-size:36px;font-weight:900;color:var(--gold-light)}
+        .coin-sub {font-size:9px;letter-spacing:2px;color:var(--gold-light)}
 
         .main-btn {
-            width: 100%; max-width: 320px; padding: 15px; border-radius: 14px; border: none;
-            font-size: 16px; font-weight: 800; text-transform: uppercase; cursor: pointer; box-shadow: 0 0 20px rgba(0, 119, 255, 0.4);
+            width:100%;
+            max-width:320px;
+            padding:15px;
+            border-radius:14px;
+            border:none;
+            font-size:16px;
+            font-weight:800;
+            text-transform:uppercase;
+            cursor:pointer;
+            box-shadow:0 0 20px rgba(0,119,255,.4);
         }
 
-        .btn-connect { background: linear-gradient(90deg, var(--neon-blue), #0051B3); color: #FFF; }
-        .btn-verify { background: linear-gradient(90deg, var(--gold-light), var(--gold-dark)); color: #000; }
-        .btn-claim { background: linear-gradient(90deg, #F5C443, #D99B16); color: #060B14; }
+        .btn-connect {background:linear-gradient(90deg,var(--neon-blue),#0051B3);color:#FFF}
+        .btn-verify {background:linear-gradient(90deg,var(--gold-light),var(--gold-dark));color:#000}
+        .btn-claim {background:linear-gradient(90deg,#F5C443,#D99B16);color:#060B14}
 
         .list-card {
-            width: 100%; background: var(--card-bg); border: 1px solid rgba(0, 119, 255, 0.25);
-            border-radius: 12px; padding: 12px 15px; margin-bottom: 10px; display: flex; justify-content: space-between; align-items: center;
+            width:100%;
+            background:var(--card-bg);
+            border:1px solid rgba(0,119,255,.25);
+            border-radius:12px;
+            padding:12px 15px;
+            margin-bottom:10px;
+            display:flex;
+            justify-content:space-between;
+            align-items:center;
         }
 
-        .list-card.highlight { border-color: var(--gold-light); background: rgba(245, 196, 67, 0.08); }
+        .list-card.highlight {
+            border-color:var(--gold-light);
+            background:rgba(245,196,67,.08);
+        }
 
         .rank-badge {
-            width: 28px; height: 28px; border-radius: 50%; background: rgba(0, 119, 255, 0.2);
-            border: 1px solid var(--neon-blue); display: flex; align-items: center; justify-content: center; font-size: 13px; color: var(--cyan-glow); margin-right: 12px;
+            width:28px;
+            height:28px;
+            border-radius:50%;
+            background:rgba(0,119,255,.2);
+            border:1px solid var(--neon-blue);
+            display:flex;
+            align-items:center;
+            justify-content:center;
+            font-size:13px;
+            color:var(--cyan-glow);
+            margin-right:12px;
         }
 
-        .rank-1 { background: var(--gold-light) !important; color: #000 !important; border-color: #FFF !important; }
+        .rank-1 {background:var(--gold-light)!important;color:#000!important;border-color:#FFF!important}
 
         .task-btn {
-            background: linear-gradient(90deg, var(--gold-light), var(--gold-dark));
-            color: #000; border: none; padding: 6px 14px; border-radius: 8px; font-weight: bold; font-size: 12px; cursor: pointer;
+            background:linear-gradient(90deg,var(--gold-light),var(--gold-dark));
+            color:#000;
+            border:none;
+            padding:6px 14px;
+            border-radius:8px;
+            font-weight:bold;
+            font-size:12px;
+            cursor:pointer;
         }
 
-        .task-btn.claimed { background: rgba(52, 199, 89, 0.2); color: #32D74B; border: 1px solid #32D74B; cursor: default; }
+        .task-btn.claimed {
+            background:rgba(52,199,89,.2);
+            color:#32D74B;
+            border:1px solid #32D74B;
+            cursor:default;
+        }
 
-        .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); justify-content: center; align-items: center; z-index: 1000; padding: 20px; }
-        .modal-content { background: var(--card-bg); border: 1px solid var(--gold-light); border-radius: 16px; width: 100%; max-width: 350px; padding: 20px; text-align: center; }
+        .modal {
+            display:none;
+            position:fixed;
+            top:0;
+            left:0;
+            width:100%;
+            height:100%;
+            background:rgba(0,0,0,.8);
+            justify-content:center;
+            align-items:center;
+            z-index:1000;
+            padding:20px;
+        }
+
+        .modal-content {
+            background:var(--card-bg);
+            border:1px solid var(--gold-light);
+            border-radius:16px;
+            width:100%;
+            max-width:350px;
+            padding:20px;
+            text-align:center;
+        }
 
         .bottom-nav {
-            position: fixed; bottom: 0; left: 0; width: 100%; background: rgba(6, 11, 20, 0.95);
-            border-top: 1px solid rgba(0, 119, 255, 0.35); display: flex; justify-content: space-around; padding: 8px 0; z-index: 100;
+            position:fixed;
+            bottom:0;
+            left:0;
+            width:100%;
+            background:rgba(6,11,20,.95);
+            border-top:1px solid rgba(0,119,255,.35);
+            display:flex;
+            justify-content:space-around;
+            padding:8px 0;
+            z-index:100;
         }
 
-        .nav-item { display: flex; flex-direction: column; align-items: center; color: var(--text-muted); font-size: 10px; cursor: pointer; gap: 3px; width: 20%; }
-        .nav-item.active { color: var(--gold-light); }
-        .nav-icon { font-size: 18px; }
+        .nav-item {
+            display:flex;
+            flex-direction:column;
+            align-items:center;
+            color:var(--text-muted);
+            font-size:10px;
+            cursor:pointer;
+            gap:3px;
+            width:20%;
+        }
 
-        .copy-box { width: 100%; background: #09101D; border: 1px dashed var(--gold-light); padding: 10px; border-radius: 8px; font-size: 12px; color: var(--cyan-glow); word-break: break-all; margin: 10px 0; text-align: center; }
+        .nav-item.active {color:var(--gold-light)}
+        .nav-icon {font-size:18px}
+
+        .copy-box {
+            width:100%;
+            background:#09101D;
+            border:1px dashed var(--gold-light);
+            padding:10px;
+            border-radius:8px;
+            font-size:12px;
+            color:var(--cyan-glow);
+            word-break:break-all;
+            margin:10px 0;
+            text-align:center;
+        }
     </style>
 </head>
 
@@ -135,13 +299,16 @@
             </div>
         </div>
 
-        <div id="walletDisplay" style="font-size: 12px; color: var(--cyan-glow); font-weight: bold; background: rgba(0,119,255,0.15); padding: 6px 10px; border-radius: 8px; border: 1px solid var(--neon-blue); cursor: pointer;" onclick="handleWalletClick()">
+        <div id="walletDisplay"
+             style="font-size:12px;color:var(--cyan-glow);font-weight:bold;background:rgba(0,119,255,.15);padding:6px 10px;border-radius:8px;border:1px solid var(--neon-blue);cursor:pointer;"
+             onclick="handleWalletClick()">
             Connect Wallet
         </div>
     </div>
 
-    <!-- TAB 1: MINE -->
+    <!-- MINE -->
     <div class="container active" id="tab-mine">
+
         <div class="balance-card">
             <div class="balance-label">Total MTR Assets</div>
             <div class="balance-amount"><span id="totalBalance">0.0000</span> MTR</div>
@@ -157,47 +324,50 @@
             </div>
         </div>
 
-        <p style="font-size: 13px; color: var(--text-muted); margin-bottom: 12px;">
-            Mined in session: <strong style="color: #FFF;" id="sessionMined">0.0000</strong> MTR
+        <p style="font-size:13px;color:var(--text-muted);margin-bottom:12px;">
+            Mined in session:
+            <strong style="color:#FFF;" id="sessionMined">0.0000</strong> MTR
         </p>
 
-        <button class="main-btn btn-connect" id="actionBtn" onclick="handleMainAction()">Connect Wallet</button>
+        <button class="main-btn btn-connect" id="actionBtn" onclick="handleMainAction()">
+            Connect Wallet
+        </button>
     </div>
 
-    <!-- TAB 2: LEADERBOARD -->
+    <!-- LEADERBOARD -->
     <div class="container" id="tab-leaderboard">
-        <div style="width: 100%; font-size: 16px; font-weight: 700; color: var(--gold-light); margin-bottom: 12px;">
+        <div style="width:100%;font-size:16px;font-weight:700;color:var(--gold-light);margin-bottom:12px;">
             🏆 Global Live Leaderboard
         </div>
 
-        <div class="list-card highlight" style="margin-bottom: 15px;">
-            <div style="display: flex; align-items: center;">
+        <div class="list-card highlight" style="margin-bottom:15px;">
+            <div style="display:flex;align-items:center;">
                 <div class="rank-badge" id="myRank">0</div>
                 <div>
-                    <div style="font-weight: bold; font-size: 14px;">You</div>
-                    <div style="font-size: 11px; color: var(--text-muted);">Your Global Position</div>
+                    <div style="font-weight:bold;font-size:14px;">You</div>
+                    <div style="font-size:11px;color:var(--text-muted);">Your Global Position</div>
                 </div>
             </div>
-            <div style="font-weight: bold; color: var(--gold-light);" id="myRankBalance">0.00 MTR</div>
+            <div style="font-weight:bold;color:var(--gold-light);" id="myRankBalance">0.00 MTR</div>
         </div>
 
-        <div id="liveLeaderboardList" style="width: 100%;"></div>
+        <div id="liveLeaderboardList" style="width:100%;"></div>
     </div>
 
-    <!-- TAB 3: TASKS -->
+    <!-- TASKS -->
     <div class="container" id="tab-tasks">
-        <div style="width: 100%; font-size: 16px; font-weight: 700; color: var(--gold-light); margin-bottom: 12px;">
+        <div style="width:100%;font-size:16px;font-weight:700;color:var(--gold-light);margin-bottom:12px;">
             📋 Earn Extra MTR (Tasks)
         </div>
 
-        <div id="dynamicTasksList" style="width: 100%;">
-            <p style="color: var(--text-muted); font-size: 13px;">Loading tasks...</p>
+        <div id="dynamicTasksList" style="width:100%;">
+            <p style="color:var(--text-muted);font-size:13px;">Loading tasks...</p>
         </div>
     </div>
 
-    <!-- TAB 4: FRIENDS -->
+    <!-- FRIENDS -->
     <div class="container" id="tab-friends">
-        <div style="width: 100%; font-size: 16px; font-weight: 700; color: var(--gold-light); margin-bottom: 12px;">
+        <div style="width:100%;font-size:16px;font-weight:700;color:var(--gold-light);margin-bottom:12px;">
             🤝 Referral Program (10% Commission)
         </div>
 
@@ -205,318 +375,457 @@
             <div class="balance-label">Total Referrals (Team)</div>
             <div class="balance-amount" id="referralCount">0 Members</div>
 
-            <div style="display: flex; justify-content: space-around; margin: 10px 0; font-size: 12px; color: var(--text-muted);">
-                <span>✅ Verified: <strong id="verifiedRef" style="color: #32D74B;">0</strong></span>
-                <span>❌ Unverified: <strong id="unverifiedRef" style="color: #FF453A;">0</strong></span>
+            <div style="display:flex;justify-content:space-around;margin:10px 0;font-size:12px;color:var(--text-muted);">
+                <span>✅ Verified: <strong id="verifiedRef" style="color:#32D74B;">0</strong></span>
+                <span>❌ Unverified: <strong id="unverifiedRef" style="color:#FF453A;">0</strong></span>
             </div>
 
-            <div class="mining-rate">Unclaimed Commission: <span id="refRewardBalance" style="color:var(--gold-light);">0.0000</span> MTR</div>
+            <div class="mining-rate">
+                Unclaimed Commission:
+                <span id="refRewardBalance" style="color:var(--gold-light);">0.0000</span> MTR
+            </div>
 
-            <button class="main-btn btn-claim" style="margin-top: 15px; padding: 12px; font-size: 14px;" onclick="claimRefReward()">Claim Referral Reward</button>
+            <button class="main-btn btn-claim"
+                    style="margin-top:15px;padding:12px;font-size:14px;"
+                    onclick="claimRefReward()">
+                Claim Referral Reward
+            </button>
         </div>
 
-        <div class="balance-card" style="text-align: left;">
-            <p style="font-size: 13px; color: var(--text-muted); line-height: 1.5; margin-bottom: 10px;">
-                Share your invite link and earn <strong style="color: var(--gold-light);">10% commission</strong> from your friends!
+        <div class="balance-card" style="text-align:left;">
+            <p style="font-size:13px;color:var(--text-muted);line-height:1.5;margin-bottom:10px;">
+                Share your invite link and earn
+                <strong style="color:var(--gold-light);">10% commission</strong> from your friends!
             </p>
 
-            <div class="copy-box" id="refLinkBox">https://t.me/MTRDex_bot?start=ref</div>
+            <div class="copy-box" id="refLinkBox">Loading referral link...</div>
 
-            <div style="display: flex; gap: 10px;">
-                <button class="main-btn btn-verify" style="padding: 10px; font-size: 13px; flex: 1;" onclick="copyRefLink()">📋 Copy Link</button>
-                <button class="main-btn btn-connect" style="padding: 10px; font-size: 13px; flex: 1;" onclick="shareRefLink()">↗️ Share Link</button>
+            <div style="display:flex;gap:10px;">
+                <button class="main-btn btn-verify"
+                        style="padding:10px;font-size:13px;flex:1;"
+                        onclick="copyRefLink()">📋 Copy Link</button>
+
+                <button class="main-btn btn-connect"
+                        style="padding:10px;font-size:13px;flex:1;"
+                        onclick="shareRefLink()">↗️ Share Link</button>
             </div>
         </div>
     </div>
 
-    <!-- TAB 5: PROFILE & WITHDRAW -->
+    <!-- PROFILE -->
     <div class="container" id="tab-profile">
-        <div style="width: 100%; font-size: 16px; font-weight: 700; color: var(--gold-light); margin-bottom: 12px;">
+        <div style="width:100%;font-size:16px;font-weight:700;color:var(--gold-light);margin-bottom:12px;">
             👤 User Profile & Withdraw
         </div>
 
-        <div class="list-card" style="padding: 15px;">
-            <div style="display: flex; align-items: center; gap: 12px;">
-                <div class="avatar" id="profileAvatar" style="width: 48px; height: 48px; font-size: 18px;">M</div>
+        <div class="list-card" style="padding:15px;">
+            <div style="display:flex;align-items:center;gap:12px;">
+                <div class="avatar" id="profileAvatar" style="width:48px;height:48px;font-size:18px;">M</div>
                 <div>
-                    <div style="font-weight: bold; font-size: 15px; color: var(--gold-light);" id="profileName">Master Miner</div>
-                    <div style="font-size: 12px; color: var(--cyan-glow);" id="profileUsername">@username</div>
+                    <div style="font-weight:bold;font-size:15px;color:var(--gold-light);" id="profileName">Master Miner</div>
+                    <div style="font-size:12px;color:var(--cyan-glow);" id="profileUsername">@username</div>
                 </div>
             </div>
         </div>
 
-        <div class="list-card"><span>Telegram ID</span><strong style="color: #FFF;" id="profileTelegramId">123456789</strong></div>
-        <div class="list-card"><span>Total Mined Balance</span><strong style="color: var(--gold-light);" id="profileBalance">0.0000 MTR</strong></div>
-
-        <div class="list-card" style="cursor: pointer;" onclick="handleWalletClick()">
-            <span>Connected Wallet</span>
-            <strong style="font-size: 11px; color: var(--cyan-glow);" id="profileWalletAddr">Not Connected</strong>
+        <div class="list-card">
+            <span>Telegram ID</span>
+            <strong style="color:#FFF;" id="profileTelegramId">UID_0000000000</strong>
         </div>
 
-        <button class="main-btn btn-verify" style="margin-top: 15px; font-size: 14px; padding: 14px;" onclick="handleWithdraw()">
+        <div class="list-card">
+            <span>Total Mined Balance</span>
+            <strong style="color:var(--gold-light);" id="profileBalance">0.0000 MTR</strong>
+        </div>
+
+        <div class="list-card" style="cursor:pointer;" onclick="handleWalletClick()">
+            <span>Connected Wallet</span>
+            <strong style="font-size:11px;color:var(--cyan-glow);" id="profileWalletAddr">Not Connected</strong>
+        </div>
+
+        <button class="main-btn btn-verify"
+                style="margin-top:15px;font-size:14px;padding:14px;"
+                onclick="handleWithdraw()">
             📤 Withdraw MTR
         </button>
 
-        <button class="main-btn btn-connect" style="margin-top: 10px; font-size: 14px; padding: 12px;" onclick="openTokenomicsModal()">📊 View MTR Tokenomics</button>
+        <button class="main-btn btn-connect"
+                style="margin-top:10px;font-size:14px;padding:12px;"
+                onclick="openTokenomicsModal()">
+            📊 View MTR Tokenomics
+        </button>
     </div>
 
-    <!-- WALLET MANAGEMENT MODAL -->
+    <!-- WALLET MODAL -->
     <div class="modal" id="walletModal">
         <div class="modal-content">
-            <div style="font-size: 16px; font-weight: bold; color: var(--gold-light); margin-bottom: 10px;">Connected Wallet</div>
-            <div style="font-size: 11px; color: var(--text-muted); margin-bottom: 15px;">Your connected mining wallet</div>
-
-            <div class="copy-box" id="modalWalletAddr" style="font-size: 11px; word-break: break-all;">-</div>
-
-            <div style="display: flex; gap: 10px; margin-top: 15px;">
-                <button class="main-btn btn-verify" style="padding: 10px; font-size: 12px; flex: 1;" onclick="copyWalletAddress()">Copy Address</button>
-                <button class="main-btn" style="padding: 10px; font-size: 12px; flex: 1; background: #FF453A; color: #FFF;" onclick="disconnectWallet()">Disconnect</button>
+            <div style="font-size:16px;font-weight:bold;color:var(--gold-light);margin-bottom:10px;">
+                Connected Wallet
             </div>
 
-            <button class="main-btn btn-connect" style="padding: 8px; font-size: 12px; margin-top: 10px;" onclick="closeWalletModal()">Close</button>
+            <div style="font-size:11px;color:var(--text-muted);margin-bottom:15px;">
+                Your connected mining wallet
+            </div>
+
+            <div class="copy-box" id="modalWalletAddr" style="font-size:11px;word-break:break-all;">-</div>
+
+            <div style="display:flex;gap:10px;margin-top:15px;">
+                <button class="main-btn btn-verify"
+                        style="padding:10px;font-size:12px;flex:1;"
+                        onclick="copyWalletAddress()">Copy Address</button>
+
+                <button class="main-btn"
+                        style="padding:10px;font-size:12px;flex:1;background:#FF453A;color:#FFF;"
+                        onclick="disconnectWallet()">Disconnect</button>
+            </div>
+
+            <button class="main-btn btn-connect"
+                    style="padding:8px;font-size:12px;margin-top:10px;"
+                    onclick="closeWalletModal()">Close</button>
         </div>
     </div>
 
+    <!-- TOKENOMICS MODAL -->
     <div class="modal" id="tokenomicsModal">
         <div class="modal-content">
-            <div style="font-size: 16px; font-weight: bold; color: var(--gold-light); margin-bottom: 15px;">📊 MTR Tokenomics</div>
-            <div class="list-card"><span>👥 Community & Mining</span><strong style="color: var(--gold-light);">60%</strong></div>
-            <div class="list-card"><span>🛠️ Team & Management</span><strong style="color: var(--gold-light);">15%</strong></div>
-            <div class="list-card"><span>💧 Liquidity Pool</span><strong style="color: var(--gold-light);">15%</strong></div>
-            <div class="list-card" style="margin-bottom: 15px;"><span>🌐 Ecosystem</span><strong style="color: var(--gold-light);">10%</strong></div>
-            <button class="main-btn btn-connect" style="padding: 10px; font-size: 13px;" onclick="closeTokenomicsModal()">Close</button>
+            <div style="font-size:16px;font-weight:bold;color:var(--gold-light);margin-bottom:15px;">
+                📊 MTR Tokenomics
+            </div>
+
+            <div class="list-card"><span>👥 Community & Mining</span><strong style="color:var(--gold-light);">60%</strong></div>
+            <div class="list-card"><span>🛠️ Team & Management</span><strong style="color:var(--gold-light);">15%</strong></div>
+            <div class="list-card"><span>💧 Liquidity Pool</span><strong style="color:var(--gold-light);">15%</strong></div>
+            <div class="list-card" style="margin-bottom:15px;"><span>🌐 Ecosystem</span><strong style="color:var(--gold-light);">10%</strong></div>
+
+            <button class="main-btn btn-connect"
+                    style="padding:10px;font-size:13px;"
+                    onclick="closeTokenomicsModal()">Close</button>
         </div>
     </div>
 
+    <!-- BOTTOM NAVIGATION -->
     <div class="bottom-nav">
-        <div class="nav-item active" onclick="switchTab('mine', this)"><span class="nav-icon">⛏️</span><span>Mine</span></div>
-        <div class="nav-item" onclick="switchTab('leaderboard', this)"><span class="nav-icon">🏆</span><span>Rank</span></div>
-        <div class="nav-item" onclick="switchTab('tasks', this)"><span class="nav-icon">📋</span><span>Tasks</span></div>
-        <div class="nav-item" onclick="switchTab('friends', this)"><span class="nav-icon">👥</span><span>Friends</span></div>
-        <div class="nav-item" onclick="switchTab('profile', this)"><span class="nav-icon">👤</span><span>Profile</span></div>
+        <div class="nav-item active" onclick="switchTab('mine',this)"><span class="nav-icon">⛏️</span><span>Mine</span></div>
+        <div class="nav-item" onclick="switchTab('leaderboard',this)"><span class="nav-icon">🏆</span><span>Rank</span></div>
+        <div class="nav-item" onclick="switchTab('tasks',this)"><span class="nav-icon">📋</span><span>Tasks</span></div>
+        <div class="nav-item" onclick="switchTab('friends',this)"><span class="nav-icon">👥</span><span>Friends</span></div>
+        <div class="nav-item" onclick="switchTab('profile',this)"><span class="nav-icon">👤</span><span>Profile</span></div>
     </div>
 
-    <script>
-        const firebaseConfig = {
-            apiKey: "AIzaSyA74QlASZn_mz9c4XjdpJAJQHyJqX9xdk4",
-            authDomain: "mtrdex.firebaseapp.com",
-            projectId: "mtrdex",
-            storageBucket: "mtrdex.firebasestorage.app",
-            messagingSenderId: "1086565020372",
-            appId: "1:1086565020372:web:908ecf8369e83c4d6dc141",
-            measurementId: "G-YP1ZKWZPL6"
-        };
+<script>
+    // ==========================================
+    // FIREBASE CONFIGURATION
+    // ==========================================
 
-        firebase.initializeApp(firebaseConfig);
-        const db = firebase.firestore();
+    const firebaseConfig = {
+        apiKey: "AIzaSyA74QlASZn_mz9c4XjdpJAJQHyJqX9xdk4",
+        authDomain: "mtrdex.firebaseapp.com",
+        projectId: "mtrdex",
+        storageBucket: "mtrdex.firebasestorage.app",
+        messagingSenderId: "1086565020372",
+        appId: "1:1086565020372:web:908ecf8369e83c4d6dc141",
+        measurementId: "G-YP1ZKWZPL6"
+    };
 
-        const tg = window.Telegram.WebApp;
-        tg.expand();
+    firebase.initializeApp(firebaseConfig);
+    const db = firebase.firestore();
 
-        const RECEIVER_WALLET = "UQDrRYyguNesj8KzZsCLzLs8eELMS26VdcqkOcDWh774kWB4";
+    const tg = window.Telegram.WebApp;
+    tg.expand();
 
-        let userId = "";
-        let userName = "Master Miner";
-        let userUsername = "@master_miner";
-        let userPhotoUrl = "";
-        let referrerId = null;
-        let isWithdrawOpen = false;
-        let minWithdrawLimit = 10;
+    const RECEIVER_WALLET = "UQDrRYyguNesj8KzZsCLzLs8eELMS26VdcqkOcDWh774kWB4";
 
-        if (tg.initDataUnsafe && tg.initDataUnsafe.user) {
-            const user = tg.initDataUnsafe.user;
+    // ==========================================
+    // USER ID SYSTEM - UID_ + REAL TELEGRAM ID
+    // ==========================================
 
-            userId = "u_" + user.id;
-            userName = user.first_name + (user.last_name ? " " + user.last_name : "");
-            userUsername = user.username ? "@" + user.username : "@user_" + user.id;
+    let userId = "";
+    let userName = "Master Miner";
+    let userUsername = "@master_miner";
+    let userPhotoUrl = "";
+    let referrerId = null;
 
-            if (user.photo_url) userPhotoUrl = user.photo_url;
-        } else {
-            userId = localStorage.getItem("mtr_local_uid");
+    let isWithdrawOpen = false;
+    let minWithdrawLimit = 10;
 
-            if (!userId) {
-                userId = "u_local_" + Math.floor(Math.random() * 1000000);
-                localStorage.setItem("mtr_local_uid", userId);
-            }
+    const telegramUser = tg.initDataUnsafe && tg.initDataUnsafe.user
+        ? tg.initDataUnsafe.user
+        : null;
+
+    if (telegramUser && telegramUser.id) {
+
+        // বাস্তব Telegram ID, প্রত্যেক ইউজারের জন্য আলাদা
+        userId = "UID_" + String(telegramUser.id);
+
+        userName = telegramUser.first_name +
+            (telegramUser.last_name ? " " + telegramUser.last_name : "");
+
+        userUsername = telegramUser.username
+            ? "@" + telegramUser.username
+            : "@user_" + telegramUser.id;
+
+        userPhotoUrl = telegramUser.photo_url || "";
+
+    } else {
+
+        // Telegram ছাড়া Browser Testing
+        userId = localStorage.getItem("mtr_local_uid");
+
+        if (!userId) {
+            userId = "UID_local_" + Date.now();
+            localStorage.setItem("mtr_local_uid", userId);
         }
+    }
 
+    // ==========================================
+    // REFERRAL PARAMETER READER
+    // ==========================================
+
+    function getReferralParameter() {
+
+        let parameter = "";
+
+        // Telegram Web App start_param
         if (tg.initDataUnsafe && tg.initDataUnsafe.start_param) {
-            let param = tg.initDataUnsafe.start_param;
-            if (param.startsWith("u_")) referrerId = param;
+            parameter = tg.initDataUnsafe.start_param;
         }
 
-        document.getElementById('headerUserName').innerText = userName;
-        document.getElementById('profileName').innerText = userName;
-        document.getElementById('profileUsername').innerText = userUsername;
-        document.getElementById('profileTelegramId').innerText = userId;
-        document.getElementById('refLinkBox').innerText = `https://t.me/MTRDex_bot?start=${userId}`;
+        // Direct Mini App startapp parameter
+        if (!parameter) {
+            const urlParams = new URLSearchParams(window.location.search);
+            parameter = urlParams.get("startapp") || "";
+        }
 
-        if (userPhotoUrl) {
-            document.getElementById('headerAvatar').innerHTML = `<img src="${userPhotoUrl}">`;
-            document.getElementById('profileAvatar').innerHTML = `<img src="${userPhotoUrl}">`;
+        // Hash fallback
+        if (!parameter && window.location.hash) {
+            const hashParams = new URLSearchParams(window.location.hash.substring(1));
+            parameter = hashParams.get("startapp") || "";
+        }
+
+        // নিজের UID-কে নিজের referral হিসেবে গ্রহণ করবে না
+        if (parameter.startsWith("UID_") && parameter !== userId) {
+            return parameter;
+        }
+
+        return null;
+    }
+
+    referrerId = getReferralParameter();
+
+    // ==========================================
+    // PERSONAL REFERRAL LINK
+    // ==========================================
+
+    const personalReferralLink =
+        "https://t.me/MTRDex_bot?start=" + encodeURIComponent(userId);
+
+    // ==========================================
+    // PROFILE INFORMATION
+    // ==========================================
+
+    document.getElementById("headerUserName").innerText = userName;
+    document.getElementById("profileName").innerText = userName;
+    document.getElementById("profileUsername").innerText = userUsername;
+
+    // Profile-এ UID_ সহ Telegram ID
+    document.getElementById("profileTelegramId").innerText = userId;
+
+    // Referral Link-এ একই UID
+    document.getElementById("refLinkBox").innerText = personalReferralLink;
+
+    if (userPhotoUrl) {
+        document.getElementById("headerAvatar").innerHTML =
+            `<img src="${userPhotoUrl}" alt="Profile">`;
+
+        document.getElementById("profileAvatar").innerHTML =
+            `<img src="${userPhotoUrl}" alt="Profile">`;
+    } else {
+        const initial = userName.charAt(0).toUpperCase();
+        document.getElementById("headerAvatar").innerText = initial;
+        document.getElementById("profileAvatar").innerText = initial;
+    }
+
+    // ==========================================
+    // TON CONNECT
+    // ==========================================
+
+    const tonConnectUI = new TON_CONNECT_UI.TonConnectUI({
+        manifestUrl: "https://mtrdex-app.vercel.app/tonconnect-manifest.json"
+    });
+
+    let walletConnected = false;
+    let connectedWalletAddress = "";
+    let connectedWalletRawAddress = "";
+
+    let isVerified = false;
+    let totalBalance = 0;
+    let sessionMined = 0;
+    let refRewardBalance = 0;
+    let referralCount = 0;
+    let completedTasks = {};
+
+    // ==========================================
+    // TON RAW ADDRESS TO FRIENDLY ADDRESS
+    // ==========================================
+
+    function rawToFriendlyAddress(rawAddress, bounceable = false) {
+
+        if (!rawAddress) return "";
+
+        const match = rawAddress.match(/^(-?\d+):([0-9a-fA-F]{64})$/);
+
+        if (!match) return rawAddress;
+
+        const workchain = Number(match[1]);
+
+        if (!Number.isInteger(workchain) || workchain < -128 || workchain > 127) {
+            throw new Error("Invalid TON workchain");
+        }
+
+        const hashBytes = match[2].match(/.{2}/g)
+            .map(byte => parseInt(byte, 16));
+
+        const addressBytes = [
+            bounceable ? 0x11 : 0x51,
+            workchain & 0xff,
+            ...hashBytes
+        ];
+
+        let crc = 0;
+
+        for (const byte of addressBytes) {
+            crc ^= byte << 8;
+
+            for (let i = 0; i < 8; i++) {
+                if (crc & 0x8000) {
+                    crc = (crc << 1) ^ 0x1021;
+                } else {
+                    crc <<= 1;
+                }
+
+                crc &= 0xffff;
+            }
+        }
+
+        addressBytes.push((crc >> 8) & 0xff);
+        addressBytes.push(crc & 0xff);
+
+        return btoa(String.fromCharCode(...addressBytes))
+            .replace(/\+/g, "-")
+            .replace(/\//g, "_")
+            .replace(/=/g, "");
+    }
+
+    function getLiveWalletRawAddress() {
+        const wallet = tonConnectUI.wallet;
+
+        return wallet && wallet.account && wallet.account.address
+            ? wallet.account.address
+            : "";
+    }
+
+    function getLiveWalletAddress() {
+        const rawAddress = getLiveWalletRawAddress();
+        return rawAddress ? rawToFriendlyAddress(rawAddress, false) : "";
+    }
+
+    // ==========================================
+    // SETTINGS / MAINTENANCE
+    // ==========================================
+
+    db.collection("settings").doc("config").onSnapshot(doc => {
+
+        if (!doc.exists) return;
+
+        const data = doc.data();
+
+        isWithdrawOpen = data.withdrawOpen === true;
+        minWithdrawLimit = Number(data.minWithdraw || 10);
+
+        if (data.maintenanceMode) {
+
+            const notice = data.maintenanceNotice ||
+                "Site is under scheduled maintenance. Please check back later!";
+
+            document.body.innerHTML = `
+                <div style="background:#060B14;color:#FFF;height:100vh;display:flex;flex-direction:column;justify-content:center;align-items:center;text-align:center;padding:20px;font-family:Segoe UI,sans-serif;">
+                    <h1 style="color:#F5C443;margin-bottom:15px;">🛠️ Under Maintenance</h1>
+                    <p style="font-size:15px;color:#8E9BAE;max-width:400px;line-height:1.6;">${notice}</p>
+                </div>
+            `;
+        }
+    });
+
+    // ==========================================
+    // WALLET STATUS LISTENER
+    // ==========================================
+
+    tonConnectUI.onStatusChange(wallet => {
+
+        if (wallet && wallet.account && wallet.account.address) {
+
+            connectedWalletRawAddress = wallet.account.address;
+            connectedWalletAddress = rawToFriendlyAddress(connectedWalletRawAddress, false);
+            walletConnected = true;
+
+            db.collection("users").doc(userId).set({
+                username: userUsername,
+                walletConnected: true,
+                walletAddress: connectedWalletAddress,
+                walletRawAddress: connectedWalletRawAddress
+            }, { merge: true });
+
         } else {
-            const initial = userName.charAt(0).toUpperCase();
-            document.getElementById('headerAvatar').innerText = initial;
-            document.getElementById('profileAvatar').innerText = initial;
+
+            walletConnected = false;
+            connectedWalletRawAddress = "";
+            connectedWalletAddress = "";
+            isVerified = false;
+
+            db.collection("users").doc(userId).set({
+                walletConnected: false,
+                walletAddress: "",
+                walletRawAddress: "",
+                verified: false
+            }, { merge: true });
         }
 
-        // TonConnect UI Initialization
-        const tonConnectUI = new TON_CONNECT_UI.TonConnectUI({
-            manifestUrl: 'https://mtrdex-app.vercel.app/tonconnect-manifest.json'
-        });
+        updateUI();
 
-        let walletConnected = false;
-        let connectedWalletAddress = "";
-        let connectedWalletRawAddress = "";
-        let isVerified = false;
-        let totalBalance = 0.0000;
-        let sessionMined = 0.0000;
-        let refRewardBalance = 0.0000;
-        let referralCount = 0;
-        let completedTasks = {};
+        const modal = document.getElementById("walletModal");
 
-        // Convert TON raw address (0:hash) into friendly UQ/EQ address.
-        function rawToFriendlyAddress(rawAddress, bounceable = false) {
-            if (!rawAddress) return "";
-
-            const match = rawAddress.match(/^(-?\d+):([0-9a-fA-F]{64})$/);
-
-            // If the address is already in friendly format, keep it unchanged.
-            if (!match) return rawAddress;
-
-            const workchain = Number(match[1]);
-
-            if (!Number.isInteger(workchain) || workchain < -128 || workchain > 127) {
-                throw new Error("Invalid TON workchain");
-            }
-
-            const hashBytes = match[2].match(/.{2}/g).map(byte => parseInt(byte, 16));
-
-            const addressBytes = [
-                bounceable ? 0x11 : 0x51,
-                workchain & 0xff,
-                ...hashBytes
-            ];
-
-            // CRC16-XMODEM checksum
-            let crc = 0x0000;
-
-            for (const byte of addressBytes) {
-                crc ^= byte << 8;
-
-                for (let i = 0; i < 8; i++) {
-                    if (crc & 0x8000) {
-                        crc = (crc << 1) ^ 0x1021;
-                    } else {
-                        crc = crc << 1;
-                    }
-
-                    crc &= 0xffff;
-                }
-            }
-
-            addressBytes.push((crc >> 8) & 0xff);
-            addressBytes.push(crc & 0xff);
-
-            const binary = String.fromCharCode(...addressBytes);
-
-            return btoa(binary)
-                .replace(/\+/g, "-")
-                .replace(/\//g, "_")
-                .replace(/=/g, "");
+        if (walletConnected && modal.style.display === "flex") {
+            document.getElementById("modalWalletAddr").innerText =
+                connectedWalletAddress;
         }
+    });
 
-        // Always read the currently connected TonConnect wallet.
-        function getLiveWalletRawAddress() {
-            const wallet = tonConnectUI.wallet;
+    // ==========================================
+    // LOAD USER DATA
+    // ==========================================
 
-            if (wallet && wallet.account && wallet.account.address) {
-                return wallet.account.address;
-            }
+    async function loadUserData() {
 
-            return "";
-        }
+        try {
 
-        function getLiveWalletAddress() {
-            const rawAddress = getLiveWalletRawAddress();
+            const userRef = db.collection("users").doc(userId);
+            const doc = await userRef.get();
 
-            if (!rawAddress) return "";
-
-            return rawToFriendlyAddress(rawAddress, false);
-        }
-
-        // Check Site Maintenance Mode & Config from Firebase Admin Settings
-        db.collection("settings").doc("config").onSnapshot((doc) => {
-            if (doc.exists) {
-                const data = doc.data();
-                isWithdrawOpen = data.withdrawOpen || false;
-                minWithdrawLimit = data.minWithdraw || 10;
-
-                if (data.maintenanceMode) {
-                    let notice = data.maintenanceNotice || "Site is under scheduled maintenance. Please check back later!";
-                    document.body.innerHTML = `
-                        <div style="background:#060B14; color:#FFF; height:100vh; display:flex; flex-direction:column; justify-content:center; align-items:center; text-align:center; padding:20px; font-family:'Segoe UI',sans-serif;">
-                            <h1 style="color:#F5C443; margin-bottom:15px;">🛠️ Under Maintenance</h1>
-                            <p style="font-size:15px; color:#8E9BAE; max-width:400px; line-height:1.6;">${notice}</p>
-                        </div>
-                    `;
-                }
-            }
-        });
-
-        // TonConnect wallet connection status listener.
-        tonConnectUI.onStatusChange(wallet => {
-            if (wallet && wallet.account && wallet.account.address) {
-                connectedWalletRawAddress = wallet.account.address;
-                connectedWalletAddress = rawToFriendlyAddress(connectedWalletRawAddress, false);
-                walletConnected = true;
-
-                db.collection("users").doc(userId).set({
-                    username: userUsername,
-                    walletConnected: true,
-                    walletAddress: connectedWalletAddress,
-                    walletRawAddress: connectedWalletRawAddress
-                }, { merge: true });
-
-            } else {
-                walletConnected = false;
-                connectedWalletRawAddress = "";
-                connectedWalletAddress = "";
-                isVerified = false;
-
-                db.collection("users").doc(userId).set({
-                    walletConnected: false,
-                    walletAddress: "",
-                    walletRawAddress: "",
-                    verified: false
-                }, { merge: true });
-            }
-
-            updateUI();
-
-            const modal = document.getElementById("walletModal");
-
-            if (walletConnected && modal.style.display === "flex") {
-                document.getElementById("modalWalletAddr").innerText = connectedWalletAddress;
-            }
-        });
-
-        // Load user data without treating an old saved wallet as currently connected.
-        db.collection("users").doc(userId).get().then(async (doc) => {
             const liveRaw = getLiveWalletRawAddress();
 
             if (doc.exists) {
+
                 const data = doc.data();
 
-                totalBalance = data.balance || 0;
-                refRewardBalance = data.refReward || 0;
+                totalBalance = Number(data.balance || 0);
+                refRewardBalance = Number(data.refReward || 0);
                 completedTasks = data.tasks || {};
 
                 if (liveRaw) {
                     walletConnected = true;
                     connectedWalletRawAddress = liveRaw;
                     connectedWalletAddress = rawToFriendlyAddress(liveRaw, false);
-                    isVerified = data.verified || false;
+                    isVerified = data.verified === true;
                 } else {
                     walletConnected = false;
                     connectedWalletRawAddress = "";
@@ -524,13 +833,31 @@
                     isVerified = false;
                 }
 
+                // পুরোনো ইউজারের ডকুমেন্টেও UID-সহ পরিচয় আপডেট
+                await userRef.set({
+                    userId: userId,
+                    username: userUsername
+                }, { merge: true });
+
+                // নতুন referral এলে এবং আগে referral না থাকলে সংরক্ষণ
+                if (referrerId && !data.referredBy && data.createdAt) {
+                    await userRef.set({
+                        referredBy: referrerId
+                    }, { merge: true });
+                }
+
             } else {
+
                 walletConnected = !!liveRaw;
                 connectedWalletRawAddress = liveRaw || "";
-                connectedWalletAddress = liveRaw ? rawToFriendlyAddress(liveRaw, false) : "";
+                connectedWalletAddress = liveRaw
+                    ? rawToFriendlyAddress(liveRaw, false)
+                    : "";
+
                 isVerified = false;
 
-                await db.collection("users").doc(userId).set({
+                await userRef.set({
+                    userId: userId,
                     name: userName,
                     username: userUsername,
                     balance: 0,
@@ -546,313 +873,451 @@
             }
 
             updateUI();
+            loadReferralStats();
 
-        }).catch(error => {
+        } catch (error) {
             console.error("User loading error:", error);
-        });
-
-        // Wallet button click
-        async function handleWalletClick() {
-            const liveAddr = getLiveWalletAddress();
-
-            if (liveAddr) {
-                walletConnected = true;
-                connectedWalletAddress = liveAddr;
-                connectedWalletRawAddress = getLiveWalletRawAddress();
-
-                document.getElementById("modalWalletAddr").innerText = liveAddr;
-                document.getElementById("walletModal").style.display = "flex";
-
-            } else {
-                walletConnected = false;
-                connectedWalletAddress = "";
-                connectedWalletRawAddress = "";
-
-                try {
-                    await tonConnectUI.openModal();
-                } catch (error) {
-                    console.error("Wallet modal error:", error);
-                }
-            }
-
-            updateUI();
         }
+    }
 
-        function closeWalletModal() {
-            document.getElementById('walletModal').style.display = 'none';
-        }
+    loadUserData();
 
-        // Copy only the currently connected wallet address.
-        function copyWalletAddress() {
-            const address = getLiveWalletAddress();
+    // ==========================================
+    // REFERRAL STATISTICS
+    // ==========================================
 
-            if (!address) {
-                alert("No wallet connected!");
-                return;
-            }
+    function loadReferralStats() {
 
-            navigator.clipboard.writeText(address)
-                .then(() => {
-                    alert("Wallet address copied!");
-                })
-                .catch(error => {
-                    console.error("Copy error:", error);
-                    alert("Unable to copy address.");
+        db.collection("users")
+            .where("referredBy", "==", userId)
+            .onSnapshot(snapshot => {
+
+                const totalRefs = snapshot.size;
+                let verifiedRefs = 0;
+
+                snapshot.forEach(doc => {
+                    if (doc.data().verified === true) {
+                        verifiedRefs++;
+                    }
                 });
-        }
 
-        // Disconnect current wallet.
-        async function disconnectWallet() {
+                referralCount = totalRefs;
+
+                document.getElementById("referralCount").innerText =
+                    totalRefs + " Members";
+
+                document.getElementById("verifiedRef").innerText =
+                    verifiedRefs;
+
+                document.getElementById("unverifiedRef").innerText =
+                    totalRefs - verifiedRefs;
+            });
+    }
+
+    // ==========================================
+    // WALLET BUTTON
+    // ==========================================
+
+    async function handleWalletClick() {
+
+        const liveAddr = getLiveWalletAddress();
+
+        if (liveAddr) {
+
+            walletConnected = true;
+            connectedWalletAddress = liveAddr;
+            connectedWalletRawAddress = getLiveWalletRawAddress();
+
+            document.getElementById("modalWalletAddr").innerText = liveAddr;
+            document.getElementById("walletModal").style.display = "flex";
+
+        } else {
+
+            walletConnected = false;
+            connectedWalletAddress = "";
+            connectedWalletRawAddress = "";
+
             try {
-                await tonConnectUI.disconnect();
-
-                walletConnected = false;
-                connectedWalletAddress = "";
-                connectedWalletRawAddress = "";
-                isVerified = false;
-
-                await db.collection("users").doc(userId).set({
-                    walletConnected: false,
-                    walletAddress: "",
-                    walletRawAddress: "",
-                    verified: false
-                }, { merge: true });
-
-                closeWalletModal();
-                updateUI();
-
-                alert("Wallet disconnected successfully!");
-
+                await tonConnectUI.openModal();
             } catch (error) {
-                console.error("Disconnect error:", error);
-                alert("Unable to disconnect wallet.");
+                console.error("Wallet modal error:", error);
             }
         }
 
-        async function handleMainAction() {
-            const liveAddr = getLiveWalletAddress();
+        updateUI();
+    }
 
-            if (liveAddr) {
-                walletConnected = true;
-                connectedWalletAddress = liveAddr;
-                connectedWalletRawAddress = getLiveWalletRawAddress();
-            }
+    function closeWalletModal() {
+        document.getElementById("walletModal").style.display = "none";
+    }
 
-            if (!walletConnected) {
-                handleWalletClick();
+    function copyWalletAddress() {
 
-            } else if (!isVerified) {
-                const transaction = {
-                    validUntil: Math.floor(Date.now() / 1000) + 60,
-                    messages: [
-                        {
-                            address: RECEIVER_WALLET,
-                            amount: "100000000" // 0.1 TON Verification Fee
-                        }
-                    ]
-                };
+        const address = getLiveWalletAddress();
 
-                try {
-                    await tonConnectUI.sendTransaction(transaction);
-
-                    isVerified = true;
-
-                    db.collection("users").doc(userId).update({
-                        verified: true
-                    });
-
-                    alert("Verification payment successful! Mining started.");
-                    updateUI();
-
-                } catch (error) {
-                    console.error("Transaction failed or cancelled", error);
-                    alert("Transaction cancelled or failed.");
-                }
-
-            } else {
-                totalBalance += sessionMined;
-                sessionMined = 0.00;
-
-                db.collection("users").doc(userId).update({
-                    balance: totalBalance
-                });
-
-                updateUI();
-                alert("Claimed successfully!");
-            }
+        if (!address) {
+            alert("No wallet connected!");
+            return;
         }
 
-        // Automated TON Transaction Withdrawal System
-        async function handleWithdraw() {
-            if (!isWithdrawOpen) {
-                alert("🚀 Withdrawal system is currently closed by admin. Stay tuned!");
-                return;
-            }
+        navigator.clipboard.writeText(address)
+            .then(() => alert("Wallet address copied!"))
+            .catch(error => {
+                console.error("Copy error:", error);
+                alert("Unable to copy address.");
+            });
+    }
 
-            if (totalBalance < minWithdrawLimit) {
-                alert(`Minimum withdrawal limit is ${minWithdrawLimit} MTR.`);
-                return;
-            }
+    async function disconnectWallet() {
 
-            let liveAddr = getLiveWalletAddress();
-            if (!liveAddr) {
-                handleWalletClick();
-                return;
-            }
+        try {
+
+            await tonConnectUI.disconnect();
+
+            walletConnected = false;
+            connectedWalletAddress = "";
+            connectedWalletRawAddress = "";
+            isVerified = false;
+
+            await db.collection("users").doc(userId).set({
+                walletConnected: false,
+                walletAddress: "",
+                walletRawAddress: "",
+                verified: false
+            }, { merge: true });
+
+            closeWalletModal();
+            updateUI();
+
+            alert("Wallet disconnected successfully!");
+
+        } catch (error) {
+            console.error("Disconnect error:", error);
+            alert("Unable to disconnect wallet.");
+        }
+    }
+
+    // ==========================================
+    // MAIN MINING ACTION
+    // ==========================================
+
+    async function handleMainAction() {
+
+        const liveAddr = getLiveWalletAddress();
+
+        if (liveAddr) {
+            walletConnected = true;
+            connectedWalletAddress = liveAddr;
+            connectedWalletRawAddress = getLiveWalletRawAddress();
+        }
+
+        if (!walletConnected) {
+            await handleWalletClick();
+            return;
+        }
+
+        if (!isVerified) {
 
             const transaction = {
                 validUntil: Math.floor(Date.now() / 1000) + 60,
-                messages: [
-                    {
-                        address: RECEIVER_WALLET,
-                        amount: "50000000" // Processing/Gas fee transaction (0.05 TON)
-                    }
-                ]
+                messages: [{
+                    address: RECEIVER_WALLET,
+                    amount: "100000000"
+                }]
             };
 
             try {
-                alert("Please confirm the withdrawal transaction in your TON Wallet.");
+
                 await tonConnectUI.sendTransaction(transaction);
 
-                let withdrawnAmount = totalBalance;
-                totalBalance = 0;
+                isVerified = true;
 
-                db.collection("withdrawals").add({
-                    userId: userId,
-                    amount: withdrawnAmount,
-                    walletAddress: liveAddr,
-                    status: "approved",
-                    createdAt: firebase.firestore.FieldValue.serverTimestamp()
+                await db.collection("users").doc(userId).update({
+                    verified: true
                 });
 
-                db.collection("users").doc(userId).update({
-                    balance: 0
-                });
-
+                alert("Verification payment submitted. Mining started.");
                 updateUI();
-                alert(`🎉 Successfully withdrawn ${withdrawnAmount.toFixed(4)} MTR to your wallet!`);
 
             } catch (error) {
-                console.error("Withdrawal transaction cancelled or failed", error);
-                alert("Withdrawal transaction was cancelled or failed.");
+                console.error("Transaction failed or cancelled:", error);
+                alert("Transaction cancelled or failed.");
             }
+
+        } else {
+
+            totalBalance += sessionMined;
+            sessionMined = 0;
+
+            await db.collection("users").doc(userId).update({
+                balance: totalBalance
+            });
+
+            updateUI();
+            alert("Claimed successfully!");
+        }
+    }
+
+    // ==========================================
+    // WITHDRAW
+    // ==========================================
+
+    async function handleWithdraw() {
+
+        if (!isWithdrawOpen) {
+            alert("🚀 Withdrawal system is currently closed by admin. Stay tuned!");
+            return;
         }
 
-        function claimRefReward() {
-            if (refRewardBalance <= 0) {
-                alert("No referral rewards to claim yet!");
-                return;
-            }
+        if (totalBalance < minWithdrawLimit) {
+            alert(`Minimum withdrawal limit is ${minWithdrawLimit} MTR.`);
+            return;
+        }
 
-            totalBalance += refRewardBalance;
+        const liveAddr = getLiveWalletAddress();
 
-            let claimedAmount = refRewardBalance;
-            refRewardBalance = 0;
+        if (!liveAddr) {
+            await handleWalletClick();
+            return;
+        }
 
-            db.collection("users").doc(userId).update({
+        const transaction = {
+            validUntil: Math.floor(Date.now() / 1000) + 60,
+            messages: [{
+                address: RECEIVER_WALLET,
+                amount: "50000000"
+            }]
+        };
+
+        try {
+
+            alert("Please confirm the transaction in your TON Wallet.");
+
+            await tonConnectUI.sendTransaction(transaction);
+
+            const withdrawnAmount = totalBalance;
+
+            await db.collection("withdrawals").add({
+                userId: userId,
+                amount: withdrawnAmount,
+                walletAddress: liveAddr,
+                status: "approved",
+                createdAt: firebase.firestore.FieldValue.serverTimestamp()
+            });
+
+            totalBalance = 0;
+
+            await db.collection("users").doc(userId).update({
+                balance: 0
+            });
+
+            updateUI();
+
+            alert(`Transaction submitted for ${withdrawnAmount.toFixed(4)} MTR.`);
+
+        } catch (error) {
+            console.error("Withdrawal transaction failed:", error);
+            alert("Withdrawal transaction was cancelled or failed.");
+        }
+    }
+
+    // ==========================================
+    // CLAIM REFERRAL REWARD
+    // ==========================================
+
+    async function claimRefReward() {
+
+        if (refRewardBalance <= 0) {
+            alert("No referral rewards to claim yet!");
+            return;
+        }
+
+        const claimedAmount = refRewardBalance;
+        totalBalance += claimedAmount;
+        refRewardBalance = 0;
+
+        try {
+
+            await db.collection("users").doc(userId).update({
                 balance: totalBalance,
                 refReward: 0
-            }).then(() => {
-                alert(`Successfully claimed ${claimedAmount.toFixed(4)} MTR!`);
-                updateUI();
             });
+
+            alert(`Successfully claimed ${claimedAmount.toFixed(4)} MTR!`);
+            updateUI();
+
+        } catch (error) {
+            console.error("Referral claim error:", error);
+            alert("Unable to claim referral reward.");
+        }
+    }
+
+    // ==========================================
+    // UPDATE USER INTERFACE
+    // ==========================================
+
+    function updateUI() {
+
+        const btn = document.getElementById("actionBtn");
+        const badge = document.getElementById("verifyStatus");
+        const rate = document.getElementById("miningRateText");
+        const walletDisp = document.getElementById("walletDisplay");
+
+        const liveAddr = getLiveWalletAddress();
+
+        if (liveAddr) {
+            walletConnected = true;
+            connectedWalletAddress = liveAddr;
+            connectedWalletRawAddress = getLiveWalletRawAddress();
+        } else {
+            walletConnected = false;
+            connectedWalletAddress = "";
+            connectedWalletRawAddress = "";
         }
 
-        function updateUI() {
-            let btn = document.getElementById('actionBtn');
-            let badge = document.getElementById('verifyStatus');
-            let rate = document.getElementById('miningRateText');
-            let walletDisp = document.getElementById('walletDisplay');
+        document.getElementById("totalBalance").innerText =
+            totalBalance.toFixed(4);
 
-            // Refresh the address from the live TonConnect session.
-            const liveAddr = getLiveWalletAddress();
+        document.getElementById("sessionMined").innerText =
+            sessionMined.toFixed(4);
 
-            if (liveAddr) {
-                walletConnected = true;
-                connectedWalletAddress = liveAddr;
-                connectedWalletRawAddress = getLiveWalletRawAddress();
-            } else {
-                walletConnected = false;
-                connectedWalletAddress = "";
-                connectedWalletRawAddress = "";
+        document.getElementById("profileBalance").innerText =
+            totalBalance.toFixed(4) + " MTR";
+
+        // সবসময় UID_ দেখাবে
+        document.getElementById("profileTelegramId").innerText = userId;
+
+        if (walletConnected && connectedWalletAddress) {
+
+            walletDisp.innerText =
+                connectedWalletAddress.substring(0, 6) + "..." +
+                connectedWalletAddress.slice(-4);
+
+            document.getElementById("profileWalletAddr").innerText =
+                connectedWalletAddress.substring(0, 6) + "..." +
+                connectedWalletAddress.slice(-6);
+
+        } else {
+
+            walletDisp.innerText = "Connect Wallet";
+            document.getElementById("profileWalletAddr").innerText =
+                "Not Connected";
+        }
+
+        document.getElementById("refRewardBalance").innerText =
+            refRewardBalance.toFixed(4);
+
+        if (isVerified) {
+
+            badge.innerText = "Verified ✓";
+            badge.className = "status-badge verified";
+
+            rate.innerText = "⚡ Mining Active: +0.0050 MTR/sec";
+
+            btn.className = "main-btn btn-claim";
+            btn.innerText = `Claim ${sessionMined.toFixed(4)} MTR`;
+
+        } else if (walletConnected) {
+
+            badge.innerText = "Unverified";
+            badge.className = "status-badge";
+
+            rate.innerText = "Verify account (0.1 TON) to unlock mining";
+
+            btn.className = "main-btn btn-verify";
+            btn.innerText = "Verify & Pay 0.1 TON";
+
+        } else {
+
+            badge.innerText = "Unverified";
+            badge.className = "status-badge";
+
+            rate.innerText = "Connect TON Wallet to begin";
+
+            btn.className = "main-btn btn-connect";
+            btn.innerText = "Connect Wallet";
+        }
+    }
+
+    // ==========================================
+    // MINING TIMER
+    // ==========================================
+
+    setInterval(() => {
+
+        if (isVerified) {
+
+            sessionMined += 0.0050;
+
+            document.getElementById("sessionMined").innerText =
+                sessionMined.toFixed(4);
+
+            if (walletConnected) {
+                document.getElementById("actionBtn").innerText =
+                    `Claim ${sessionMined.toFixed(4)} MTR`;
             }
-
-            document.getElementById('totalBalance').innerText = totalBalance.toFixed(4);
-            document.getElementById('sessionMined').innerText = sessionMined.toFixed(4);
-            document.getElementById('profileBalance').innerText = totalBalance.toFixed(4) + " MTR";
-
-            if (walletConnected && connectedWalletAddress) {
-                walletDisp.innerText = connectedWalletAddress.substring(0, 6) + "..." + connectedWalletAddress.slice(-4);
-
-                document.getElementById('profileWalletAddr').innerText =
-                    connectedWalletAddress.substring(0, 6) + "..." + connectedWalletAddress.slice(-6);
-
-            } else {
-                walletDisp.innerText = "Connect Wallet";
-                document.getElementById('profileWalletAddr').innerText = "Not Connected";
-            }
-
-            if (isVerified) {
-                badge.innerText = "Verified ✓";
-                badge.className = "status-badge verified";
-                rate.innerText = "⚡ Mining Active: +0.0050 MTR/sec";
-                btn.className = "main-btn btn-claim";
-                btn.innerText = `Claim ${sessionMined.toFixed(4)} MTR`;
-
-            } else if (walletConnected) {
-                badge.innerText = "Unverified";
-                badge.className = "status-badge";
-                rate.innerText = "Verify account (0.1 TON) to unlock mining";
-                btn.className = "main-btn btn-verify";
-                btn.innerText = "Verify & Pay 0.1 TON";
-
-            } else {
-                badge.innerText = "Unverified";
-                badge.className = "status-badge";
-                rate.innerText = "Connect TON Wallet to begin";
-                btn.className = "main-btn btn-connect";
-                btn.innerText = "Connect Wallet";
-            }
         }
 
-        setInterval(() => {
-            if (isVerified) {
-                let minedChunk = 0.0050;
-                sessionMined += minedChunk;
-                document.getElementById('sessionMined').innerText = sessionMined.toFixed(4);
-                if (walletConnected && isVerified) {
-                    document.getElementById('actionBtn').innerText = `Claim ${sessionMined.toFixed(4)} MTR`;
-                }
-            }
-        }, 1000);
+    }, 1000);
 
-        function switchTab(tab, el) {
-            document.querySelectorAll('.container').forEach(c => c.classList.remove('active'));
-            document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+    // ==========================================
+    // NAVIGATION
+    // ==========================================
 
-            document.getElementById('tab-' + tab).classList.add('active');
-            el.classList.add('active');
-        }
+    function switchTab(tab, element) {
 
-        function openTokenomicsModal() {
-            document.getElementById('tokenomicsModal').style.display = 'flex';
-        }
+        document.querySelectorAll(".container")
+            .forEach(container => container.classList.remove("active"));
 
-        function closeTokenomicsModal() {
-            document.getElementById('tokenomicsModal').style.display = 'none';
-        }
+        document.querySelectorAll(".nav-item")
+            .forEach(item => item.classList.remove("active"));
 
-        function copyRefLink() {
-            navigator.clipboard.writeText(document.getElementById('refLinkBox').innerText);
-            alert("Referral link copied!");
-        }
+        document.getElementById("tab-" + tab).classList.add("active");
+        element.classList.add("active");
+    }
 
-        function shareRefLink() {
-            const refLink = document.getElementById('refLinkBox').innerText;
-            const shareText = encodeURIComponent("Join MTR Master Mining! 🚀\n\n" + refLink);
+    // ==========================================
+    // TOKENOMICS MODAL
+    // ==========================================
 
-            window.open(`https://t.me/share/url?url=${encodeURIComponent(refLink)}&text=${shareText}`, '_blank');
-        }
-    </script>
+    function openTokenomicsModal() {
+        document.getElementById("tokenomicsModal").style.display = "flex";
+    }
+
+    function closeTokenomicsModal() {
+        document.getElementById("tokenomicsModal").style.display = "none";
+    }
+
+    // ==========================================
+    // REFERRAL COPY
+    // ==========================================
+
+    function copyRefLink() {
+
+        navigator.clipboard.writeText(personalReferralLink)
+            .then(() => alert("Referral Link Copied!"))
+            .catch(() => alert("Unable to copy Referral Link."));
+    }
+
+    // ==========================================
+    // REFERRAL SHARE
+    // ==========================================
+
+    function shareRefLink() {
+
+        const shareText = encodeURIComponent(
+            "Join MTR Master Mining! 🚀\n\n" + personalReferralLink
+        );
+
+        const shareURL =
+            "https://t.me/share/url?url=" +
+            encodeURIComponent(personalReferralLink) +
+            "&text=" + shareText;
+
+        window.open(shareURL, "_blank");
+    }
+
+</script>
+
 </body>
 </html>
