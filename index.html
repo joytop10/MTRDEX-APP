@@ -117,7 +117,7 @@
                 <span class="status-badge" id="verifyStatus">Unverified</span>
             </div>
         </div>
-        <div id="walletDisplay" style="font-size: 12px; color: var(--cyan-glow); font-weight: bold; background: rgba(0,119,255,0.15); padding: 6px 10px; border-radius: 8px; border: 1px solid var(--neon-blue); cursor: pointer;" onclick="connectWalletPrompt()">
+        <div id="walletDisplay" style="font-size: 12px; color: var(--cyan-glow); font-weight: bold; background: rgba(0,119,255,0.15); padding: 6px 10px; border-radius: 8px; border: 1px solid var(--neon-blue); cursor: pointer;" onclick="handleWalletClick()">
             Connect Wallet
         </div>
     </div>
@@ -214,7 +214,10 @@
         </div>
         <div class="list-card"><span>Telegram ID</span><strong style="color: #FFF;" id="profileTelegramId">123456789</strong></div>
         <div class="list-card"><span>Total Mined Balance</span><strong style="color: var(--gold-light);" id="profileBalance">0.0000 MTR</strong></div>
-        <div class="list-card"><span>Connected Wallet</span><strong style="font-size: 11px; color: var(--cyan-glow);" id="profileWalletAddr">Not Connected</strong></div>
+        <div class="list-card" style="cursor: pointer;" onclick="handleWalletClick()">
+            <span>Connected Wallet</span>
+            <strong style="font-size: 11px; color: var(--cyan-glow);" id="profileWalletAddr">Not Connected</strong>
+        </div>
         
         <!-- Withdraw Button -->
         <button class="main-btn btn-verify" style="margin-top: 15px; font-size: 14px; padding: 14px;" onclick="handleWithdraw()">
@@ -317,26 +320,11 @@
         let referralCount = 0;
         let completedTasks = {};
 
-        // Helper function to convert raw TON address to user-friendly UQ format if needed
-        function formatAddress(address) {
-            if (!address) return "";
-            try {
-                if (address.includes(':')) {
-                    const parseAddress = new TonWeb.Address(address);
-                    return parseAddress.toString(true, true, true);
-                }
-            } catch (e) {
-                // fallback if conversion fails
-            }
-            return address;
-        }
-
         tonConnectUI.onStatusChange(walletInfo => {
             if (walletInfo) {
                 walletConnected = true;
                 const rawAddress = walletInfo.account.address;
                 
-                // Convert raw address (0:...) to user-friendly format (UQ...) using TonConnect built-in property or formatting
                 if (walletInfo.account.bounceable !== undefined || rawAddress.includes(':')) {
                     try {
                         const addrObj = new window.TonConnectSDK.Address(rawAddress);
@@ -358,9 +346,11 @@
                 walletConnected = false;
                 connectedWalletAddress = "";
                 friendlyWalletAddress = "";
+                isVerified = false; // Reset verification status on disconnect if needed
                 db.collection("users").doc(userId).update({
                     walletConnected: false,
-                    walletAddress: ""
+                    walletAddress: "",
+                    verified: false
                 }, { merge: true });
             }
             updateUI();
@@ -431,17 +421,39 @@
             }
         });
 
-        async function connectWalletPrompt() {
-            try {
-                await tonConnectUI.openModal();
-            } catch (error) {
-                console.error("Wallet connection error:", error);
+        // Handle wallet click: if connected, show disconnect option; else open connect modal
+        async function handleWalletClick() {
+            if (walletConnected) {
+                let confirmDisconnect = confirm("আপনি কি আপনার ওয়ালেট ডিসকানেক্ট করতে চান?");
+                if (confirmDisconnect) {
+                    try {
+                        await tonConnectUI.disconnect();
+                        walletConnected = false;
+                        connectedWalletAddress = "";
+                        isVerified = false;
+                        db.collection("users").doc(userId).update({
+                            walletConnected: false,
+                            walletAddress: "",
+                            verified: false
+                        });
+                        updateUI();
+                        alert("ওয়ালেট সফলভাবে ডিসকানেক্ট করা হয়েছে!");
+                    } catch (error) {
+                        console.error("Disconnect error:", error);
+                    }
+                }
+            } else {
+                try {
+                    await tonConnectUI.openModal();
+                } catch (error) {
+                    console.error("Wallet connection error:", error);
+                }
             }
         }
 
         async function handleMainAction() {
             if (!walletConnected) {
-                connectWalletPrompt();
+                handleWalletClick();
             } else if (!isVerified) {
                 const transaction = {
                     validUntil: Math.floor(Date.now() / 1000) + 60,
@@ -555,7 +567,7 @@
 
             if (walletConnected && connectedWalletAddress) {
                 walletDisp.innerText = connectedWalletAddress.substring(0, 6) + "..." + connectedWalletAddress.slice(-4);
-                document.getElementById('profileWalletAddr').innerText = connectedWalletAddress;
+                document.getElementById('profileWalletAddr').innerText = connectedWalletAddress.substring(0, 6) + "..." + connectedWalletAddress.slice(-6);
             } else {
                 walletDisp.innerText = "Connect Wallet";
                 document.getElementById('profileWalletAddr').innerText = "Not Connected";
