@@ -481,7 +481,7 @@
 
             <button class="main-btn btn-connect"
                     style="padding:10px;font-size:13px;"
-                    onclick="closeTokenomicsModal()">Close</button>
+                    onclick="openTokenomicsModal()">Close</button>
         </div>
     </div>
 
@@ -690,7 +690,7 @@
     });
 
     // ==========================================
-    // TON CONNECT STATUS LISTENER (FIXED)
+    // TON CONNECT STATUS LISTENER
     // ==========================================
 
     tonConnectUI.onStatusChange(wallet => {
@@ -699,23 +699,12 @@
             connectedWalletAddress = rawToFriendlyAddress(connectedWalletRawAddress, false);
             walletConnected = true;
 
-            // ডাটাবেসে ওয়ালেট তথ্য সেভ করা হচ্ছে
             db.collection("users").doc(userId).set({
                 walletConnected: true,
                 walletAddress: connectedWalletAddress,
                 walletRawAddress: connectedWalletRawAddress
             }, { merge: true });
-
-        } else {
-            // ওয়ালেট ডিসকানেক্ট না করলে স্ট্যাটাস রিসেট হবে না
-            const liveAddr = getLiveWalletAddress();
-            if (!liveAddr) {
-                walletConnected = false;
-                connectedWalletRawAddress = "";
-                connectedWalletAddress = "";
-            }
         }
-
         updateUI();
 
         const modal = document.getElementById("walletModal");
@@ -725,7 +714,7 @@
     });
 
     // ==========================================
-    // LOAD USER DATA (ONE-TIME FETCH & INIT)
+    // LOAD USER DATA (STABLE ONE-TIME FETCH + SYNC)
     // ==========================================
 
     async function loadUserData() {
@@ -747,9 +736,7 @@
                 totalBalance = Number(data.balance || 0);
                 refRewardBalance = Number(data.refReward || 0);
                 completedTasks = data.tasks || {};
-                
-                // ডেটাবেস থেকে পার্মানেন্ট ভেরিফাইড স্ট্যাটাস লোড করা হলো
-                isVerified = data.verified === true; 
+                isVerified = data.verified === true;
 
                 if (!walletConnected && data.walletConnected && data.walletAddress) {
                     walletConnected = data.walletConnected;
@@ -773,7 +760,6 @@
 
             } else {
                 isVerified = false;
-
                 await userRef.set({
                     userId: userId,
                     name: userName,
@@ -787,7 +773,7 @@
                     tasks: {},
                     referredBy: referrerId || null,
                     createdAt: firebase.firestore.FieldValue.serverTimestamp()
-                });
+                }, { merge: true });
             }
 
             updateUI();
@@ -921,15 +907,15 @@
             try {
                 await tonConnectUI.sendTransaction(transaction);
 
-                // পেমেন্ট সফল হওয়ার পর সাথে সাথেই স্টেট এবং ডেটাবেস আপডেট করা হচ্ছে
                 isVerified = true;
 
-                await db.collection("users").doc(userId).update({
+                // ভেরিফিকেশন সফল হওয়ার পর ডাটাবেসে পার্মানেন্টলি সেভ করা হচ্ছে
+                await db.collection("users").doc(userId).set({
                     verified: true,
                     walletConnected: true,
                     walletAddress: connectedWalletAddress,
                     walletRawAddress: connectedWalletRawAddress
-                });
+                }, { merge: true });
 
                 alert("Verification payment successful! Mining started.");
                 updateUI();
@@ -939,7 +925,7 @@
             }
 
         } else {
-            // মাইনিং ক্লেইম করে মূল ব্যালেন্সে যোগ করার লজিক
+            // ফিক্সড ক্লেইম লজিক: সেশনের কয়েন মূল ব্যালেন্সে যোগ হয়ে ডাটাবেসে সেভ হবে
             if (sessionMined <= 0) {
                 alert("No mined balance to claim right now!");
                 return;
@@ -950,9 +936,9 @@
             sessionMined = 0;
 
             try {
-                await db.collection("users").doc(userId).update({
+                await db.collection("users").doc(userId).set({
                     balance: totalBalance
-                });
+                }, { merge: true });
 
                 updateUI();
                 alert(`Successfully claimed ${claimedAmount.toFixed(4)} MTR!`);
@@ -1007,9 +993,9 @@
                 createdAt: firebase.firestore.FieldValue.serverTimestamp()
             });
 
-            await db.collection("users").doc(userId).update({
+            await db.collection("users").doc(userId).set({
                 balance: 0
-            });
+            }, { merge: true });
 
             updateUI();
             alert(`Transaction submitted for ${withdrawnAmount.toFixed(4)} MTR.`);
@@ -1034,10 +1020,10 @@
         refRewardBalance = 0;
 
         try {
-            await db.collection("users").doc(userId).update({
+            await db.collection("users").doc(userId).set({
                 balance: totalBalance,
                 refReward: 0
-            });
+            }, { merge: true });
 
             alert(`Successfully claimed ${claimedAmount.toFixed(4)} MTR!`);
             updateUI();
@@ -1092,7 +1078,7 @@
             btn.innerText = `Claim ${sessionMined.toFixed(4)} MTR`;
         } else if (walletConnected) {
             badge.innerText = "Unverified";
-            badge.className, "status-badge";
+            badge.className = "status-badge";
             rate.innerText = "Verify account (0.1 TON) to unlock mining";
             btn.className = "main-btn btn-verify";
             btn.innerText = "Verify & Pay 0.1 TON";
