@@ -333,12 +333,10 @@
         let referralCount = 0;
         let completedTasks = {};
 
-        // Helper to get friendly address format directly from TonConnect connected account
-        function getWalletAddress(wallet) {
-            if (!wallet || !wallet.account) return "";
-            const account = wallet.account;
-            // Use user-friendly address if available, otherwise fallback to address property
-            if (account.address) {
+        // Pure dynamic helper to get user-friendly wallet address directly from TonConnect live account
+        function getLiveWalletAddress() {
+            if (tonConnectUI.wallet && tonConnectUI.wallet.account) {
+                const account = tonConnectUI.wallet.account;
                 let rawAddr = account.address;
                 try {
                     if (window.TonConnectSDK && window.TonConnectSDK.Address) {
@@ -350,11 +348,11 @@
             return "";
         }
 
-        // Real-time TonConnect status listener capturing exact connected wallet
+        // TonConnect Status Change Listener
         tonConnectUI.onStatusChange(wallet => {
             if (wallet && wallet.account) {
                 walletConnected = true;
-                connectedWalletAddress = getWalletAddress(wallet);
+                connectedWalletAddress = getLiveWalletAddress();
 
                 db.collection("users").doc(userId).update({
                     walletConnected: true,
@@ -380,21 +378,19 @@
         });
 
         db.collection("users").doc(userId).get().then(async (doc) => {
-            if (doc.exists) {
+            // Check live TonConnect first
+            let liveAddr = getLiveWalletAddress();
+            if (liveAddr) {
+                walletConnected = true;
+                connectedWalletAddress = liveAddr;
+            } else if (doc.exists) {
                 let data = doc.data();
                 totalBalance = data.balance || 0;
                 refRewardBalance = data.refReward || 0;
                 completedTasks = data.tasks || {};
                 isVerified = data.verified || false;
-                
-                // Check live TonConnect wallet state first, fallback to Firestore if active session exists
-                if (tonConnectUI.wallet && tonConnectUI.wallet.account) {
-                    walletConnected = true;
-                    connectedWalletAddress = getWalletAddress(tonConnectUI.wallet);
-                } else {
-                    walletConnected = data.walletConnected || false;
-                    connectedWalletAddress = data.walletAddress || "";
-                }
+                walletConnected = data.walletConnected || false;
+                connectedWalletAddress = data.walletAddress || "";
             } else {
                 await db.collection("users").doc(userId).set({
                     name: userName,
@@ -446,10 +442,10 @@
         });
 
         async function handleWalletClick() {
-            // Re-verify live wallet address before opening modal
-            if (tonConnectUI.wallet && tonConnectUI.wallet.account) {
+            let liveAddr = getLiveWalletAddress();
+            if (liveAddr) {
                 walletConnected = true;
-                connectedWalletAddress = getWalletAddress(tonConnectUI.wallet);
+                connectedWalletAddress = liveAddr;
             }
 
             if (walletConnected && connectedWalletAddress) {
@@ -469,7 +465,8 @@
         }
 
         function copyWalletAddress() {
-            navigator.clipboard.writeText(connectedWalletAddress);
+            let liveAddr = getLiveWalletAddress() || connectedWalletAddress;
+            navigator.clipboard.writeText(liveAddr);
             alert("Wallet address copied!");
         }
 
@@ -493,9 +490,10 @@
         }
 
         async function handleMainAction() {
-            if (tonConnectUI.wallet && tonConnectUI.wallet.account) {
+            let liveAddr = getLiveWalletAddress();
+            if (liveAddr) {
                 walletConnected = true;
-                connectedWalletAddress = getWalletAddress(tonConnectUI.wallet);
+                connectedWalletAddress = liveAddr;
             }
 
             if (!walletConnected) {
@@ -606,10 +604,10 @@
             let rate = document.getElementById('miningRateText');
             let walletDisp = document.getElementById('walletDisplay');
 
-            // Always check live tonconnect wallet first
-            if (tonConnectUI.wallet && tonConnectUI.wallet.account) {
+            let liveAddr = getLiveWalletAddress();
+            if (liveAddr) {
                 walletConnected = true;
-                connectedWalletAddress = getWalletAddress(tonConnectUI.wallet);
+                connectedWalletAddress = liveAddr;
             }
 
             document.getElementById('totalBalance').innerText = totalBalance.toFixed(4);
