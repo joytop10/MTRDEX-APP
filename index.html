@@ -333,22 +333,24 @@
         let referralCount = 0;
         let completedTasks = {};
 
-        // Pure dynamic helper to get user-friendly wallet address directly from TonConnect live account
+        // Function to extract raw or friendly address directly from live TonConnect session without caching
         function getLiveWalletAddress() {
             if (tonConnectUI.wallet && tonConnectUI.wallet.account) {
                 const account = tonConnectUI.wallet.account;
-                let rawAddr = account.address;
+                let address = account.address;
+                
+                // Convert raw address (0:...) to user-friendly format (UQ...) if necessary
                 try {
                     if (window.TonConnectSDK && window.TonConnectSDK.Address) {
-                        return new window.TonConnectSDK.Address(rawAddr).toString({ bounceable: true, urlSafe: true });
+                        return new window.TonConnectSDK.Address(address).toString({ bounceable: true, urlSafe: true });
                     }
                 } catch(e) {}
-                return rawAddr;
+                return address;
             }
             return "";
         }
 
-        // TonConnect Status Change Listener
+        // Real-time TonConnect status listener
         tonConnectUI.onStatusChange(wallet => {
             if (wallet && wallet.account) {
                 walletConnected = true;
@@ -378,7 +380,7 @@
         });
 
         db.collection("users").doc(userId).get().then(async (doc) => {
-            // Check live TonConnect first
+            // Force check live TonConnect first
             let liveAddr = getLiveWalletAddress();
             if (liveAddr) {
                 walletConnected = true;
@@ -473,6 +475,13 @@
         async function disconnectWallet() {
             try {
                 await tonConnectUI.disconnect();
+                // Clear all local storage cache related to tonconnect to prevent sticky old address
+                for (let i = 0; i < localStorage.length; i++) {
+                    let key = localStorage.key(i);
+                    if (key && key.includes('ton-connect')) {
+                        localStorage.removeItem(key);
+                    }
+                }
                 walletConnected = false;
                 connectedWalletAddress = "";
                 isVerified = false;
