@@ -415,31 +415,32 @@ try {
                 return;
             }
 
-            const previousRawAddress = connectedWalletRawAddress;
-            if (previousRawAddress && previousRawAddress !== newRawAddress) {
-                isVerified = false;
-            }
-
             walletConnected = true;
             connectedWalletRawAddress = newRawAddress;
             connectedWalletAddress = newFriendlyAddress;
-            updateUI();
 
             if (userLoaded) {
                 try {
                     const doc = await db.collection("users").doc(userId).get();
                     if (sequence !== walletStatusSequence) return;
                     const data = doc.exists ? doc.data() : {};
+                    
                     const savedRaw = data.walletRawAddress || "";
                     const savedFriendly = data.walletAddress || "";
-                    const sameWallet = (savedRaw === newRawAddress || savedFriendly === newFriendlyAddress);
+                    const verifiedWalletRaw = data.verifiedWalletRaw || "";
+                    const verifiedWalletFriendly = data.verifiedWalletAddress || "";
 
-                    isVerified = data.verified === true && sameWallet;
-                    await saveWalletInfo();
+                    // PERMANENT RECOGNITION: If this wallet was verified before for this user, keep verified = true
+                    const isSameAsSaved = (savedRaw === newRawAddress || savedFriendly === newFriendlyAddress);
+                    const isSameAsVerifiedBefore = (verifiedWalletRaw === newRawAddress || verifiedWalletFriendly === newFriendlyAddress);
 
-                    if (!sameWallet && data.verified === true) {
-                        await db.collection("users").doc(userId).set({ verified: false }, { merge: true });
+                    if (data.verified === true && (isSameAsSaved || isSameAsVerifiedBefore)) {
+                        isVerified = true;
+                    } else {
+                        isVerified = false;
                     }
+
+                    await saveWalletInfo();
                     updateUI();
                 } catch (e) {
                     console.error("Wallet restore error:", e);
@@ -449,19 +450,7 @@ try {
             walletConnected = false;
             connectedWalletAddress = "";
             connectedWalletRawAddress = "";
-            isVerified = false;
             updateUI();
-
-            if (userLoaded) {
-                try {
-                    await db.collection("users").doc(userId).set({
-                        walletConnected: false,
-                        walletAddress: "",
-                        walletRawAddress: "",
-                        verified: false
-                    }, { merge: true });
-                } catch (e) {}
-            }
         }
 
         const modal = document.getElementById("walletModal");
@@ -519,13 +508,11 @@ async function disconnectWallet() {
         walletConnected = false;
         connectedWalletAddress = "";
         connectedWalletRawAddress = "";
-        isVerified = false;
 
         await db.collection("users").doc(userId).set({
             walletConnected: false,
             walletAddress: "",
-            walletRawAddress: "",
-            verified: false
+            walletRawAddress: ""
         }, { merge: true });
 
         closeWalletModal();
@@ -580,8 +567,16 @@ async function verifyAccountWithFee() {
         
         if (result && result.boc) {
             isVerified = true;
+            const currentRaw = getLiveWalletRawAddress();
+            const currentFriendly = getLiveWalletAddress();
+
             await db.collection("users").doc(userId).set({
                 verified: true,
+                verifiedWalletRaw: currentRaw,
+                verifiedWalletAddress: currentFriendly,
+                walletConnected: true,
+                walletAddress: currentFriendly,
+                walletRawAddress: currentRaw,
                 verifiedAt: firebase.firestore.FieldValue.serverTimestamp()
             }, { merge: true });
 
@@ -616,16 +611,22 @@ async function loadUserData() {
 
                 const savedRaw = data.walletRawAddress || "";
                 const savedFriendly = data.walletAddress || "";
-                const sameWallet = (savedRaw === liveRaw || savedFriendly === liveFriendly);
-                
-                // FIXED: Direct check from database 'verified' flag + matching wallet
-                isVerified = data.verified === true && sameWallet;
+                const verifiedWalletRaw = data.verifiedWalletRaw || "";
+                const verifiedWalletFriendly = data.verifiedWalletAddress || "";
+
+                const isSameAsSaved = (savedRaw === liveRaw || savedFriendly === liveFriendly);
+                const isSameAsVerifiedBefore = (verifiedWalletRaw === liveRaw || verifiedWalletFriendly === liveFriendly);
+
+                // Permanent verification recognition for the same wallet
+                isVerified = data.verified === true && (isSameAsSaved || isSameAsVerifiedBefore);
 
                 await userRef.set({
                     walletConnected: true,
                     walletAddress: liveFriendly,
                     walletRawAddress: liveRaw,
                     verified: isVerified,
+                    verifiedWalletRaw: verifiedWalletRaw || (isVerified ? liveRaw : ""),
+                    verifiedWalletAddress: verifiedWalletFriendly || (isVerified ? liveFriendly : ""),
                     userId: userId,
                     name: userName,
                     username: userUsername,
@@ -635,7 +636,7 @@ async function loadUserData() {
                 walletConnected = false;
                 connectedWalletAddress = "";
                 connectedWalletRawAddress = "";
-                isVerified = false;
+                isVerified = data.verified === true;
             }
         } else {
             walletConnected = !!liveRaw;
@@ -989,7 +990,6 @@ function updateUI() {
         walletConnected = false;
         connectedWalletRawAddress = "";
         connectedWalletAddress = "";
-        isVerified = false;
     }
 
     const now = Date.now();
@@ -1018,14 +1018,24 @@ function updateUI() {
     const button = document.getElementById("actionBtn");
     const sessionText = document.getElementById("sessionStatusText");
 
-    // Live verification status check against Firestore document
+    // Check Firestore verification status securely in real-time
     db.collection("users").doc(userId).get().then(doc => {
         if (doc.exists) {
             const data = doc.data();
-            const liveRawAddr = getLiveWalletRawAddress();
-            const sameWallet = data.walletRawAddress === liveRawAddr || data.walletAddress === connectedWalletAddress;
-            if (data.verified === true && sameWallet) {
+            const currentRaw = getLiveWalletRawAddress();
+            const currentFriendly = getLiveWalletAddress();
+            const savedRaw = data.walletRawAddress || "";
+            const savedFriendly = data.walletAddress || "";
+            const verifiedRaw = data.verifiedWalletRaw || "";
+            const verifiedFriendly = data.verifiedWalletAddress || "";
+
+            const matchesCurrent = (savedRaw === currentRaw || savedFriendly === currentFriendly);
+            const matchesVerified = (verifiedRaw === currentRaw || verifiedFriendly === currentFriendly);
+
+            if (data.verified === true && (matchesCurrent || matchesVerified)) {
                 isVerified = true;
+                badge.textContent = "Verified ✓";
+                badge.className = "status-badge verified";
             }
         }
     }).catch(() => {});
