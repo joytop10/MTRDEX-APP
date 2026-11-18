@@ -85,6 +85,9 @@ button{font-family:inherit;cursor:pointer}
 .profile-avatar{width:55px;height:55px;border-radius:16px}
 .profile-name{font-size:16px;font-weight:800;color:var(--gold);margin-bottom:5px}
 .profile-username{color:#55B8FF;font-size:12px}
+.withdraw-box{background:linear-gradient(145deg,#17243A,#101827);border:1px solid rgba(245,197,66,.2);border-radius:15px;padding:16px;display:flex;flex-direction:column;gap:12px;width:100%}
+.withdraw-input{width:100%;padding:13px;background:#080D18;border:1px solid var(--border);border-radius:10px;color:white;font-size:14px;outline:none}
+.withdraw-input:focus{border-color:var(--gold)}
 .bottom-nav{position:fixed;bottom:0;left:0;width:100%;display:flex;justify-content:space-around;align-items:center;padding:10px 0 calc(10px + env(safe-area-inset-bottom));background:rgba(11,17,29,.97);border-top:1px solid var(--border);backdrop-filter:blur(15px);z-index:100}
 .nav-item{width:20%;display:flex;flex-direction:column;align-items:center;gap:5px;color:var(--muted);font-size:11px;font-weight:600;cursor:pointer}
 .nav-icon{font-size:21px;filter:grayscale(1);opacity:.7}
@@ -246,7 +249,15 @@ button{font-family:inherit;cursor:pointer}
         </div>
         <div class="list-value">VIEW</div>
     </div>
-    <button class="main-btn btn-gold" onclick="handleWithdraw()">📤 WITHDRAW MTR</button>
+
+    <!-- উইথড্র অ্যামাউন্ট ইনপুট বক্স ও অপশন -->
+    <div class="withdraw-box">
+        <div class="list-sub" style="color:var(--gold);font-weight:700">📤 Withdraw MTR to Wallet</div>
+        <div class="list-sub" id="minWithdrawLabel">Minimum withdraw: 10 MTR</div>
+        <input type="number" id="withdrawAmountInput" class="withdraw-input" placeholder="Enter amount to withdraw" step="any">
+        <button class="main-btn btn-gold" onclick="handleWithdraw()">SUBMIT WITHDRAWAL</button>
+    </div>
+
     <button class="main-btn btn-connect" onclick="openTokenomicsModal()">📊 VIEW TOKENOMICS</button>
 </section>
 
@@ -567,7 +578,6 @@ async function verifyAccountWithFee() {
             const currentRaw = getLiveWalletRawAddress();
             const currentFriendly = getLiveWalletAddress();
 
-            // অটো ভেরিফিকেশনের পর সাথে সাথেই ৮ ঘণ্টার মাইনিং স্টার্ট করে দেওয়া হলো
             const now = Date.now();
             miningStartTime = now;
             miningEndTime = now + MINING_DURATION_MS;
@@ -689,6 +699,11 @@ db.collection("settings").doc("config").onSnapshot(doc => {
     const data = doc.data();
     isWithdrawOpen = data.withdrawOpen === true;
     minWithdrawLimit = Number(data.minWithdraw || 10);
+
+    const minLabel = document.getElementById("minWithdrawLabel");
+    if (minLabel) {
+        minLabel.textContent = "Minimum withdraw: " + minWithdrawLimit + " MTR";
+    }
 
     if (data.miningRate !== undefined) {
         miningRatePerHour = Number(data.miningRate);
@@ -913,8 +928,6 @@ async function handleMainAction() {
 
     const now = Date.now();
     
-    // ইউজার যখনই CLAIM বাটন এ ক্লিক করবে, বর্তমান সেশনের মাইন করা কয়েন ব্যালেন্সে যোগ হবে এবং 
-    // পরবর্তী ৮ ঘণ্টার জন্য আবার নতুন করে মাইনিং স্টার্ট হয়ে যাবে।
     const elapsedSec = miningStartTime > 0 ? Math.max(0, Math.floor((now - miningStartTime) / 1000)) : 0;
     const currentMined = Math.min(miningRatePerHour * MINING_DURATION_HOURS, elapsedSec * miningRatePerSec);
 
@@ -945,17 +958,55 @@ async function handleWithdraw() {
         return;
     }
 
-    if (totalBalance < minWithdrawLimit) {
+    const withdrawInput = document.getElementById("withdrawAmountInput");
+    const withdrawAmount = Number(withdrawInput.value);
+
+    if (!withdrawInput.value || isNaN(withdrawAmount) || withdrawAmount <= 0) {
+        alert("Please enter a valid withdraw amount!");
+        return;
+    }
+
+    if (withdrawAmount < minWithdrawLimit) {
         alert("Minimum withdrawal limit is " + minWithdrawLimit + " MTR");
         return;
     }
 
-    if (!getLiveWalletAddress()) {
+    if (withdrawAmount > totalBalance) {
+        alert("You do not have enough balance to withdraw this amount!");
+        return;
+    }
+
+    const liveAddress = getLiveWalletAddress();
+    if (!liveAddress) {
         await handleWalletClick();
         return;
     }
 
-    alert("Withdrawal request submitted successfully! Admin will process your payout.");
+    // ব্যালেন্স থেকে উইথড্র অ্যামাউন্ট কেটে নেওয়া এবং রিকোয়েস্ট সেভ করা
+    totalBalance -= withdrawAmount;
+
+    try {
+        await db.collection("users").doc(userId).set({
+            balance: totalBalance
+        }, { merge: true });
+
+        // অ্যাডমিন প্যানেলে উইথড্র রিকোয়েস্ট স্টোর করার জন্য withdrawals কালেকশনে ডাটা পাঠানো
+        await db.collection("withdrawals").add({
+            userId: userId,
+            userName: userName,
+            userUsername: userUsername,
+            walletAddress: liveAddress,
+            amount: withdrawAmount,
+            status: "pending",
+            createdAt: firebase.firestore.FieldValue.serverTimestamp()
+        });
+
+        withdrawInput.value = "";
+        updateUI();
+        alert(`Withdrawal request of ${withdrawAmount} MTR submitted successfully!`);
+    } catch (e) {
+        alert("Failed to submit withdrawal request.");
+    }
 }
 
 function updateUI() {
@@ -976,7 +1027,6 @@ function updateUI() {
 
     const now = Date.now();
     
-    // যদি ডাটাবেজে মাইনিং স্টার্ট না করা থাকে, তবে প্রথমবার স্বয়ংক্রিয়ভাবে ৮ ঘণ্টার জন্য স্টার্ট করে দেওয়া হবে
     if (isVerified && walletConnected && miningEndTime === 0) {
         miningStartTime = now;
         miningEndTime = now + MINING_DURATION_MS;
@@ -1005,7 +1055,6 @@ function updateUI() {
     const button = document.getElementById("actionBtn");
     const sessionText = document.getElementById("sessionStatusText");
 
-    // রিয়েল-টাইম ফায়ারবেস ভেরিফিকেশন চেক
     db.collection("users").doc(userId).get().then(doc => {
         if (doc.exists) {
             const data = doc.data();
@@ -1032,7 +1081,6 @@ function updateUI() {
         badge.className = "status-badge verified";
         document.getElementById("miningRateText").textContent = `⚡ Mining Speed: +${miningRatePerHour} MTR/hour`;
 
-        // লাইভ সেশন মাইন হওয়া কয়েন হিসাব করা
         const elapsedSec = miningStartTime > 0 ? Math.max(0, Math.floor((now - miningStartTime) / 1000)) : 0;
         const liveSessionMined = Math.min(miningRatePerHour * MINING_DURATION_HOURS, elapsedSec * miningRatePerSec);
         document.getElementById("sessionMined").textContent = liveSessionMined.toFixed(8);
@@ -1050,7 +1098,6 @@ function updateUI() {
             document.getElementById("miningStatus").textContent = "Session Complete";
         }
 
-        // CLAIM বাটন সবসময় সচল এবং দৃশ্যমান থাকবে
         button.className = "main-btn btn-gold";
         button.textContent = "CLAIM";
         button.disabled = false;
@@ -1114,7 +1161,6 @@ function escapeHTML(str) {
     return String(str).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'})[c]);
 }
 
-// প্রতি সেকেন্ডে লাইভ কয়েন ও টাইমার আপডেট করার জন্য
 setInterval(() => {
     if (isVerified && walletConnected && miningStartTime > 0) {
         const now = Date.now();
@@ -1146,4 +1192,4 @@ setInterval(() => {
 }, 1000);
 </script>
 </body>
-</html>
+        </html>
