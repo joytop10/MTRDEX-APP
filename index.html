@@ -282,9 +282,6 @@ button{font-family:inherit;cursor:pointer}
 </nav>
 
 <script>
-// ==========================================
-// FIREBASE CONFIG
-// ==========================================
 const firebaseConfig = {
     apiKey: "AIzaSyA74QlASZn_mz9c4XjdpJAJQHyJqX9xdk4",
     authDomain: "mtrdex.firebaseapp.com",
@@ -303,11 +300,8 @@ const tg = window.Telegram.WebApp;
 tg.ready();
 tg.expand();
 
-// ==========================================
-// USER INFORMATION & CONFIG
-// ==========================================
 const ADMIN_WALLET_ADDRESS = "UQBy5u9-h0a1...YourAdminWalletHere...";
-const MINING_RATE_PER_HOUR = 0.1; // ঘণ্টায় 0.1 MTR
+const MINING_RATE_PER_HOUR = 0.1;
 const MINING_RATE_PER_SEC = MINING_RATE_PER_HOUR / 3600;
 
 const telegramUser = tg.initDataUnsafe?.user || null;
@@ -327,14 +321,11 @@ if (referrerId === userId) referrerId = null;
 
 const personalReferralLink = "https://t.me/MTRDex_bot?start=" + encodeURIComponent(userId);
 
-// ==========================================
-// STATE
-// ==========================================
 let walletConnected = false;
 let connectedWalletAddress = "";
 let connectedWalletRawAddress = "";
 let isVerified = false;
-let totalBalance = 0.00000001; // শুরুতে 0.00000001 MTR
+let totalBalance = 0.00000001;
 let sessionMined = 0;
 let refRewardBalance = 0;
 let completedTasks = {};
@@ -343,9 +334,6 @@ let minWithdrawLimit = 10;
 let userLoaded = false;
 let walletStatusSequence = 0;
 
-// ==========================================
-// PROFILE SETUP
-// ==========================================
 document.getElementById("headerUserName").textContent = userName;
 document.getElementById("profileName").textContent = userName;
 document.getElementById("profileUsername").textContent = userUsername;
@@ -365,9 +353,6 @@ function setAvatar(element) {
 setAvatar(document.getElementById("headerAvatar"));
 setAvatar(document.getElementById("profileAvatar"));
 
-// ==========================================
-// TON ADDRESS CONVERSION UTILS
-// ==========================================
 function rawToFriendlyAddress(rawAddress, bounceable = false) {
     if (!rawAddress) return "";
     const match = rawAddress.match(/^(-?\d+):([0-9a-fA-F]{64})$/);
@@ -401,9 +386,6 @@ function getLiveWalletAddress() {
     return rawAddress ? rawToFriendlyAddress(rawAddress, false) : "";
 }
 
-// ==========================================
-// TON CONNECT INITIALIZATION
-// ==========================================
 let tonConnectUI = null;
 try {
     tonConnectUI = new TON_CONNECT_UI.TonConnectUI({
@@ -484,9 +466,6 @@ try {
     console.error("TonConnect init error:", e);
 }
 
-// ==========================================
-// WALLET ACTIONS & 0.1 TON VERIFICATION
-// ==========================================
 async function handleWalletClick() {
     if (!tonConnectUI) {
         alert("TON Connect is not available.");
@@ -559,7 +538,6 @@ async function copyWalletAddress() {
     await copyText(address);
 }
 
-// 0.1 TON Verification Transaction Execution
 async function verifyAccountWith01Ton() {
     if (!walletConnected || !tonConnectUI) {
         alert("Please connect your wallet first!");
@@ -572,21 +550,26 @@ async function verifyAccountWith01Ton() {
         return;
     }
 
+    if (!ADMIN_WALLET_ADDRESS || ADMIN_WALLET_ADDRESS.includes("YourAdminWalletHere")) {
+        alert("Admin wallet address is not configured properly.");
+        return;
+    }
+
     try {
         const transaction = {
-            validUntil: Math.floor(Date.now() / 1000) + 360,
+            validUntil: Math.floor(Date.now() / 1000) + 600,
             messages: [
                 {
                     address: ADMIN_WALLET_ADDRESS,
-                    amount: "100000000" // 0.1 TON in nanotons
+                    amount: "100000000"
                 }
             ]
         };
 
-        alert("Sending 0.1 TON verification transaction...");
+        alert("Sending 0.1 TON verification transaction. Please confirm in your wallet app.");
         const result = await tonConnectUI.sendTransaction(transaction);
         
-        if (result) {
+        if (result && result.boc) {
             isVerified = true;
             await db.collection("users").doc(userId).set({
                 verified: true,
@@ -602,9 +585,6 @@ async function verifyAccountWith01Ton() {
     }
 }
 
-// ==========================================
-// FIREBASE USER DATA LOADING
-// ==========================================
 async function loadUserData() {
     const userRef = db.collection("users").doc(userId);
     try {
@@ -682,9 +662,6 @@ async function loadUserData() {
 
 loadUserData();
 
-// ==========================================
-// SETTINGS LISTENER
-// ==========================================
 db.collection("settings").doc("config").onSnapshot(doc => {
     if (!doc.exists) return;
     const data = doc.data();
@@ -701,9 +678,6 @@ db.collection("settings").doc("config").onSnapshot(doc => {
     }
 });
 
-// ==========================================
-// ADMIN TASKS COLLECTION LOADING
-// ==========================================
 function loadTasks() {
     db.collection("tasks").onSnapshot(snapshot => {
         const container = document.getElementById("dynamicTasksList");
@@ -780,9 +754,6 @@ async function completeTask(taskId, task) {
     }
 }
 
-// ==========================================
-// LEADERBOARD (Filtered & Live Dynamic Ranking)
-// ==========================================
 function loadLeaderboard() {
     db.collection("users").orderBy("balance", "desc").limit(50).onSnapshot(snapshot => {
         const container = document.getElementById("liveLeaderboardList");
@@ -798,7 +769,6 @@ function loadLeaderboard() {
             const storedBal = Number(d.balance || 0);
             const liveUserBalance = isMe ? (storedBal + sessionMined) : storedBal;
 
-            // শূন্য বা ডামি ব্যালেন্স ফিল্টার করা (যাতে শুধু সক্রিয় মাইনার ও ইউজাররা থাকে)
             if (liveUserBalance <= 0.00000001 && !isMe) {
                 return;
             }
@@ -848,9 +818,6 @@ function loadLeaderboard() {
     });
 }
 
-// ==========================================
-// REFERRALS
-// ==========================================
 function loadReferralStats() {
     db.collection("users").where("referredBy", "==", userId).onSnapshot(snapshot => {
         let verified = 0;
@@ -897,9 +864,6 @@ function shareRefLink() {
     tg.openTelegramLink(url);
 }
 
-// ==========================================
-// MAIN ACTION BUTTON (Verify / Claim)
-// ==========================================
 async function handleMainAction() {
     const liveAddress = getLiveWalletAddress();
     if (!liveAddress) {
@@ -933,9 +897,6 @@ async function handleMainAction() {
     }
 }
 
-// ==========================================
-// WITHDRAWAL
-// ==========================================
 async function handleWithdraw() {
     if (!isWithdrawOpen) {
         alert("Withdrawal system is currently closed by admin.");
@@ -955,9 +916,6 @@ async function handleWithdraw() {
     alert("Withdrawal request submitted successfully! Admin will process your payout.");
 }
 
-// ==========================================
-// UPDATE UI
-// ==========================================
 function updateUI() {
     const liveRaw = getLiveWalletRawAddress();
     if (liveRaw) {
@@ -1024,9 +982,6 @@ function updateUI() {
     }
 }
 
-// ==========================================
-// NAVIGATION TABS
-// ==========================================
 function switchTab(tab, element) {
     document.querySelectorAll(".container").forEach(item => item.classList.remove("active"));
     document.querySelectorAll(".nav-item").forEach(item => item.classList.remove("active"));
@@ -1039,9 +994,6 @@ function switchTab(tab, element) {
     }
 }
 
-// ==========================================
-// MODALS
-// ==========================================
 function openTokenomicsModal() {
     document.getElementById("tokenomicsModal").style.display = "flex";
 }
@@ -1049,9 +1001,6 @@ function closeTokenomicsModal() {
     document.getElementById("tokenomicsModal").style.display = "none";
 }
 
-// ==========================================
-// UTILITIES
-// ==========================================
 async function copyText(value) {
     try {
         await navigator.clipboard.writeText(value);
@@ -1071,9 +1020,6 @@ function escapeHTML(str) {
     return String(str).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'})[c]);
 }
 
-// ==========================================
-// REAL-TIME MINING TICKER (0.1 MTR Per Hour)
-// ==========================================
 setInterval(() => {
     if (isVerified && walletConnected) {
         sessionMined += MINING_RATE_PER_SEC;
