@@ -128,7 +128,7 @@ button{font-family:inherit;cursor:pointer}
                 <div class="coin-sub">MASTER</div>
             </div>
         </div>
-        <p class="session-text">Mined in session: <strong><span id="sessionMined">0.00000000</span> MTR</strong></p>
+        <p class="session-text" id="sessionStatusText">Mined in session: <strong><span id="sessionMined">0.00000000</span> MTR</strong></p>
         <button class="main-btn btn-connect" id="actionBtn" onclick="handleMainAction()">CONNECT WALLET</button>
     </div>
 
@@ -305,6 +305,9 @@ let verifyFeeAmount = 0.1;
 let miningRatePerHour = 0.1;
 let miningRatePerSec = miningRatePerHour / 3600;
 
+const MINING_DURATION_HOURS = 8;
+const MINING_DURATION_MS = MINING_DURATION_HOURS * 60 * 60 * 1000;
+
 const telegramUser = tg.initDataUnsafe?.user || null;
 
 let userId = telegramUser ? "UID_" + telegramUser.id : localStorage.getItem("mtr_local_uid");
@@ -327,13 +330,15 @@ let connectedWalletAddress = "";
 let connectedWalletRawAddress = "";
 let isVerified = false;
 let totalBalance = 0.00000001;
-let sessionMined = 0;
 let refRewardBalance = 0;
 let completedTasks = {};
 let isWithdrawOpen = false;
 let minWithdrawLimit = 10;
 let userLoaded = false;
 let walletStatusSequence = 0;
+
+let miningEndTime = 0; 
+let isMiningActive = false;
 
 document.getElementById("headerUserName").textContent = userName;
 document.getElementById("profileName").textContent = userName;
@@ -597,6 +602,7 @@ async function loadUserData() {
             totalBalance = data.balance !== undefined ? Number(data.balance) : 0.00000001;
             refRewardBalance = Number(data.refReward || 0);
             completedTasks = data.tasks || {};
+            miningEndTime = Number(data.miningEndTime || 0);
 
             const liveRaw = getLiveWalletRawAddress();
             if (liveRaw) {
@@ -643,10 +649,12 @@ async function loadUserData() {
                 walletAddress: connectedWalletAddress,
                 walletRawAddress: connectedWalletRawAddress,
                 tasks: {},
+                miningEndTime: 0,
                 referredBy: referrerId || null,
                 createdAt: firebase.firestore.FieldValue.serverTimestamp()
             });
             totalBalance = 0.00000001;
+            miningEndTime = 0;
         }
 
         userLoaded = true;
@@ -772,6 +780,7 @@ async function completeTask(taskId, task) {
 }
 
 function loadLeaderboard() {
+    // Leaderboard ranking strictly based on claimed main balance
     db.collection("users").orderBy("balance", "desc").limit(50).onSnapshot(snapshot => {
         const container = document.getElementById("liveLeaderboardList");
         container.replaceChildren();
@@ -783,16 +792,15 @@ function loadLeaderboard() {
         snapshot.forEach(doc => {
             const d = doc.data();
             const isMe = doc.id === userId;
-            const storedBal = Number(d.balance || 0);
-            const liveUserBalance = isMe ? (storedBal + sessionMined) : storedBal;
+            const userClaimedBalance = Number(d.balance || 0);
 
-            if (liveUserBalance <= 0.00000001 && !isMe) {
+            if (userClaimedBalance <= 0.00000001 && !isMe) {
                 return;
             }
 
             if (isMe) {
                 myRank = "#" + rank;
-                document.getElementById("myRankBalance").textContent = liveUserBalance.toFixed(8) + " MTR";
+                document.getElementById("myRankBalance").textContent = totalBalance.toFixed(8) + " MTR";
             }
 
             const card = document.createElement("div");
@@ -819,7 +827,7 @@ function loadLeaderboard() {
 
             const balance = document.createElement("div");
             balance.className = "list-value";
-            balance.textContent = liveUserBalance.toFixed(8) + " MTR";
+            balance.textContent = userClaimedBalance.toFixed(8) + " MTR";
 
             card.append(left, balance);
             container.append(card);
@@ -830,7 +838,7 @@ function loadLeaderboard() {
 
         document.getElementById("myRank").textContent = myRank;
         if (renderedCount === 0) {
-            container.innerHTML = '<div class="empty-state">No active miners on leaderboard yet. Start mining to rank up!</div>';
+            container.innerHTML = '<div class="empty-state">No active miners on leaderboard yet. Claim tokens to rank up!</div>';
         }
     });
 }
@@ -893,27 +901,46 @@ async function handleMainAction() {
         return;
     }
 
-    if (sessionMined <= 0) {
-        alert("No mined balance in session to claim yet.");
+    const now = Date.now();
+    
+    // If 8 hours completed and ready to Claim
+    if (miningEndTime > 0 && now >= miningEndTime) {
+        const earnedAmount = miningRatePerHour * MINING_DURATION_HOURS;
+        totalBalance += earnedAmount;
+        
+        miningEndTime = 0;
+        isMiningActive = false;
+
+        try {
+            await db.collection("users").doc(userId).set({
+                balance: totalBalance,
+                miningEndTime: 0
+            }, { merge: true });
+
+            updateUI();
+            alert(`🎉 Successfully claimed ${earnedAmount.toFixed(8)} MTR! Start mining again.`);
+        } catch (e) {
+            alert("Failed to claim mined tokens.");
+        }
         return;
     }
 
-    totalBalance += sessionMined;
-    const claimedSession = sessionMined;
-    
-    // Reset session mined immediately and update UI to 0.00000000
-    sessionMined = 0;
-    document.getElementById("sessionMined").textContent = sessionMined.toFixed(8);
+    // Start new 8 Hours Mining Session
+    if (!isMiningActive && miningEndTime === 0) {
+        const newEndTime = now + MINING_DURATION_MS;
+        miningEndTime = newEndTime;
+        isMiningActive = true;
 
-    try {
-        await db.collection("users").doc(userId).set({
-            balance: totalBalance
-        }, { merge: true });
+        try {
+            await db.collection("users").doc(userId).set({
+                miningEndTime: newEndTime
+            }, { merge: true });
 
-        updateUI();
-        alert(`Successfully claimed ${claimedSession.toFixed(8)} MTR!`);
-    } catch (e) {
-        alert("Failed to claim mined tokens.");
+            updateUI();
+            alert(`🚀 Mining started successfully for ${MINING_DURATION_HOURS} hours!`);
+        } catch (e) {
+            alert("Failed to start mining.");
+        }
     }
 }
 
@@ -953,8 +980,14 @@ function updateUI() {
         isVerified = false;
     }
 
+    const now = Date.now();
+    if (miningEndTime > 0 && now < miningEndTime) {
+        isMiningActive = true;
+    } else {
+        isMiningActive = false;
+    }
+
     document.getElementById("totalBalance").textContent = totalBalance.toFixed(8);
-    document.getElementById("sessionMined").textContent = sessionMined.toFixed(8);
     document.getElementById("profileBalance").textContent = totalBalance.toFixed(8) + " MTR";
     document.getElementById("refRewardBalance").textContent = refRewardBalance.toFixed(8);
 
@@ -971,34 +1004,55 @@ function updateUI() {
 
     const badge = document.getElementById("verifyStatus");
     const button = document.getElementById("actionBtn");
+    const sessionText = document.getElementById("sessionStatusText");
 
     if (isVerified && walletConnected) {
         badge.textContent = "Verified ✓";
         badge.className = "status-badge verified";
-        document.getElementById("miningStatus").textContent = "Active";
-        document.getElementById("miningRateText").textContent = `⚡ Mining Active: +${miningRatePerHour} MTR/hour`;
-        
-        if (sessionMined > 0.000001) {
-            button.className = "main-btn btn-gold";
-            button.textContent = "CLAIM " + sessionMined.toFixed(8) + " MTR";
-        } else {
+        document.getElementById("miningStatus").textContent = isMiningActive ? "Active" : "Ready / Claim";
+        document.getElementById("miningRateText").textContent = `⚡ Mining Speed: +${miningRatePerHour} MTR/hour`;
+
+        if (isMiningActive) {
+            const timeLeft = miningEndTime - now;
+            const hours = Math.floor(timeLeft / (1000 * 60 * 60));
+            const minutes = Math.floor((timeLeft % (1000 * 60 * 60)) / (1000 * 60));
+            const seconds = Math.floor((timeLeft % (1000 * 60)) / 1000);
+
+            sessionText.innerHTML = `Mining ends in: <strong>${hours}h ${minutes}m ${seconds}s</strong>`;
             button.className = "main-btn btn-green";
             button.textContent = "MINING IN PROGRESS...";
+            button.disabled = true;
+        } else {
+            if (miningEndTime > 0 && now >= miningEndTime) {
+                sessionText.innerHTML = `Session Status: <strong>Ready to Claim!</strong>`;
+                button.className = "main-btn btn-gold";
+                button.textContent = "CLAIM";
+                button.disabled = false;
+            } else {
+                sessionText.innerHTML = `Session Status: <strong>Start Mining (${MINING_DURATION_HOURS} Hours)</strong>`;
+                button.className = "main-btn btn-gold";
+                button.textContent = "START MINING";
+                button.disabled = false;
+            }
         }
     } else if (walletConnected) {
         badge.textContent = "Unverified";
         badge.className = "status-badge";
         document.getElementById("miningStatus").textContent = "Pending Verification";
         document.getElementById("miningRateText").textContent = `Wallet connected • Pay ${verifyFeeAmount} TON to verify`;
+        sessionText.innerHTML = `Verification required to mine`;
         button.className = "main-btn btn-gold";
         button.textContent = `VERIFY ACCOUNT (${verifyFeeAmount} TON)`;
+        button.disabled = false;
     } else {
         badge.textContent = "Unverified";
         badge.className = "status-badge";
         document.getElementById("miningStatus").textContent = "Inactive";
         document.getElementById("miningRateText").textContent = "Connect TON Wallet to begin";
+        sessionText.innerHTML = `Wallet not connected`;
         button.className = "main-btn btn-connect";
         button.textContent = "CONNECT WALLET";
+        button.disabled = false;
     }
 }
 
@@ -1041,19 +1095,28 @@ function escapeHTML(str) {
 }
 
 setInterval(() => {
-    if (isVerified && walletConnected) {
-        sessionMined += miningRatePerSec;
-        document.getElementById("sessionMined").textContent = sessionMined.toFixed(8);
-        
-        const myRankBalanceEl = document.getElementById("myRankBalance");
-        if (myRankBalanceEl) {
-            myRankBalanceEl.textContent = (totalBalance + sessionMined).toFixed(8) + " MTR";
-        }
+    if (isVerified && walletConnected && miningEndTime > 0) {
+        const now = Date.now();
+        if (now < miningEndTime) {
+            const timeLeft = miningEndTime - now;
+            const hours = Math.floor(timeLeft / (1000 * 60 * 60));
+            const minutes = Math.floor((timeLeft % (1000 * 60 * 60)) / (1000 * 60));
+            const seconds = Math.floor((timeLeft % (1000 * 60)) / 1000);
 
-        const btn = document.getElementById("actionBtn");
-        if (sessionMined > 0.000001 && !btn.textContent.includes("CLAIM")) {
-            btn.className = "main-btn btn-gold";
-            btn.textContent = "CLAIM " + sessionMined.toFixed(8) + " MTR";
+            const sessionText = document.getElementById("sessionStatusText");
+            if (sessionText) {
+                sessionText.innerHTML = `Mining ends in: <strong>${hours}h ${minutes}m ${seconds}s</strong>`;
+            }
+        } else {
+            isMiningActive = false;
+            const sessionText = document.getElementById("sessionStatusText");
+            const btn = document.getElementById("actionBtn");
+            if (sessionText) sessionText.innerHTML = `Session Status: <strong>Ready to Claim!</strong>`;
+            if (btn) {
+                btn.className = "main-btn btn-gold";
+                btn.textContent = "CLAIM";
+                btn.disabled = false;
+            }
         }
     }
 }, 1000);
