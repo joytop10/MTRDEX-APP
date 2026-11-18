@@ -85,9 +85,11 @@ button{font-family:inherit;cursor:pointer}
 .profile-avatar{width:55px;height:55px;border-radius:16px}
 .profile-name{font-size:16px;font-weight:800;color:var(--gold);margin-bottom:5px}
 .profile-username{color:#55B8FF;font-size:12px}
-.withdraw-box{background:linear-gradient(145deg,#17243A,#101827);border:1px solid rgba(245,197,66,.2);border-radius:15px;padding:16px;display:flex;flex-direction:column;gap:12px;width:100%}
 .withdraw-input{width:100%;padding:13px;background:#080D18;border:1px solid var(--border);border-radius:10px;color:white;font-size:14px;outline:none}
 .withdraw-input:focus{border-color:var(--gold)}
+.status-pending{color:#F5C542;font-size:11px;font-weight:700}
+.status-approved{color:#22C58B;font-size:11px;font-weight:700}
+.status-rejected{color:#EF4444;font-size:11px;font-weight:700}
 .bottom-nav{position:fixed;bottom:0;left:0;width:100%;display:flex;justify-content:space-around;align-items:center;padding:10px 0 calc(10px + env(safe-area-inset-bottom));background:rgba(11,17,29,.97);border-top:1px solid var(--border);backdrop-filter:blur(15px);z-index:100}
 .nav-item{width:20%;display:flex;flex-direction:column;align-items:center;gap:5px;color:var(--muted);font-size:11px;font-weight:600;cursor:pointer}
 .nav-icon{font-size:21px;filter:grayscale(1);opacity:.7}
@@ -212,6 +214,23 @@ button{font-family:inherit;cursor:pointer}
     </div>
 </section>
 
+<!-- উইথড্র ট্যাব -->
+<section class="container" id="tab-withdraw">
+    <div class="section-heading"><span>📤</span> Withdraw MTR</div>
+    <div class="balance-card">
+        <div class="balance-label">Available Balance</div>
+        <div class="balance-amount"><span id="withdrawPageBalance">0.00000001</span> <small>MTR</small></div>
+        <div class="mining-rate" id="withdrawMinLabel">Minimum withdraw: 10 MTR</div>
+        <div style="margin-top:16px;display:flex;flex-direction:column;gap:12px">
+            <input type="number" id="withdrawAmountInput" class="withdraw-input" placeholder="Enter amount to withdraw" step="any">
+            <button class="main-btn btn-gold" onclick="handleWithdraw()">SUBMIT WITHDRAWAL</button>
+        </div>
+    </div>
+    
+    <div class="section-heading" style="margin-top:10px"><span>📜</span> Withdrawal History</div>
+    <div id="withdrawHistoryList"><div class="empty-state">No withdrawal history yet.</div></div>
+</section>
+
 <section class="container" id="tab-profile">
     <div class="section-heading"><span>👤</span> My Profile</div>
     <div class="profile-card">
@@ -249,15 +268,7 @@ button{font-family:inherit;cursor:pointer}
         </div>
         <div class="list-value">VIEW</div>
     </div>
-
-    <!-- উইথড্র অ্যামাউন্ট ইনপুট বক্স ও অপশন -->
-    <div class="withdraw-box">
-        <div class="list-sub" style="color:var(--gold);font-weight:700">📤 Withdraw MTR to Wallet</div>
-        <div class="list-sub" id="minWithdrawLabel">Minimum withdraw: 10 MTR</div>
-        <input type="number" id="withdrawAmountInput" class="withdraw-input" placeholder="Enter amount to withdraw" step="any">
-        <button class="main-btn btn-gold" onclick="handleWithdraw()">SUBMIT WITHDRAWAL</button>
-    </div>
-
+    <button class="main-btn btn-gold" onclick="switchTab('withdraw', document.querySelectorAll('.nav-item')[3])">📤 GO TO WITHDRAW</button>
     <button class="main-btn btn-connect" onclick="openTokenomicsModal()">📊 VIEW TOKENOMICS</button>
 </section>
 
@@ -288,7 +299,7 @@ button{font-family:inherit;cursor:pointer}
     <div class="nav-item active" onclick="switchTab('mine',this)"><span class="nav-icon">⛏️</span><span>Mine</span></div>
     <div class="nav-item" onclick="switchTab('leaderboard',this)"><span class="nav-icon">🏆</span><span>Rank</span></div>
     <div class="nav-item" onclick="switchTab('tasks',this)"><span class="nav-icon">📋</span><span>Tasks</span></div>
-    <div class="nav-item" onclick="switchTab('friends',this)"><span class="nav-icon">👥</span><span>Friends</span></div>
+    <div class="nav-item" onclick="switchTab('withdraw',this)"><span class="nav-icon">📤</span><span>Withdraw</span></div>
     <div class="nav-item" onclick="switchTab('profile',this)"><span class="nav-icon">👤</span><span>Profile</span></div>
 </nav>
 
@@ -683,6 +694,7 @@ async function loadUserData() {
         loadTasks();
         loadLeaderboard();
         loadReferralStats();
+        loadWithdrawHistory();
 
         if (getLiveWalletRawAddress()) {
             await saveWalletInfo();
@@ -700,7 +712,7 @@ db.collection("settings").doc("config").onSnapshot(doc => {
     isWithdrawOpen = data.withdrawOpen === true;
     minWithdrawLimit = Number(data.minWithdraw || 10);
 
-    const minLabel = document.getElementById("minWithdrawLabel");
+    const minLabel = document.getElementById("withdrawMinLabel");
     if (minLabel) {
         minLabel.textContent = "Minimum withdraw: " + minWithdrawLimit + " MTR";
     }
@@ -883,6 +895,58 @@ function loadReferralStats() {
     });
 }
 
+function loadWithdrawHistory() {
+    db.collection("withdrawals").where("userId", "==", userId).orderBy("createdAt", "desc").onSnapshot(snapshot => {
+        const container = document.getElementById("withdrawHistoryList");
+        container.replaceChildren();
+
+        if (snapshot.empty) {
+            container.innerHTML = '<div class="empty-state">No withdrawal history yet.</div>';
+            return;
+        }
+
+        snapshot.forEach(doc => {
+            const data = doc.data();
+            const card = document.createElement("div");
+            card.className = "list-card";
+
+            const left = document.createElement("div");
+            left.className = "list-left";
+
+            const icon = document.createElement("div");
+            icon.className = "task-icon";
+            icon.textContent = "📤";
+
+            const info = document.createElement("div");
+            const title = document.createElement("div");
+            title.className = "list-title";
+            title.textContent = Number(data.amount || 0).toFixed(4) + " MTR";
+
+            const sub = document.createElement("div");
+            sub.className = "list-sub";
+            sub.textContent = data.walletAddress ? data.walletAddress.slice(0, 6) + "..." + data.walletAddress.slice(-4) : "Wallet";
+
+            info.append(title, sub);
+            left.append(icon, info);
+
+            const statusBadge = document.createElement("div");
+            const status = (data.status || "pending").toLowerCase();
+            statusBadge.textContent = status.toUpperCase();
+            
+            if (status === "approved") {
+                statusBadge.className = "status-approved";
+            } else if (status === "rejected") {
+                statusBadge.className = "status-rejected";
+            } else {
+                statusBadge.className = "status-pending";
+            }
+
+            card.append(left, statusBadge);
+            container.append(card);
+        });
+    });
+}
+
 async function claimRefReward() {
     if (refRewardBalance <= 0) {
         alert("No referral rewards available to claim.");
@@ -982,7 +1046,6 @@ async function handleWithdraw() {
         return;
     }
 
-    // ব্যালেন্স থেকে উইথড্র অ্যামাউন্ট কেটে নেওয়া এবং রিকোয়েস্ট সেভ করা
     totalBalance -= withdrawAmount;
 
     try {
@@ -990,7 +1053,6 @@ async function handleWithdraw() {
             balance: totalBalance
         }, { merge: true });
 
-        // অ্যাডমিন প্যানেলে উইথড্র রিকোয়েস্ট স্টোর করার জন্য withdrawals কালেকশনে ডাটা পাঠানো
         await db.collection("withdrawals").add({
             userId: userId,
             userName: userName,
@@ -1038,6 +1100,7 @@ function updateUI() {
 
     document.getElementById("totalBalance").textContent = totalBalance.toFixed(8);
     document.getElementById("profileBalance").textContent = totalBalance.toFixed(8) + " MTR";
+    document.getElementById("withdrawPageBalance").textContent = totalBalance.toFixed(8);
     document.getElementById("refRewardBalance").textContent = refRewardBalance.toFixed(8);
 
     const walletDisplay = document.getElementById("walletDisplay");
@@ -1130,7 +1193,7 @@ function switchTab(tab, element) {
     const target = document.getElementById("tab-" + tab);
     if (target) {
         target.classList.add("active");
-        element.classList.add("active");
+        if (element) element.classList.add("active");
         window.scrollTo({top: 0, behavior: "smooth"});
     }
 }
@@ -1192,4 +1255,4 @@ setInterval(() => {
 }, 1000);
 </script>
 </body>
-        </html>
+    </html>
