@@ -1,1042 +1,753 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-<meta name="theme-color" content="#080D18">
-<title>MTR Master Mining</title>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>MTR Master - Secure Admin Panel</title>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore-compat.js"></script>
+    <style>
+        :root {
+            --bg-dark: #060B14;
+            --card-bg: #0D1522;
+            --gold-light: #F5C443;
+            --gold-dark: #C68B17;
+            --neon-blue: #0077FF;
+            --cyan-glow: #00D4FF;
+            --text-main: #FFFFFF;
+            --text-muted: #8E9BAE;
+            --danger: #FF453A;
+            --success: #32D74B;
+            --warning: #FF9F0A;
+        }
 
-<script src="https://telegram.org/js/telegram-web-app.js"></script>
-<script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore-compat.js"></script>
-<script src="https://unpkg.com/@tonconnect/ui@latest/dist/tonconnect-ui.min.js"></script>
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Segoe UI', Roboto, sans-serif; }
+        body { background-color: var(--bg-dark); color: var(--text-main); min-height: 100vh; padding: 16px; }
 
-<style>
-:root {
-    --bg:#080D18;
-    --card:#111B2C;
-    --card2:#17243A;
-    --gold:#F5C542;
-    --gold2:#FFE28A;
-    --blue:#1677FF;
-    --text:#FFFFFF;
-    --muted:#8996AA;
-    --green:#22C58B;
-    --red:#EF4444;
-    --border:rgba(255,255,255,.07);
-}
-*{box-sizing:border-box;margin:0;padding:0;font-family:'Segoe UI',Roboto,sans-serif;-webkit-tap-highlight-color:transparent}
-html{background:var(--bg);scroll-behavior:smooth}
-body{background:radial-gradient(ellipse at 50% 10%,rgba(22,119,255,.13),transparent 48%),var(--bg);color:var(--text);min-height:100vh;padding-bottom:90px}
-button{font-family:inherit;cursor:pointer}
-.header{position:sticky;top:0;z-index:50;display:flex;justify-content:space-between;align-items:center;padding:14px 18px;background:rgba(17,27,44,.96);backdrop-filter:blur(15px);border-bottom:1px solid var(--border)}
-.user-info{display:flex;align-items:center;gap:12px;min-width:0}
-.avatar{width:44px;height:44px;flex-shrink:0;border-radius:15px;background:linear-gradient(135deg,var(--gold2),#D99B12);display:flex;align-items:center;justify-content:center;color:#111827;font-size:19px;font-weight:800;overflow:hidden}
-.avatar img{width:100%;height:100%;object-fit:cover}
-.user-details h4{font-size:14px;font-weight:700;margin-bottom:5px}
-.status-badge{display:inline-block;font-size:10px;font-weight:700;padding:4px 9px;border-radius:20px;background:rgba(239,68,68,.12);color:#FF7777;border:1px solid rgba(239,68,68,.2)}
-.status-badge.verified{background:rgba(34,197,139,.12);color:var(--green);border-color:rgba(34,197,139,.2)}
-.wallet-display{background:rgba(22,119,255,.12);border:1px solid rgba(22,119,255,.4);color:#54B9FF;padding:10px 13px;border-radius:12px;font-size:12px;font-weight:700}
-.container{display:none;width:100%;max-width:600px;margin:auto;padding:20px 16px 30px;flex-direction:column;gap:16px}
-.container.active{display:flex}
-.section-heading{width:100%;font-size:17px;font-weight:800;display:flex;align-items:center;gap:9px;margin-bottom:2px}
-.section-heading span{color:var(--gold)}
-.balance-card{width:100%;padding:23px 18px;border-radius:20px;text-align:center;background:linear-gradient(145deg,#17243A,#101827);border:1px solid rgba(245,197,66,.25);box-shadow:0 12px 35px rgba(0,0,0,.2);position:relative;overflow:hidden}
-.balance-card:before{content:"";position:absolute;width:180px;height:180px;border-radius:50%;background:rgba(245,197,66,.045);top:-110px;right:-50px}
-.balance-label{color:var(--muted);font-size:11px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase}
-.balance-amount{font-size:26px;font-weight:800;color:var(--gold);margin:10px 0 7px;letter-spacing:-1px;overflow-wrap:anywhere}
-.balance-amount small{font-size:14px;letter-spacing:0}
-.mining-rate{color:#45C7FF;font-size:13px;font-weight:600}
-.coin-area{display:flex;flex-direction:column;align-items:center;padding:15px 0 5px}
-.coin-wrapper{width:210px;height:210px;display:flex;align-items:center;justify-content:center;border-radius:50%;background:radial-gradient(circle,rgba(22,119,255,.16),transparent 70%);position:relative}
-.coin-wrapper:before{content:"";position:absolute;inset:5px;border:2px solid rgba(22,119,255,.8);border-radius:50%;box-shadow:0 0 30px rgba(22,119,255,.35);animation:glow 3s infinite ease-in-out}
-.coin-wrapper:after{content:"";position:absolute;inset:17px;border:4px solid var(--gold);border-radius:50%;box-shadow:0 0 18px rgba(245,197,66,.25)}
-.coin-circle{width:172px;height:172px;border-radius:50%;background:linear-gradient(145deg,#17243A,#080D18);display:flex;flex-direction:column;align-items:center;justify-content:center;border:1px solid rgba(245,197,66,.5);z-index:2;box-shadow:inset 0 0 30px rgba(0,0,0,.6)}
-.coin-crown{font-size:28px;margin-bottom:3px}
-.coin-text{font-size:42px;font-weight:900;color:var(--gold);letter-spacing:2px;text-shadow:0 0 15px rgba(245,197,66,.3)}
-.coin-sub{font-size:10px;letter-spacing:4px;color:var(--gold2);font-weight:700}
-@keyframes glow{0%,100%{box-shadow:0 0 15px rgba(22,119,255,.25)}50%{box-shadow:0 0 32px rgba(22,119,255,.55)}}
-.session-text{color:var(--muted);font-size:13px;font-weight:500;margin:14px 0 18px}
-.session-text strong{color:white}
-.main-btn{width:100%;padding:16px;border:0;border-radius:14px;font-size:14px;font-weight:800;transition:.2s}
-.main-btn:active{transform:scale(.98);opacity:.85}
-.btn-connect{background:linear-gradient(110deg,#0878FF,#0754C8);color:white;box-shadow:0 7px 20px rgba(22,119,255,.2)}
-.btn-gold{background:linear-gradient(110deg,#FFE28A,#E5AC27);color:#111827;box-shadow:0 7px 20px rgba(245,197,66,.12)}
-.btn-green{background:linear-gradient(110deg,#22C58B,#159A69);color:white}
-.btn-small{padding:11px 14px;font-size:12px}
-.info-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;width:100%}
-.info-box{background:var(--card);border:1px solid var(--border);border-radius:15px;padding:16px}
-.info-icon{font-size:21px;margin-bottom:10px}
-.info-label{color:var(--muted);font-size:11px;margin-bottom:7px}
-.info-value{font-size:17px;font-weight:800;color:var(--gold)}
-.list-card{width:100%;padding:15px;background:linear-gradient(145deg,var(--card2),var(--card));border:1px solid var(--border);border-radius:15px;display:flex;justify-content:space-between;align-items:center;gap:10px}
-.list-card.highlight{border-color:rgba(245,197,66,.4)}
-.list-left{display:flex;align-items:center;gap:12px;min-width:0}
-.task-icon{width:42px;height:42px;flex-shrink:0;display:flex;align-items:center;justify-content:center;border-radius:12px;background:rgba(22,119,255,.12);font-size:19px}
-.list-title{font-size:13px;font-weight:700;margin-bottom:5px;overflow-wrap:anywhere}
-.list-sub{color:var(--muted);font-size:11px}
-.list-value{color:var(--gold);font-size:12px;font-weight:800;white-space:nowrap}
-.task-btn{border:0;border-radius:9px;padding:9px 13px;background:var(--gold);color:#111827;font-weight:800;font-size:11px}
-.task-btn.claimed{background:rgba(34,197,139,.13);color:var(--green)}
-.copy-box{width:100%;padding:14px;border-radius:12px;background:#080D18;border:1px solid var(--border);color:#53B9FF;font-size:12px;overflow-wrap:anywhere;text-align:center;margin:12px 0}
-.button-row{display:flex;gap:10px}
-.button-row>*{flex:1}
-.profile-card{display:flex;align-items:center;gap:14px;padding:18px;background:linear-gradient(145deg,#17243A,#101827);border:1px solid var(--border);border-radius:17px}
-.profile-avatar{width:55px;height:55px;border-radius:16px}
-.profile-name{font-size:16px;font-weight:800;color:var(--gold);margin-bottom:5px}
-.profile-username{color:#55B8FF;font-size:12px}
-.bottom-nav{position:fixed;bottom:0;left:0;width:100%;display:flex;justify-content:space-around;align-items:center;padding:10px 0 calc(10px + env(safe-area-inset-bottom));background:rgba(11,17,29,.97);border-top:1px solid var(--border);backdrop-filter:blur(15px);z-index:100}
-.nav-item{width:20%;display:flex;flex-direction:column;align-items:center;gap:5px;color:var(--muted);font-size:11px;font-weight:600;cursor:pointer}
-.nav-icon{font-size:21px;filter:grayscale(1);opacity:.7}
-.nav-item.active{color:var(--gold)}
-.nav-item.active .nav-icon{filter:none;opacity:1}
-.modal{position:fixed;inset:0;z-index:1000;display:none;align-items:center;justify-content:center;padding:20px;background:rgba(0,0,0,.8);backdrop-filter:blur(7px)}
-.modal-content{width:100%;max-width:370px;padding:24px;background:#142035;border:1px solid rgba(245,197,66,.25);border-radius:20px;box-shadow:0 20px 60px rgba(0,0,0,.5)}
-.modal-title{text-align:center;font-size:19px;font-weight:800;color:var(--gold);margin-bottom:10px}
-.modal-sub{text-align:center;font-size:12px;color:var(--muted);margin-bottom:16px}
-.modal-close{width:100%;padding:12px;border:1px solid var(--border);border-radius:11px;background:#202E44;color:white;margin-top:10px}
-.empty-state{text-align:center;padding:30px 15px;color:var(--muted);font-size:13px;background:var(--card);border-radius:15px}
-@media(max-width:360px){.balance-amount{font-size:22px}.coin-wrapper{width:185px;height:185px}.coin-circle{width:150px;height:150px}.coin-text{font-size:36px}.wallet-display{font-size:10px;padding:8px}}
-</style>
+        /* LOGIN OVERLAY */
+        #loginOverlay {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: var(--bg-dark); z-index: 9999;
+            display: flex; justify-content: center; align-items: center; padding: 20px;
+        }
+        .login-box {
+            background: var(--card-bg); border: 1px solid var(--gold-light);
+            border-radius: 16px; padding: 30px 24px; width: 100%; max-width: 360px; text-align: center;
+        }
+
+        .header {
+            display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px;
+            padding: 15px 20px; background: var(--card-bg); border: 1px solid rgba(0, 119, 255, 0.3);
+            border-radius: 14px; margin-bottom: 20px;
+        }
+        .header h2 { color: var(--gold-light); font-size: 19px; }
+
+        .stats-grid {
+            display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 12px; margin-bottom: 20px;
+        }
+        .stat-card {
+            background: var(--card-bg); border: 1px solid rgba(245, 196, 67, 0.3);
+            border-radius: 14px; padding: 15px; text-align: center;
+        }
+        .stat-label { font-size: 11px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px; }
+        .stat-value { font-size: 22px; font-weight: 800; color: var(--gold-light); margin-top: 6px; }
+
+        /* NAVIGATION TABS */
+        .admin-tabs {
+            display: flex; gap: 8px; overflow-x: auto; margin-bottom: 18px; padding-bottom: 5px;
+        }
+        .tab-btn {
+            padding: 10px 16px; border-radius: 10px; border: 1px solid rgba(0, 119, 255, 0.3);
+            background: var(--card-bg); color: var(--text-muted); font-size: 13px; font-weight: bold;
+            cursor: pointer; white-space: nowrap;
+        }
+        .tab-btn.active {
+            background: linear-gradient(90deg, var(--gold-light), var(--gold-dark));
+            color: #000; border-color: var(--gold-light);
+        }
+
+        .tab-content { display: none; }
+        .tab-content.active { display: block; }
+
+        .section-card {
+            background: var(--card-bg); border: 1px solid rgba(0, 119, 255, 0.3);
+            border-radius: 14px; padding: 18px; margin-bottom: 18px;
+        }
+        .section-title {
+            font-size: 15px; font-weight: 700; color: var(--gold-light); margin-bottom: 14px;
+            display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px;
+        }
+
+        .form-control {
+            width: 100%; padding: 11px 12px; background: #060B14; border: 1px solid rgba(0, 119, 255, 0.4);
+            border-radius: 8px; color: #FFF; font-size: 13px; margin-bottom: 10px;
+        }
+        .form-control:focus { outline: none; border-color: var(--gold-light); }
+
+        .main-btn {
+            padding: 10px 16px; border-radius: 8px; border: none; font-size: 12px; font-weight: bold;
+            cursor: pointer; text-transform: uppercase; transition: 0.2s;
+        }
+        .btn-primary { background: linear-gradient(90deg, var(--neon-blue), #0051B3); color: #FFF; }
+        .btn-success { background: var(--success); color: #000; }
+        .btn-danger { background: var(--danger); color: #FFF; }
+        .btn-warning { background: var(--warning); color: #000; }
+        .btn-gold { background: linear-gradient(90deg, var(--gold-light), var(--gold-dark)); color: #000; }
+
+        .filter-bar { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 12px; }
+        .filter-chip {
+            padding: 6px 12px; border-radius: 20px; font-size: 12px; cursor: pointer;
+            background: #060B14; border: 1px solid rgba(255,255,255,0.15); color: var(--text-muted);
+        }
+        .filter-chip.active { border-color: var(--cyan-glow); color: var(--cyan-glow); background: rgba(0, 212, 255, 0.1); }
+
+        .table-responsive { width: 100%; overflow-x: auto; }
+        table { width: 100%; border-collapse: collapse; text-align: left; font-size: 12px; }
+        th, td { padding: 11px 10px; border-bottom: 1px solid rgba(255,255,255,0.08); white-space: nowrap; }
+        th { color: var(--gold-light); background: rgba(6, 11, 20, 0.8); }
+        tr:hover { background: rgba(0, 119, 255, 0.05); }
+
+        .action-btns { display: flex; gap: 5px; flex-wrap: wrap; }
+        .badge { padding: 3px 8px; border-radius: 6px; font-size: 11px; font-weight: bold; }
+        .badge-verified { background: rgba(50, 215, 75, 0.15); color: var(--success); }
+        .badge-unverified { background: rgba(255, 69, 58, 0.15); color: var(--danger); }
+        .badge-banned { background: #FF453A; color: #FFF; }
+
+        .modal {
+            display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.85); justify-content: center; align-items: center; z-index: 1000; padding: 20px;
+        }
+        .modal-content {
+            background: var(--card-bg); border: 1px solid var(--gold-light);
+            border-radius: 14px; width: 100%; max-width: 420px; padding: 20px; max-height: 80vh; overflow-y: auto;
+        }
+    </style>
 </head>
-
 <body>
 
-<header class="header">
-    <div class="user-info">
-        <div class="avatar" id="headerAvatar">M</div>
-        <div class="user-details">
-            <h4 id="headerUserName">Master Miner</h4>
-            <span class="status-badge" id="verifyStatus">Unverified</span>
+    <!-- ADMIN LOGIN SCREEN -->
+    <div id="loginOverlay">
+        <div class="login-box">
+            <h2 style="color: var(--gold-light); margin-bottom: 8px;">🔐 Admin Access</h2>
+            <p style="font-size: 12px; color: var(--text-muted); margin-bottom: 18px;">Enter Admin Password to manage MTR Master</p>
+            <input type="password" id="adminPassInput" class="form-control" placeholder="Enter Admin Password...">
+            <button class="main-btn btn-gold" style="width: 100%; padding: 12px;" onclick="checkAdminLogin()">Unlock Panel</button>
         </div>
     </div>
-    <button class="wallet-display" id="walletDisplay" onclick="handleWalletClick()">Connect Wallet</button>
-</header>
 
-<section class="container active" id="tab-mine">
-    <div class="balance-card">
-        <div class="balance-label">Total MTR Assets</div>
-        <div class="balance-amount"><span id="totalBalance">0.00000001</span> <small>MTR</small></div>
-        <div class="mining-rate" id="miningRateText">Connect wallet to begin</div>
-    </div>
-
-    <div class="coin-area">
-        <div class="coin-wrapper">
-            <div class="coin-circle">
-                <div class="coin-crown">👑</div>
-                <div class="coin-text">MTR</div>
-                <div class="coin-sub">MASTER</div>
+    <!-- MAIN DASHBOARD -->
+    <div id="adminDashboard" style="display: none;">
+        <div class="header">
+            <h2>👑 MTR Master Admin Panel</h2>
+            <div style="display: flex; align-items: center; gap: 10px;">
+                <span style="font-size: 12px; color: var(--success);">● Live Sync</span>
+                <button class="main-btn btn-danger" style="padding: 6px 10px;" onclick="logoutAdmin()">Logout</button>
             </div>
         </div>
-        <p class="session-text">Mined in session: <strong><span id="sessionMined">0.00000000</span> MTR</strong></p>
-        <button class="main-btn btn-connect" id="actionBtn" onclick="handleMainAction()">CONNECT WALLET</button>
-    </div>
 
-    <div class="info-grid">
-        <div class="info-box">
-            <div class="info-icon">⚡</div>
-            <div class="info-label">Mining Status</div>
-            <div class="info-value" id="miningStatus">Inactive</div>
-        </div>
-        <div class="info-box">
-            <div class="info-icon">👥</div>
-            <div class="info-label">Total Referrals</div>
-            <div class="info-value" id="miniRefCount">0</div>
-        </div>
-    </div>
-
-    <div class="list-card">
-        <div class="list-left">
-            <div class="task-icon">🏆</div>
-            <div>
-                <div class="list-title">MTR Mining Program</div>
-                <div class="list-sub">Your mining dashboard</div>
+        <!-- LIVE ANALYTICS -->
+        <div class="stats-grid">
+            <div class="stat-card">
+                <div class="stat-label">Total Users</div>
+                <div class="stat-value" id="statTotalUsers">0</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-label">Verified Miners</div>
+                <div class="stat-value" id="statVerifiedUsers" style="color: var(--success);">0</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-label">Est. TON Revenue</div>
+                <div class="stat-value" id="statTonRevenue" style="color: var(--cyan-glow);">0.0 TON</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-label">Total MTR Supply</div>
+                <div class="stat-value" id="statTotalMtr">0.00</div>
             </div>
         </div>
-        <div class="list-value">MASTER</div>
-    </div>
-</section>
 
-<section class="container" id="tab-leaderboard">
-    <div class="section-heading"><span>🏆</span> Global Leaderboard</div>
-    <div class="balance-card">
-        <div class="balance-label">Your Global Position</div>
-        <div class="balance-amount" id="myRank">#--</div>
-        <div class="mining-rate" id="myRankBalance">0.00000001 MTR</div>
-    </div>
-    <div id="liveLeaderboardList"><div class="empty-state">Loading leaderboard...</div></div>
-</section>
+        <!-- NAVIGATION TABS -->
+        <div class="admin-tabs">
+            <button class="tab-btn active" onclick="switchAdminTab('users', this)">👥 Users Search & Manage</button>
+            <button class="tab-btn" onclick="switchAdminTab('withdrawals', this)">💸 Withdrawals</button>
+            <button class="tab-btn" onclick="switchAdminTab('tasks', this)">📋 Tasks Manager</button>
+            <button class="tab-btn" onclick="switchAdminTab('settings', this)">⚙️ Admin & Site Settings</button>
+        </div>
 
-<section class="container" id="tab-tasks">
-    <div class="section-heading"><span>📋</span> Earn Extra MTR</div>
-    <div class="balance-card">
-        <div class="balance-label">Complete Tasks</div>
-        <div class="balance-amount">Earn MTR</div>
-        <div class="mining-rate">Complete available activities</div>
-    </div>
-    <div id="dynamicTasksList"><div class="empty-state">Loading tasks...</div></div>
-</section>
+        <!-- TAB 1: USERS MANAGEMENT & SEARCH -->
+        <div id="tab-users" class="tab-content active">
+            <div class="section-card">
+                <div class="section-title">
+                    <span>🔍 Advanced User Search</span>
+                    <span id="filteredCountText" style="font-size: 12px; color: var(--cyan-glow);">Showing all users</span>
+                </div>
+                <input type="text" id="userSearchInput" class="form-control" placeholder="Search by Telegram ID (UID_...), Username (@...), Name, or Wallet Address..." onkeyup="renderUsersTable()">
+                <div class="filter-bar">
+                    <span class="filter-chip active" onclick="setUserFilter('all', this)">All Users</span>
+                    <span class="filter-chip" onclick="setUserFilter('verified', this)">Verified Only ✓</span>
+                    <span class="filter-chip" onclick="setUserFilter('unverified', this)">Unverified</span>
+                    <span class="filter-chip" onclick="setUserFilter('banned', this)">Banned 🚫</span>
+                </div>
 
-<section class="container" id="tab-friends">
-    <div class="section-heading"><span>👥</span> Referral Program</div>
-    <div class="balance-card">
-        <div class="balance-label">Total Referrals</div>
-        <div class="balance-amount" id="referralCount">0</div>
-        <div class="info-grid">
-            <div class="info-box">
-                <div class="info-label">Verified</div>
-                <div class="info-value" id="verifiedRef">0</div>
-            </div>
-            <div class="info-box">
-                <div class="info-label">Unverified</div>
-                <div class="info-value" id="unverifiedRef">0</div>
-            </div>
-        </div>
-        <div style="margin-top:18px">
-            <div class="balance-label">Referral Reward</div>
-            <div class="balance-amount" style="font-size:24px"><span id="refRewardBalance">0.00000000</span> <small>MTR</small></div>
-        </div>
-        <button class="main-btn btn-gold" onclick="claimRefReward()">CLAIM REWARD</button>
-    </div>
-    <div class="list-card" style="display:block">
-        <div class="list-title">🎁 Invite Friends & Earn</div>
-        <p class="list-sub" style="line-height:1.7;margin-top:8px">Invite new members to the MTR Master community using your personal referral link.</p>
-        <div class="copy-box" id="refLinkBox">Loading referral link...</div>
-        <div class="button-row">
-            <button class="main-btn btn-gold btn-small" onclick="copyRefLink()">COPY LINK</button>
-            <button class="main-btn btn-connect btn-small" onclick="shareRefLink()">SHARE LINK</button>
-        </div>
-    </div>
-</section>
-
-<section class="container" id="tab-profile">
-    <div class="section-heading"><span>👤</span> My Profile</div>
-    <div class="profile-card">
-        <div class="avatar profile-avatar" id="profileAvatar">M</div>
-        <div>
-            <div class="profile-name" id="profileName">Master Miner</div>
-            <div class="profile-username" id="profileUsername">@username</div>
-        </div>
-    </div>
-    <div class="list-card">
-        <div class="list-left">
-            <div class="task-icon">🆔</div>
-            <div>
-                <div class="list-sub">Telegram ID</div>
-                <div class="list-title" id="profileTelegramId">UID_000000</div>
+                <div class="table-responsive">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>User Info (Name / Username / ID)</th>
+                                <th>Balance</th>
+                                <th>Status</th>
+                                <th>Referrals</th>
+                                <th>Wallet Address</th>
+                                <th>Secure Actions (PIN Required)</th>
+                            </tr>
+                        </thead>
+                        <tbody id="usersTableBody">
+                            <tr><td colspan="6" style="text-align:center;">Loading users...</td></tr>
+                        </tbody>
+                    </table>
+                </div>
             </div>
         </div>
-    </div>
-    <div class="list-card">
-        <div class="list-left">
-            <div class="task-icon">💰</div>
-            <div>
-                <div class="list-sub">Total Mined Balance</div>
-                <div class="list-title" id="profileBalance">0.00000001 MTR</div>
+
+        <!-- TAB 2: WITHDRAWALS -->
+        <div id="tab-withdrawals" class="tab-content">
+            <div class="section-card">
+                <div class="section-title">📤 Withdrawal Requests Queue</div>
+                <div class="table-responsive">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>User ID</th>
+                                <th>Amount (MTR)</th>
+                                <th>TON Wallet Address</th>
+                                <th>Status</th>
+                                <th>Secure Action</th>
+                            </tr>
+                        </thead>
+                        <tbody id="withdrawTableBody">
+                            <tr><td colspan="5" style="text-align:center;">No withdrawal requests found</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- TAB 3: TASKS MANAGER -->
+        <div id="tab-tasks" class="tab-content">
+            <div class="section-card">
+                <div class="section-title">➕ Add New Earn Task</div>
+                <input type="text" id="taskTitle" class="form-control" placeholder="Task Title (e.g. Join Official Telegram Channel)">
+                <input type="number" id="taskReward" class="form-control" placeholder="Reward MTR (e.g. 10)">
+                <input type="text" id="taskLink" class="form-control" placeholder="Link URL (e.g. https://t.me/yourchannel)">
+                <button class="main-btn btn-gold" onclick="addNewTask()">Publish Task</button>
+            </div>
+
+            <div class="section-card">
+                <div class="section-title">📋 Active Tasks List</div>
+                <div class="table-responsive">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Title</th>
+                                <th>Reward</th>
+                                <th>Link</th>
+                                <th>Action</th>
+                            </tr>
+                        </thead>
+                        <tbody id="tasksTableBody"></tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- TAB 4: ADMIN SETTINGS & SITE MAINTENANCE -->
+        <div id="tab-settings" class="tab-content">
+            <!-- TON VERIFICATION & PAYMENT SETTINGS -->
+            <div class="section-card" style="border-color: var(--gold-light);">
+                <div class="section-title">💎 TON Verification & Receiving Wallet</div>
+                <p style="font-size: 13px; color: var(--text-muted); margin-bottom: 12px;">Configure verification fee amount and the destination wallet address where payments will arrive.</p>
+                <label style="font-size: 11px; color: var(--cyan-glow);">Verification Fee (TON)</label>
+                <input type="number" step="0.01" id="verifyFeeInput" class="form-control" placeholder="e.g. 0.1">
+                
+                <label style="font-size: 11px; color: var(--cyan-glow);">Admin Receiving Wallet Address</label>
+                <input type="text" id="adminWalletInput" class="form-control" placeholder="e.g. UQBy5u9-h0a1...">
+                
+                <button class="main-btn btn-gold" onclick="saveVerificationSettings()">Save Payment Settings</button>
+            </div>
+
+            <!-- MINING SPEED CONTROL -->
+            <div class="section-card" style="border-color: var(--cyan-glow);">
+                <div class="section-title">⚡ Mining Speed Control (MTR / Hour)</div>
+                <p style="font-size: 13px; color: var(--text-muted); margin-bottom: 12px;">Set the active global mining rate per hour for users (Default is 0.1).</p>
+                <div style="display: flex; gap: 10px;">
+                    <input type="number" step="0.0001" id="miningRateInput" class="form-control" style="margin-bottom:0;" placeholder="e.g. 0.1">
+                    <button class="main-btn btn-success" onclick="saveMiningRate()">Save Speed</button>
+                </div>
+            </div>
+
+            <!-- MAINTENANCE MODE CONTROL -->
+            <div class="section-card" style="border-color: var(--warning);">
+                <div class="section-title">🛑 Site Maintenance Mode (Off Switch)</div>
+                <p style="font-size: 13px; color: var(--text-muted); margin-bottom: 12px;" id="maintenanceStatusDesc">Checking status...</p>
+                <input type="text" id="maintenanceNoticeInput" class="form-control" placeholder="Notice message to show users when site is offline">
+                <div style="display: flex; gap: 10px;">
+                    <button class="main-btn btn-primary" onclick="saveMaintenanceNotice()">Save Notice</button>
+                    <button class="main-btn" id="toggleMaintenanceBtn" onclick="toggleMaintenanceMode()">Toggle Maintenance</button>
+                </div>
+            </div>
+
+            <!-- WITHDRAWAL CONTROL -->
+            <div class="section-card">
+                <div class="section-title">⚙️ Withdrawal System Control</div>
+                <p style="font-size: 13px; color: var(--text-muted); margin-bottom: 12px;" id="withdrawStatusDesc">Checking status...</p>
+                <button class="main-btn btn-primary" id="toggleWithdrawBtn" onclick="toggleWithdrawSystem()">Toggle Withdrawal</button>
+
+                <hr style="border-color: rgba(255,255,255,0.1); margin: 18px 0;">
+
+                <div class="section-title">💰 Minimum Withdrawal Limit (MTR)</div>
+                <div style="display: flex; gap: 10px;">
+                    <input type="number" id="minWithdrawInput" class="form-control" style="margin-bottom:0;" placeholder="e.g. 10">
+                    <button class="main-btn btn-success" onclick="saveMinWithdraw()">Save Limit</button>
+                </div>
+            </div>
+
+            <!-- ADMIN PASSWORD & PIN SETTINGS -->
+            <div class="section-card">
+                <div class="section-title">🔐 Admin Security & Credentials</div>
+                <p style="font-size: 12px; color: var(--text-muted); margin-bottom: 10px;">Change Admin Panel Login Password:</p>
+                <input type="password" id="newAdminPass" class="form-control" placeholder="New Admin Password">
+                <button class="main-btn btn-gold" style="margin-bottom: 15px;" onclick="updateAdminPassword()">Update Admin Password</button>
+
+                <p style="font-size: 12px; color: var(--text-muted); margin-bottom: 10px;">Change Transaction PIN (Required for user actions):</p>
+                <input type="password" id="newTxPin" class="form-control" placeholder="New 4-digit PIN (e.g. 5678)">
+                <button class="main-btn btn-success" onclick="updateTxPin()">Update Transaction PIN</button>
             </div>
         </div>
     </div>
-    <div class="list-card" onclick="handleWalletClick()">
-        <div class="list-left">
-            <div class="task-icon">💎</div>
-            <div>
-                <div class="list-sub">Connected Wallet</div>
-                <div class="list-title" id="profileWalletAddr">Not Connected</div>
+
+    <!-- REFERRAL INSPECTOR MODAL -->
+    <div class="modal" id="refModal">
+        <div class="modal-content">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+                <h4 style="color: var(--gold-light);" id="refModalTitle">User Referrals</h4>
+                <button class="main-btn btn-danger" style="padding: 4px 8px;" onclick="closeRefModal()">X</button>
             </div>
+            <div id="refModalList" style="font-size: 12px; text-align: left;">Loading...</div>
         </div>
-        <div class="list-value">VIEW</div>
     </div>
-    <button class="main-btn btn-gold" onclick="handleWithdraw()">📤 WITHDRAW MTR</button>
-    <button class="main-btn btn-connect" onclick="openTokenomicsModal()">📊 VIEW TOKENOMICS</button>
-</section>
 
-<div class="modal" id="walletModal">
-    <div class="modal-content">
-        <div class="modal-title">💎 Connected Wallet</div>
-        <div class="modal-sub">Your TON wallet information</div>
-        <div class="copy-box" id="modalWalletAddr">-</div>
-        <button class="main-btn btn-gold btn-small" onclick="copyWalletAddress()">COPY ADDRESS</button>
-        <button class="main-btn btn-connect btn-small" style="margin-top:10px" onclick="disconnectWallet()">DISCONNECT WALLET</button>
-        <button class="modal-close" onclick="closeWalletModal()">CLOSE</button>
-    </div>
-</div>
-
-<div class="modal" id="tokenomicsModal">
-    <div class="modal-content">
-        <div class="modal-title">📊 MTR Tokenomics</div>
-        <div class="modal-sub">Token allocation overview</div>
-        <div class="list-card"><span class="list-title">👥 Community & Mining</span><span class="list-value">60%</span></div>
-        <div class="list-card"><span class="list-title">🛠️ Team & Management</span><span class="list-value">15%</span></div>
-        <div class="list-card"><span class="list-title">💧 Liquidity Pool</span><span class="list-value">15%</span></div>
-        <div class="list-card"><span class="list-title">🌐 Ecosystem</span><span class="list-value">10%</span></div>
-        <button class="modal-close" onclick="closeTokenomicsModal()">CLOSE</button>
-    </div>
-</div>
-
-<nav class="bottom-nav">
-    <div class="nav-item active" onclick="switchTab('mine',this)"><span class="nav-icon">⛏️</span><span>Mine</span></div>
-    <div class="nav-item" onclick="switchTab('leaderboard',this)"><span class="nav-icon">🏆</span><span>Rank</span></div>
-    <div class="nav-item" onclick="switchTab('tasks',this)"><span class="nav-icon">📋</span><span>Tasks</span></div>
-    <div class="nav-item" onclick="switchTab('friends',this)"><span class="nav-icon">👥</span><span>Friends</span></div>
-    <div class="nav-item" onclick="switchTab('profile',this)"><span class="nav-icon">👤</span><span>Profile</span></div>
-</nav>
-
-<script>
-const firebaseConfig = {
-    apiKey: "AIzaSyA74QlASZn_mz9c4XjdpJAJQHyJqX9xdk4",
-    authDomain: "mtrdex.firebaseapp.com",
-    projectId: "mtrdex",
-    storageBucket: "mtrdex.firebasestorage.app",
-    messagingSenderId: "1086565020372",
-    appId: "1:1086565020372:web:908ecf8369e83c4d6dc141",
-    measurementId: "G-YP1ZKWZPL6"
-};
-
-if (!firebase.apps.length) firebase.initializeApp(firebaseConfig);
-
-const db = firebase.firestore();
-const tg = window.Telegram.WebApp;
-
-tg.ready();
-tg.expand();
-
-const ADMIN_WALLET_ADDRESS = "UQBy5u9-h0a1...YourAdminWalletHere...";
-const MINING_RATE_PER_HOUR = 0.1;
-const MINING_RATE_PER_SEC = MINING_RATE_PER_HOUR / 3600;
-
-const telegramUser = tg.initDataUnsafe?.user || null;
-
-let userId = telegramUser ? "UID_" + telegramUser.id : localStorage.getItem("mtr_local_uid");
-if (!userId) {
-    userId = "UID_local_" + Date.now();
-    localStorage.setItem("mtr_local_uid", userId);
-}
-
-let userName = telegramUser ? [telegramUser.first_name, telegramUser.last_name].filter(Boolean).join(" ") : "Master Miner";
-let userUsername = telegramUser?.username ? "@" + telegramUser.username : "@master_miner";
-let userPhotoUrl = telegramUser?.photo_url || "";
-
-let referrerId = tg.initDataUnsafe?.start_param || new URLSearchParams(location.search).get("startapp");
-if (referrerId === userId) referrerId = null;
-
-const personalReferralLink = "https://t.me/MTRDex_bot?start=" + encodeURIComponent(userId);
-
-let walletConnected = false;
-let connectedWalletAddress = "";
-let connectedWalletRawAddress = "";
-let isVerified = false;
-let totalBalance = 0.00000001;
-let sessionMined = 0;
-let refRewardBalance = 0;
-let completedTasks = {};
-let isWithdrawOpen = false;
-let minWithdrawLimit = 10;
-let userLoaded = false;
-let walletStatusSequence = 0;
-
-document.getElementById("headerUserName").textContent = userName;
-document.getElementById("profileName").textContent = userName;
-document.getElementById("profileUsername").textContent = userUsername;
-document.getElementById("profileTelegramId").textContent = userId;
-document.getElementById("refLinkBox").textContent = personalReferralLink;
-
-function setAvatar(element) {
-    if (userPhotoUrl) {
-        const img = document.createElement("img");
-        img.src = userPhotoUrl;
-        img.alt = "Profile";
-        element.replaceChildren(img);
-    } else {
-        element.textContent = userName.charAt(0).toUpperCase() || "M";
-    }
-}
-setAvatar(document.getElementById("headerAvatar"));
-setAvatar(document.getElementById("profileAvatar"));
-
-function rawToFriendlyAddress(rawAddress, bounceable = false) {
-    if (!rawAddress) return "";
-    const match = rawAddress.match(/^(-?\d+):([0-9a-fA-F]{64})$/);
-    if (!match) return rawAddress;
-
-    const workchain = Number(match[1]);
-    const hashBytes = match[2].match(/.{2}/g).map(byte => parseInt(byte, 16));
-    const addressBytes = [bounceable ? 0x11 : 0x51, workchain & 0xff, ...hashBytes];
-
-    let crc = 0x0000;
-    for (const byte of addressBytes) {
-        crc ^= byte << 8;
-        for (let i = 0; i < 8; i++) {
-            crc = (crc & 0x8000) ? ((crc << 1) ^ 0x1021) : (crc << 1);
-            crc &= 0xffff;
-        }
-    }
-    addressBytes.push((crc >> 8) & 0xff);
-    addressBytes.push(crc & 0xff);
-
-    const binary = String.fromCharCode(...addressBytes);
-    return btoa(binary).replace(/\+/g, "-").replace(/\//g, "_").replace(/=/g, "");
-}
-
-function getLiveWalletRawAddress() {
-    return tonConnectUI?.wallet?.account?.address || "";
-}
-
-function getLiveWalletAddress() {
-    const rawAddress = getLiveWalletRawAddress();
-    return rawAddress ? rawToFriendlyAddress(rawAddress, false) : "";
-}
-
-let tonConnectUI = null;
-try {
-    tonConnectUI = new TON_CONNECT_UI.TonConnectUI({
-        manifestUrl: "https://mtrdex-app.vercel.app/tonconnect-manifest.json"
-    });
-
-    tonConnectUI.onStatusChange(async wallet => {
-        const sequence = ++walletStatusSequence;
-        if (wallet?.account?.address) {
-            const newRawAddress = wallet.account.address;
-            let newFriendlyAddress;
-            try {
-                newFriendlyAddress = rawToFriendlyAddress(newRawAddress, false);
-            } catch (e) {
-                walletConnected = false;
-                connectedWalletAddress = "";
-                connectedWalletRawAddress = "";
-                isVerified = false;
-                updateUI();
-                return;
-            }
-
-            const previousRawAddress = connectedWalletRawAddress;
-            if (previousRawAddress && previousRawAddress !== newRawAddress) {
-                isVerified = false;
-            }
-
-            walletConnected = true;
-            connectedWalletRawAddress = newRawAddress;
-            connectedWalletAddress = newFriendlyAddress;
-            updateUI();
-
-            if (userLoaded) {
-                try {
-                    const doc = await db.collection("users").doc(userId).get();
-                    if (sequence !== walletStatusSequence) return;
-                    const data = doc.exists ? doc.data() : {};
-                    const savedRaw = data.walletRawAddress || "";
-                    const savedFriendly = data.walletAddress || "";
-                    const sameWallet = (savedRaw === newRawAddress || savedFriendly === newFriendlyAddress);
-
-                    isVerified = data.verified === true && sameWallet;
-                    await saveWalletInfo();
-
-                    if (!sameWallet && data.verified === true) {
-                        await db.collection("users").doc(userId).set({ verified: false }, { merge: true });
-                    }
-                    updateUI();
-                } catch (e) {
-                    console.error("Wallet restore error:", e);
-                }
-            }
-        } else {
-            walletConnected = false;
-            connectedWalletAddress = "";
-            connectedWalletRawAddress = "";
-            isVerified = false;
-            updateUI();
-
-            if (userLoaded) {
-                try {
-                    await db.collection("users").doc(userId).set({
-                        walletConnected: false,
-                        walletAddress: "",
-                        walletRawAddress: "",
-                        verified: false
-                    }, { merge: true });
-                } catch (e) {}
-            }
-        }
-
-        const modal = document.getElementById("walletModal");
-        if (walletConnected && modal.style.display === "flex") {
-            document.getElementById("modalWalletAddr").textContent = connectedWalletAddress;
-        }
-    });
-} catch (e) {
-    console.error("TonConnect init error:", e);
-}
-
-async function handleWalletClick() {
-    if (!tonConnectUI) {
-        alert("TON Connect is not available.");
-        return;
-    }
-
-    const liveAddress = getLiveWalletAddress();
-    if (liveAddress) {
-        walletConnected = true;
-        connectedWalletRawAddress = getLiveWalletRawAddress();
-        connectedWalletAddress = liveAddress;
-        document.getElementById("modalWalletAddr").textContent = liveAddress;
-        document.getElementById("walletModal").style.display = "flex";
-        updateUI();
-        return;
-    }
-
-    try {
-        await tonConnectUI.openModal();
-    } catch (e) {
-        alert("Unable to open wallet connection.");
-    }
-}
-
-function closeWalletModal() {
-    document.getElementById("walletModal").style.display = "none";
-}
-
-async function saveWalletInfo() {
-    if (!userLoaded || !walletConnected || !connectedWalletRawAddress) return;
-    try {
-        await db.collection("users").doc(userId).set({
-            walletConnected: true,
-            walletAddress: connectedWalletAddress,
-            walletRawAddress: connectedWalletRawAddress
-        }, { merge: true });
-    } catch (e) {}
-}
-
-async function disconnectWallet() {
-    if (!tonConnectUI) return;
-    try {
-        await tonConnectUI.disconnect();
-        walletConnected = false;
-        connectedWalletAddress = "";
-        connectedWalletRawAddress = "";
-        isVerified = false;
-
-        await db.collection("users").doc(userId).set({
-            walletConnected: false,
-            walletAddress: "",
-            walletRawAddress: "",
-            verified: false
-        }, { merge: true });
-
-        closeWalletModal();
-        updateUI();
-        alert("Wallet disconnected successfully!");
-    } catch (e) {
-        alert("Unable to disconnect wallet.");
-    }
-}
-
-async function copyWalletAddress() {
-    const address = getLiveWalletAddress();
-    if (!address) {
-        alert("No wallet connected!");
-        return;
-    }
-    await copyText(address);
-}
-
-async function verifyAccountWith01Ton() {
-    if (!walletConnected || !tonConnectUI) {
-        alert("Please connect your wallet first!");
-        await handleWalletClick();
-        return;
-    }
-
-    if (isVerified) {
-        alert("Your account is already verified!");
-        return;
-    }
-
-    if (!ADMIN_WALLET_ADDRESS || ADMIN_WALLET_ADDRESS.includes("YourAdminWalletHere")) {
-        alert("Admin wallet address is not configured properly.");
-        return;
-    }
-
-    try {
-        const transaction = {
-            validUntil: Math.floor(Date.now() / 1000) + 600,
-            messages: [
-                {
-                    address: ADMIN_WALLET_ADDRESS,
-                    amount: "100000000"
-                }
-            ]
+    <script>
+        const firebaseConfig = {
+            apiKey: "AIzaSyA74QlASZn_mz9c4XjdpJAJQHyJqX9xdk4",
+            authDomain: "mtrdex.firebaseapp.com",
+            projectId: "mtrdex",
+            storageBucket: "mtrdex.firebasestorage.app",
+            messagingSenderId: "1086565020372",
+            appId: "1:1086565020372:web:908ecf8369e83c4d6dc141",
+            measurementId: "G-YP1ZKWZPL6"
         };
+        firebase.initializeApp(firebaseConfig);
+        const db = firebase.firestore();
 
-        alert("Sending 0.1 TON verification transaction. Please confirm in your wallet app.");
-        const result = await tonConnectUI.sendTransaction(transaction);
-        
-        if (result && result.boc) {
-            isVerified = true;
-            await db.collection("users").doc(userId).set({
-                verified: true,
-                verifiedAt: firebase.firestore.FieldValue.serverTimestamp()
-            }, { merge: true });
+        let allUsersData = [];
+        let currentFilter = 'all';
+        let isWithdrawOpen = false;
+        let isMaintenanceOn = false;
 
-            updateUI();
-            alert("Account verified successfully with 0.1 TON transaction!");
-        }
-    } catch (error) {
-        console.error("Verification transaction failed:", error);
-        alert("Transaction cancelled or failed. Please ensure you have at least 0.1 TON.");
-    }
-}
+        let ADMIN_PASSWORD = localStorage.getItem('mtr_admin_pass') || "admin123";
+        let TRANSACTION_PIN = localStorage.getItem('mtr_tx_pin') || "1234";
 
-async function loadUserData() {
-    const userRef = db.collection("users").doc(userId);
-    try {
-        const doc = await userRef.get();
-        if (doc.exists) {
-            const data = doc.data();
-            totalBalance = data.balance !== undefined ? Number(data.balance) : 0.00000001;
-            refRewardBalance = Number(data.refReward || 0);
-            completedTasks = data.tasks || {};
-
-            const liveRaw = getLiveWalletRawAddress();
-            if (liveRaw) {
-                connectedWalletRawAddress = liveRaw;
-                connectedWalletAddress = rawToFriendlyAddress(liveRaw, false);
-                walletConnected = true;
-
-                const savedRaw = data.walletRawAddress || "";
-                const savedFriendly = data.walletAddress || "";
-                const sameWallet = (savedRaw === liveRaw || savedFriendly === connectedWalletAddress);
-                isVerified = data.verified === true && sameWallet;
-
-                await userRef.set({
-                    walletConnected: true,
-                    walletAddress: connectedWalletAddress,
-                    walletRawAddress: liveRaw,
-                    verified: isVerified,
-                    userId: userId,
-                    name: userName,
-                    username: userUsername,
-                    lastSeen: firebase.firestore.FieldValue.serverTimestamp()
-                }, { merge: true });
+        function checkAdminLogin() {
+            const input = document.getElementById('adminPassInput').value;
+            if (input === ADMIN_PASSWORD) {
+                sessionStorage.setItem('mtr_admin_auth', 'true');
+                document.getElementById('loginOverlay').style.display = 'none';
+                document.getElementById('adminDashboard').style.display = 'block';
+                initAdminListeners();
             } else {
-                walletConnected = false;
-                connectedWalletAddress = "";
-                connectedWalletRawAddress = "";
-                isVerified = false;
+                alert("❌ Wrong Admin Password!");
             }
-        } else {
-            const liveRaw = getLiveWalletRawAddress();
-            walletConnected = !!liveRaw;
-            connectedWalletRawAddress = liveRaw || "";
-            connectedWalletAddress = liveRaw ? rawToFriendlyAddress(liveRaw, false) : "";
-            isVerified = false;
+        }
 
-            await userRef.set({
-                userId: userId,
-                name: userName,
-                username: userUsername,
-                balance: 0.00000001,
-                refReward: 0,
-                verified: false,
-                walletConnected: walletConnected,
-                walletAddress: connectedWalletAddress,
-                walletRawAddress: connectedWalletRawAddress,
-                tasks: {},
-                referredBy: referrerId || null,
-                createdAt: firebase.firestore.FieldValue.serverTimestamp()
+        function logoutAdmin() {
+            sessionStorage.removeItem('mtr_admin_auth');
+            location.reload();
+        }
+
+        if (sessionStorage.getItem('mtr_admin_auth') === 'true') {
+            document.getElementById('loginOverlay').style.display = 'none';
+            document.getElementById('adminDashboard').style.display = 'block';
+        }
+
+        function verifyTxPinAction(actionCallback) {
+            let pinInput = prompt("🔒 Enter Transaction PIN to confirm action:");
+            if (pinInput === null) return;
+            if (pinInput === TRANSACTION_PIN) {
+                actionCallback();
+            } else {
+                alert("❌ Incorrect Transaction PIN! Action aborted.");
+            }
+        }
+
+        function initAdminListeners() {
+            db.collection("users").onSnapshot((snapshot) => {
+                allUsersData = [];
+                let verifiedCount = 0;
+                let totalMtr = 0;
+
+                snapshot.forEach((doc) => {
+                    let data = doc.data();
+                    data.id = doc.id;
+                    allUsersData.push(data);
+
+                    if (data.verified) verifiedCount++;
+                    totalMtr += (data.balance || 0);
+                });
+
+                document.getElementById('statTotalUsers').innerText = allUsersData.length;
+                document.getElementById('statVerifiedUsers').innerText = verifiedCount;
+                document.getElementById('statTonRevenue').innerText = (verifiedCount * 0.1).toFixed(1) + " TON";
+                document.getElementById('statTotalMtr').innerText = totalMtr.toFixed(2);
+
+                renderUsersTable();
             });
-            totalBalance = 0.00000001;
+
+            db.collection("settings").doc("config").onSnapshot((doc) => {
+                if (doc.exists) {
+                    const data = doc.data();
+                    isWithdrawOpen = data.withdrawOpen || false;
+                    isMaintenanceOn = data.maintenanceMode || false;
+
+                    const wDesc = document.getElementById('withdrawStatusDesc');
+                    const wBtn = document.getElementById('toggleWithdrawBtn');
+                    if (isWithdrawOpen) {
+                        wDesc.innerHTML = "Current Status: <strong style='color:var(--success);'>OPEN</strong>";
+                        wBtn.className = "main-btn btn-danger";
+                        wBtn.innerText = "Close Withdrawal";
+                    } else {
+                        wDesc.innerHTML = "Current Status: <strong style='color:var(--danger);'>CLOSED</strong>";
+                        wBtn.className = "main-btn btn-success";
+                        wBtn.innerText = "Open Withdrawal";
+                    }
+
+                    const mDesc = document.getElementById('maintenanceStatusDesc');
+                    const mBtn = document.getElementById('toggleMaintenanceBtn');
+                    if (isMaintenanceOn) {
+                        mDesc.innerHTML = "Current Status: <strong style='color:var(--danger);'>SITE IS OFFLINE (Maintenance Mode Active)</strong>";
+                        mBtn.className = "main-btn btn-success";
+                        mBtn.innerText = "Turn Site ONLINE";
+                    } else {
+                        mDesc.innerHTML = "Current Status: <strong style='color:var(--success);'>SITE IS ONLINE (Normal Operation)</strong>";
+                        mBtn.className = "main-btn btn-danger";
+                        mBtn.innerText = "Turn Site OFFLINE";
+                    }
+
+                    if (data.minWithdraw) document.getElementById('minWithdrawInput').value = data.minWithdraw;
+                    if (data.miningRate !== undefined) document.getElementById('miningRateInput').value = data.miningRate;
+                    if (data.verifyFee !== undefined) document.getElementById('verifyFeeInput').value = data.verifyFee;
+                    if (data.adminWallet !== undefined) document.getElementById('adminWalletInput').value = data.adminWallet;
+                    if (data.maintenanceNotice !== undefined) document.getElementById('maintenanceNoticeInput').value = data.maintenanceNotice;
+                }
+            });
+
+            db.collection("tasks").onSnapshot((snapshot) => {
+                let html = "";
+                snapshot.forEach((doc) => {
+                    let t = doc.data();
+                    html += `
+                        <tr>
+                            <td><strong>${t.title}</strong></td>
+                            <td style="color:var(--gold-light);">+${t.reward} MTR</td>
+                            <td><a href="${t.link}" target="_blank" style="color:var(--cyan-glow);">Open Link</a></td>
+                            <td><button class="main-btn btn-danger" style="padding:4px 8px;" onclick="verifyTxPinAction(() => deleteTask('${doc.id}'))">Delete</button></td>
+                        </tr>
+                    `;
+                });
+                document.getElementById('tasksTableBody').innerHTML = html || "<tr><td colspan='4' style='text-align:center;'>No active tasks</td></tr>";
+            });
+
+            db.collection("withdrawals").orderBy("createdAt", "desc").onSnapshot((snapshot) => {
+                let html = "";
+                snapshot.forEach((doc) => {
+                    let w = doc.data();
+                    let statusColor = w.status === 'approved' ? 'var(--success)' : (w.status === 'rejected' ? 'var(--danger)' : 'var(--warning)');
+                    html += `
+                        <tr>
+                            <td><code>${w.userId}</code></td>
+                            <td style="color:var(--gold-light); font-weight:bold;">${w.amount} MTR</td>
+                            <td style="font-size:11px;">${w.walletAddress}</td>
+                            <td style="color:${statusColor}; font-weight:bold; text-transform:uppercase;">${w.status || 'pending'}</td>
+                            <td>
+                                ${(!w.status || w.status === 'pending') ? `
+                                    <button class="main-btn btn-success" style="padding:4px 8px;" onclick="verifyTxPinAction(() => handleWithdrawAction('${doc.id}', '${w.userId}', ${w.amount}, 'approved'))">Approve</button>
+                                    <button class="main-btn btn-danger" style="padding:4px 8px;" onclick="verifyTxPinAction(() => handleWithdrawAction('${doc.id}', '${w.userId}', ${w.amount}, 'rejected'))">Reject</button>
+                                ` : '-'}
+                            </td>
+                        </tr>
+                    `;
+                });
+                document.getElementById('withdrawTableBody').innerHTML = html || "<tr><td colspan='5' style='text-align:center;'>No withdrawal requests yet</td></tr>";
+            });
         }
 
-        userLoaded = true;
-        updateUI();
-        loadTasks();
-        loadLeaderboard();
-        loadReferralStats();
-
-        if (getLiveWalletRawAddress()) {
-            await saveWalletInfo();
-        }
-    } catch (e) {
-        console.error("User load error:", e);
-    }
-}
-
-loadUserData();
-
-db.collection("settings").doc("config").onSnapshot(doc => {
-    if (!doc.exists) return;
-    const data = doc.data();
-    isWithdrawOpen = data.withdrawOpen === true;
-    minWithdrawLimit = Number(data.minWithdraw || 10);
-
-    if (data.maintenanceMode === true) {
-        document.body.innerHTML = `
-        <div style="min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:25px;text-align:center;background:#080D18">
-            <div style="font-size:55px">🛠️</div>
-            <h2 style="color:#F5C542;margin:20px">Under Maintenance</h2>
-            <p style="color:#8996AA;line-height:1.7">${escapeHTML(data.maintenanceNotice || "We will be back soon.")}</p>
-        </div>`;
-    }
-});
-
-function loadTasks() {
-    db.collection("tasks").onSnapshot(snapshot => {
-        const container = document.getElementById("dynamicTasksList");
-        container.replaceChildren();
-
-        if (snapshot.empty) {
-            container.innerHTML = '<div class="empty-state">No tasks available right now.</div>';
-            return;
+        function setUserFilter(filter, el) {
+            currentFilter = filter;
+            document.querySelectorAll('.filter-chip').forEach(c => c.classList.remove('active'));
+            el.classList.add('active');
+            renderUsersTable();
         }
 
-        snapshot.forEach(docSnap => {
-            const task = docSnap.data();
-            const taskId = docSnap.id;
-            const claimed = completedTasks[taskId] === true;
+        function renderUsersTable() {
+            const query = document.getElementById('userSearchInput').value.toLowerCase().trim();
+            let filtered = allUsersData.filter(u => {
+                const name = (u.name || "").toLowerCase();
+                const uid = (u.id || "").toLowerCase();
+                const username = (u.username || "").toLowerCase();
+                const wallet = (u.walletAddress || "").toLowerCase();
 
-            const card = document.createElement("div");
-            card.className = "list-card";
+                const matchSearch = name.includes(query) || uid.includes(query) || username.includes(query) || wallet.includes(query);
+                if (!matchSearch) return false;
 
-            const left = document.createElement("div");
-            left.className = "list-left";
+                if (currentFilter === 'verified') return u.verified === true;
+                if (currentFilter === 'unverified') return !u.verified;
+                if (currentFilter === 'banned') return u.banned === true;
+                return true;
+            });
 
-            const icon = document.createElement("div");
-            icon.className = "task-icon";
-            icon.textContent = task.icon || "📋";
+            document.getElementById('filteredCountText').innerText = `Showing ${filtered.length} users`;
 
-            const info = document.createElement("div");
-            const title = document.createElement("div");
-            title.className = "list-title";
-            title.textContent = task.title || "Task";
+            let html = "";
+            filtered.forEach(u => {
+                let bal = (u.balance || 0).toFixed(4);
+                let walletShort = u.walletAddress ? u.walletAddress.substring(0, 6) + "..." + u.walletAddress.slice(-4) : "None";
+                let statusBadge = u.banned ? `<span class="badge badge-banned">Banned</span>` :
+                                  (u.verified ? `<span class="badge badge-verified">Verified ✓</span>` : `<span class="badge badge-unverified">Unverified</span>`);
 
-            const reward = document.createElement("div");
-            reward.className = "list-sub";
-            reward.style.color = "var(--gold)";
-            reward.textContent = "+" + Number(task.reward || 0) + " MTR";
+                html += `
+                    <tr>
+                        <td>
+                            <strong>${u.name || "Unknown"}</strong><br>
+                            <span style="font-size:11px; color:var(--cyan-glow);">${u.username || '@no_username'}</span><br>
+                            <span style="font-size:10px; color:var(--text-muted);">${u.id}</span>
+                        </td>
+                        <td style="color:var(--gold-light); font-weight:bold;">${bal} MTR</td>
+                        <td>${statusBadge}</td>
+                        <td>
+                            <button class="main-btn btn-primary" style="padding:4px 8px; font-size:11px;" onclick="inspectReferrals('${u.id}', '${u.name}')">
+                                👥 ${u.referralCount || 0} Team
+                            </button>
+                        </td>
+                        <td title="${u.walletAddress || ''}">${walletShort}</td>
+                        <td>
+                            <div class="action-btns">
+                                <button class="main-btn btn-gold" style="padding:5px 7px;" onclick="verifyTxPinAction(() => editUserBalance('${u.id}', ${u.balance || 0}))">💰 Bal</button>
+                                <button class="main-btn ${u.verified ? 'btn-warning' : 'btn-success'}" style="padding:5px 7px;" onclick="verifyTxPinAction(() => toggleUserVerify('${u.id}', ${!!u.verified}))">
+                                    ${u.verified ? 'Unverify' : 'Verify'}
+                                </button>
+                                <button class="main-btn ${u.banned ? 'btn-primary' : 'btn-danger'}" style="padding:5px 7px;" onclick="verifyTxPinAction(() => toggleUserBan('${u.id}', ${!!u.banned}))">
+                                    ${u.banned ? 'Unban' : 'Ban'}
+                                </button>
+                                <button class="main-btn btn-danger" style="padding:5px 7px;" onclick="verifyTxPinAction(() => deleteUserAccount('${u.id}'))">🗑️ Delete</button>
+                            </div>
+                        </td>
+                    </tr>
+                `;
+            });
 
-            info.append(title, reward);
-            left.append(icon, info);
+            document.getElementById('usersTableBody').innerHTML = html || "<tr><td colspan='6' style='text-align:center;'>No matching users found</td></tr>";
+        }
 
-            const button = document.createElement("button");
-            button.className = "task-btn" + (claimed ? " claimed" : "");
-            button.textContent = claimed ? "Claimed ✓" : "Start";
-            button.disabled = claimed;
-
-            if (!claimed) {
-                button.onclick = () => completeTask(taskId, task);
+        function deleteUserAccount(uid) {
+            if (confirm(`Are you sure you want to completely delete account ${uid}? This action is irreversible and allows the user to re-register fresh.`)) {
+                db.collection("users").doc(uid).delete()
+                  .then(() => alert("✅ User account successfully deleted!"))
+                  .catch(err => alert("Error deleting user: " + err));
             }
+        }
 
-            card.append(left, button);
-            container.append(card);
-        });
-    });
-}
+        function editUserBalance(uid, currentBal) {
+            let val = prompt(`Edit MTR Balance for ${uid}:`, currentBal);
+            if (val !== null && !isNaN(val) && val.trim() !== "") {
+                db.collection("users").doc(uid).update({ balance: parseFloat(val) })
+                  .then(() => alert("✅ Balance successfully updated!"));
+            }
+        }
 
-async function completeTask(taskId, task) {
-    if (task.link && /^https:\/\//i.test(task.link)) {
-        tg.openLink(task.link);
-    }
-    
-    completedTasks[taskId] = true;
-    const taskReward = Number(task.reward || 0);
-    totalBalance += taskReward;
+        function toggleUserVerify(uid, currentStatus) {
+            db.collection("users").doc(uid).update({ verified: !currentStatus })
+              .then(() => alert("✅ Verification status changed!"));
+        }
 
-    try {
-        await db.collection("users").doc(userId).set({
-            balance: totalBalance,
-            tasks: completedTasks
-        }, { merge: true });
+        function toggleUserBan(uid, currentBan) {
+            db.collection("users").doc(uid).update({ banned: !currentBan })
+              .then(() => alert("✅ Ban status updated!"));
+        }
 
-        updateUI();
-        loadTasks();
-        alert(`Task completed! Earned ${taskReward} MTR.`);
-    } catch (e) {
-        alert("Failed to claim task reward.");
-    }
-}
+        function inspectReferrals(uid, name) {
+            document.getElementById('refModalTitle').innerText = `Referrals of ${name}`;
+            document.getElementById('refModalList').innerHTML = "Loading team...";
+            document.getElementById('refModal').style.display = 'flex';
 
-function loadLeaderboard() {
-    db.collection("users").orderBy("balance", "desc").limit(50).onSnapshot(snapshot => {
-        const container = document.getElementById("liveLeaderboardList");
-        container.replaceChildren();
-
-        let rank = 1;
-        let myRank = "--";
-        let renderedCount = 0;
-
-        snapshot.forEach(doc => {
-            const d = doc.data();
-            const isMe = doc.id === userId;
-            const storedBal = Number(d.balance || 0);
-            const liveUserBalance = isMe ? (storedBal + sessionMined) : storedBal;
-
-            if (liveUserBalance <= 0.00000001 && !isMe) {
+            const team = allUsersData.filter(u => u.referredBy === uid);
+            if (team.length === 0) {
+                document.getElementById('refModalList').innerHTML = "<p style='color:var(--text-muted);'>No referrals found for this user.</p>";
                 return;
             }
 
-            if (isMe) {
-                myRank = "#" + rank;
-                document.getElementById("myRankBalance").textContent = liveUserBalance.toFixed(8) + " MTR";
+            let listHtml = `<p style="margin-bottom:8px; color:var(--cyan-glow);">Total Invited: ${team.length}</p>`;
+            team.forEach(m => {
+                listHtml += `
+                    <div style="padding:8px; border-bottom:1px solid rgba(255,255,255,0.1); display:flex; justify-content:space-between;">
+                        <span>${m.name} (${m.id})</span>
+                        <span style="color:${m.verified ? 'var(--success)' : 'var(--danger)'};">${m.verified ? 'Verified ✓' : 'Unverified'}</span>
+                    </div>
+                `;
+            });
+            document.getElementById('refModalList').innerHTML = listHtml;
+        }
+
+        function closeRefModal() {
+            document.getElementById('refModal').style.display = 'none';
+        }
+
+        function handleWithdrawAction(docId, uid, amount, newStatus) {
+            db.collection("withdrawals").doc(docId).update({ status: newStatus }).then(() => {
+                if (newStatus === 'rejected') {
+                    db.collection("users").doc(uid).get().then(doc => {
+                        if (doc.exists) {
+                            let curBal = doc.data().balance || 0;
+                            db.collection("users").doc(uid).update({ balance: curBal + amount });
+                        }
+                    });
+                }
+                alert(`Withdrawal ${newStatus}!`);
+            });
+        }
+
+        function addNewTask() {
+            const title = document.getElementById('taskTitle').value.trim();
+            const reward = parseFloat(document.getElementById('taskReward').value);
+            const link = document.getElementById('taskLink').value.trim();
+
+            if (!title || isNaN(reward) || !link) {
+                alert("Please fill all task fields properly!");
+                return;
             }
 
-            const card = document.createElement("div");
-            card.className = "list-card" + (isMe ? " highlight" : "");
-
-            const left = document.createElement("div");
-            left.className = "list-left";
-
-            const icon = document.createElement("div");
-            icon.className = "task-icon";
-            icon.textContent = "#" + rank;
-
-            const info = document.createElement("div");
-            const name = document.createElement("div");
-            name.className = "list-title";
-            name.textContent = (d.name || "Miner") + (isMe ? " (You)" : "");
-
-            const username = document.createElement("div");
-            username.className = "list-sub";
-            username.textContent = d.username || "@miner";
-
-            info.append(name, username);
-            left.append(icon, info);
-
-            const balance = document.createElement("div");
-            balance.className = "list-value";
-            balance.textContent = liveUserBalance.toFixed(8) + " MTR";
-
-            card.append(left, balance);
-            container.append(card);
-            
-            rank++;
-            renderedCount++;
-        });
-
-        document.getElementById("myRank").textContent = myRank;
-        if (renderedCount === 0) {
-            container.innerHTML = '<div class="empty-state">No active miners on leaderboard yet. Start mining to rank up!</div>';
-        }
-    });
-}
-
-function loadReferralStats() {
-    db.collection("users").where("referredBy", "==", userId).onSnapshot(snapshot => {
-        let verified = 0;
-        snapshot.forEach(doc => {
-            if (doc.data().verified === true) verified++;
-        });
-
-        const total = snapshot.size;
-        document.getElementById("referralCount").textContent = total;
-        document.getElementById("miniRefCount").textContent = total;
-        document.getElementById("verifiedRef").textContent = verified;
-        document.getElementById("unverifiedRef").textContent = total - verified;
-    });
-}
-
-async function claimRefReward() {
-    if (refRewardBalance <= 0) {
-        alert("No referral rewards available to claim.");
-        return;
-    }
-    totalBalance += refRewardBalance;
-    const claimedAmount = refRewardBalance;
-    refRewardBalance = 0;
-
-    try {
-        await db.collection("users").doc(userId).set({
-            balance: totalBalance,
-            refReward: 0
-        }, { merge: true });
-
-        updateUI();
-        alert(`Successfully claimed ${claimedAmount.toFixed(8)} MTR referral reward!`);
-    } catch (e) {
-        alert("Failed to claim referral reward.");
-    }
-}
-
-function copyRefLink() {
-    copyText(personalReferralLink);
-}
-
-function shareRefLink() {
-    const url = "https://t.me/share/url?url=" + encodeURIComponent(personalReferralLink) + "&text=" + encodeURIComponent("Join MTR Master Mining!");
-    tg.openTelegramLink(url);
-}
-
-async function handleMainAction() {
-    const liveAddress = getLiveWalletAddress();
-    if (!liveAddress) {
-        await handleWalletClick();
-        return;
-    }
-
-    if (!isVerified) {
-        await verifyAccountWith01Ton();
-        return;
-    }
-
-    if (sessionMined <= 0) {
-        alert("No mined balance in session to claim yet.");
-        return;
-    }
-
-    totalBalance += sessionMined;
-    const claimedSession = sessionMined;
-    sessionMined = 0;
-
-    try {
-        await db.collection("users").doc(userId).set({
-            balance: totalBalance
-        }, { merge: true });
-
-        updateUI();
-        alert(`Successfully claimed ${claimedSession.toFixed(8)} MTR!`);
-    } catch (e) {
-        alert("Failed to claim mined tokens.");
-    }
-}
-
-async function handleWithdraw() {
-    if (!isWithdrawOpen) {
-        alert("Withdrawal system is currently closed by admin.");
-        return;
-    }
-
-    if (totalBalance < minWithdrawLimit) {
-        alert("Minimum withdrawal limit is " + minWithdrawLimit + " MTR");
-        return;
-    }
-
-    if (!getLiveWalletAddress()) {
-        await handleWalletClick();
-        return;
-    }
-
-    alert("Withdrawal request submitted successfully! Admin will process your payout.");
-}
-
-function updateUI() {
-    const liveRaw = getLiveWalletRawAddress();
-    if (liveRaw) {
-        walletConnected = true;
-        connectedWalletRawAddress = liveRaw;
-        try {
-            connectedWalletAddress = rawToFriendlyAddress(liveRaw, false);
-        } catch (e) {
-            walletConnected = false;
-        }
-    } else {
-        walletConnected = false;
-        connectedWalletRawAddress = "";
-        connectedWalletAddress = "";
-        isVerified = false;
-    }
-
-    document.getElementById("totalBalance").textContent = totalBalance.toFixed(8);
-    document.getElementById("sessionMined").textContent = sessionMined.toFixed(8);
-    document.getElementById("profileBalance").textContent = totalBalance.toFixed(8) + " MTR";
-    document.getElementById("refRewardBalance").textContent = refRewardBalance.toFixed(8);
-
-    const walletDisplay = document.getElementById("walletDisplay");
-    const profileWallet = document.getElementById("profileWalletAddr");
-
-    if (walletConnected && connectedWalletAddress) {
-        walletDisplay.textContent = connectedWalletAddress.slice(0, 6) + "..." + connectedWalletAddress.slice(-4);
-        profileWallet.textContent = connectedWalletAddress.slice(0, 6) + "..." + connectedWalletAddress.slice(-6);
-    } else {
-        walletDisplay.textContent = "Connect Wallet";
-        profileWallet.textContent = "Not Connected";
-    }
-
-    const badge = document.getElementById("verifyStatus");
-    const button = document.getElementById("actionBtn");
-
-    if (isVerified && walletConnected) {
-        badge.textContent = "Verified ✓";
-        badge.className = "status-badge verified";
-        document.getElementById("miningStatus").textContent = "Active";
-        document.getElementById("miningRateText").textContent = "⚡ Mining Active: +0.1 MTR/hour";
-        
-        if (sessionMined > 0.000001) {
-            button.className = "main-btn btn-gold";
-            button.textContent = "CLAIM " + sessionMined.toFixed(8) + " MTR";
-        } else {
-            button.className = "main-btn btn-green";
-            button.textContent = "MINING IN PROGRESS...";
-        }
-    } else if (walletConnected) {
-        badge.textContent = "Unverified";
-        badge.className = "status-badge";
-        document.getElementById("miningStatus").textContent = "Pending Verification";
-        document.getElementById("miningRateText").textContent = "Wallet connected • Pay 0.1 TON to verify";
-        button.className = "main-btn btn-gold";
-        button.textContent = "VERIFY ACCOUNT (0.1 TON)";
-    } else {
-        badge.textContent = "Unverified";
-        badge.className = "status-badge";
-        document.getElementById("miningStatus").textContent = "Inactive";
-        document.getElementById("miningRateText").textContent = "Connect TON Wallet to begin";
-        button.className = "main-btn btn-connect";
-        button.textContent = "CONNECT WALLET";
-    }
-}
-
-function switchTab(tab, element) {
-    document.querySelectorAll(".container").forEach(item => item.classList.remove("active"));
-    document.querySelectorAll(".nav-item").forEach(item => item.classList.remove("active"));
-
-    const target = document.getElementById("tab-" + tab);
-    if (target) {
-        target.classList.add("active");
-        element.classList.add("active");
-        window.scrollTo({top: 0, behavior: "smooth"});
-    }
-}
-
-function openTokenomicsModal() {
-    document.getElementById("tokenomicsModal").style.display = "flex";
-}
-function closeTokenomicsModal() {
-    document.getElementById("tokenomicsModal").style.display = "none";
-}
-
-async function copyText(value) {
-    try {
-        await navigator.clipboard.writeText(value);
-        alert("Copied successfully!");
-    } catch (e) {
-        const input = document.createElement("textarea");
-        input.value = value;
-        document.body.append(input);
-        input.select();
-        document.execCommand("copy");
-        input.remove();
-        alert("Copied!");
-    }
-}
-
-function escapeHTML(str) {
-    return String(str).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'})[c]);
-}
-
-setInterval(() => {
-    if (isVerified && walletConnected) {
-        sessionMined += MINING_RATE_PER_SEC;
-        document.getElementById("sessionMined").textContent = sessionMined.toFixed(8);
-        
-        const myRankBalanceEl = document.getElementById("myRankBalance");
-        if (myRankBalanceEl) {
-            myRankBalanceEl.textContent = (totalBalance + sessionMined).toFixed(8) + " MTR";
+            verifyTxPinAction(() => {
+                db.collection("tasks").add({
+                    title, reward, link,
+                    createdAt: firebase.firestore.FieldValue.serverTimestamp()
+                }).then(() => {
+                    alert("✅ Task added!");
+                    document.getElementById('taskTitle').value = "";
+                    document.getElementById('taskReward').value = "";
+                    document.getElementById('taskLink').value = "";
+                });
+            });
         }
 
-        const btn = document.getElementById("actionBtn");
-        if (sessionMined > 0.000001 && !btn.textContent.includes("CLAIM")) {
-            btn.className = "main-btn btn-gold";
-            btn.textContent = "CLAIM " + sessionMined.toFixed(8) + " MTR";
+        function deleteTask(taskId) {
+            db.collection("tasks").doc(taskId).delete()
+              .then(() => alert("Task deleted!"));
         }
-    }
-}, 1000);
-</script>
+
+        function saveVerificationSettings() {
+            const fee = parseFloat(document.getElementById('verifyFeeInput').value);
+            const wallet = document.getElementById('adminWalletInput').value.trim();
+
+            if (isNaN(fee) || fee <= 0 || !wallet) {
+                alert("Please enter a valid verification fee and wallet address!");
+                return;
+            }
+
+            verifyTxPinAction(() => {
+                db.collection("settings").doc("config").set({
+                    verifyFee: fee,
+                    adminWallet: wallet
+                }, { merge: true }).then(() => {
+                    alert("✅ Verification settings updated successfully!");
+                });
+            });
+        }
+
+        function saveMiningRate() {
+            const rate = parseFloat(document.getElementById('miningRateInput').value);
+            if (!isNaN(rate) && rate > 0) {
+                verifyTxPinAction(() => {
+                    db.collection("settings").doc("config").set({ miningRate: rate }, { merge: true })
+                      .then(() => alert("✅ Global mining rate updated successfully!"));
+                });
+            } else {
+                alert("Please enter a valid mining rate!");
+            }
+        }
+
+        function toggleWithdrawSystem() {
+            verifyTxPinAction(() => {
+                db.collection("settings").doc("config").set({ withdrawOpen: !isWithdrawOpen }, { merge: true })
+                  .then(() => alert("Withdrawal system status toggled!"));
+            });
+        }
+
+        function toggleMaintenanceMode() {
+            verifyTxPinAction(() => {
+                db.collection("settings").doc("config").set({ maintenanceMode: !isMaintenanceOn }, { merge: true })
+                  .then(() => alert("Maintenance mode toggled!"));
+            });
+        }
+
+        function saveMaintenanceNotice() {
+            const msg = document.getElementById('maintenanceNoticeInput').value.trim();
+            verifyTxPinAction(() => {
+                db.collection("settings").doc("config").set({ maintenanceNotice: msg }, { merge: true })
+                  .then(() => alert("✅ Maintenance notice updated!"));
+            });
+        }
+
+        function saveMinWithdraw() {
+            const val = parseFloat(document.getElementById('minWithdrawInput').value);
+            if (!isNaN(val) && val > 0) {
+                verifyTxPinAction(() => {
+                    db.collection("settings").doc("config").set({ minWithdraw: val }, { merge: true })
+                      .then(() => alert("✅ Minimum withdrawal limit updated!"));
+                });
+            }
+        }
+
+        function updateAdminPassword() {
+            const newPass = document.getElementById('newAdminPass').value.trim();
+            if (newPass.length < 4) {
+                alert("Password must be at least 4 characters!");
+                return;
+            }
+            verifyTxPinAction(() => {
+                ADMIN_PASSWORD = newPass;
+                localStorage.setItem('mtr_admin_pass', newPass);
+                document.getElementById('newAdminPass').value = "";
+                alert("✅ Admin password updated successfully!");
+            });
+        }
+
+        function updateTxPin() {
+            const newPin = document.getElementById('newTxPin').value.trim();
+            if (newPin.length !== 4 || isNaN(newPin)) {
+                alert("Transaction PIN must be a 4-digit number!");
+                return;
+            }
+            verifyTxPinAction(() => {
+                TRANSACTION_PIN = newPin;
+                localStorage.setItem('mtr_tx_pin', newPin);
+                document.getElementById('newTxPin').value = "";
+                alert("✅ Transaction PIN updated successfully!");
+            });
+        }
+
+        function switchAdminTab(tabName, el) {
+            document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
+            document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+            document.getElementById('tab-' + tabName).classList.add('active');
+            el.classList.add('active');
+        }
+    </script>
 </body>
 </html>
