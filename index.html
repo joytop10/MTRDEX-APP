@@ -339,7 +339,6 @@ let walletStatusSequence = 0;
 
 let miningStartTime = 0;
 let miningEndTime = 0; 
-let isMiningActive = false;
 
 document.getElementById("headerUserName").textContent = userName;
 document.getElementById("profileName").textContent = userName;
@@ -410,7 +409,6 @@ try {
                 walletConnected = false;
                 connectedWalletAddress = "";
                 connectedWalletRawAddress = "";
-                isVerified = false;
                 updateUI();
                 return;
             }
@@ -430,7 +428,6 @@ try {
                     const verifiedWalletRaw = data.verifiedWalletRaw || "";
                     const verifiedWalletFriendly = data.verifiedWalletAddress || "";
 
-                    // PERMANENT RECOGNITION: If this wallet was verified before for this user, keep verified = true
                     const isSameAsSaved = (savedRaw === newRawAddress || savedFriendly === newFriendlyAddress);
                     const isSameAsVerifiedBefore = (verifiedWalletRaw === newRawAddress || verifiedWalletFriendly === newFriendlyAddress);
 
@@ -570,6 +567,11 @@ async function verifyAccountWithFee() {
             const currentRaw = getLiveWalletRawAddress();
             const currentFriendly = getLiveWalletAddress();
 
+            // অটো ভেরিফিকেশনের পর সাথে সাথেই ৮ ঘণ্টার মাইনিং স্টার্ট করে দেওয়া হলো
+            const now = Date.now();
+            miningStartTime = now;
+            miningEndTime = now + MINING_DURATION_MS;
+
             await db.collection("users").doc(userId).set({
                 verified: true,
                 verifiedWalletRaw: currentRaw,
@@ -577,11 +579,13 @@ async function verifyAccountWithFee() {
                 walletConnected: true,
                 walletAddress: currentFriendly,
                 walletRawAddress: currentRaw,
+                miningStartTime: miningStartTime,
+                miningEndTime: miningEndTime,
                 verifiedAt: firebase.firestore.FieldValue.serverTimestamp()
             }, { merge: true });
 
             updateUI();
-            alert(`Account verified successfully with ${verifyFeeAmount} TON transaction!`);
+            alert(`Account verified and mining started successfully!`);
         }
     } catch (error) {
         console.error("Verification transaction failed:", error);
@@ -617,7 +621,6 @@ async function loadUserData() {
                 const isSameAsSaved = (savedRaw === liveRaw || savedFriendly === liveFriendly);
                 const isSameAsVerifiedBefore = (verifiedWalletRaw === liveRaw || verifiedWalletFriendly === liveFriendly);
 
-                // Permanent verification recognition for the same wallet
                 isVerified = data.verified === true && (isSameAsSaved || isSameAsVerifiedBefore);
 
                 await userRef.set({
@@ -910,50 +913,29 @@ async function handleMainAction() {
 
     const now = Date.now();
     
-    // Case 1: 8 hours completed -> CLAIM tokens
-    if (miningEndTime > 0 && now >= miningEndTime) {
-        const earnedAmount = miningRatePerHour * MINING_DURATION_HOURS;
-        totalBalance += earnedAmount;
-        
-        miningStartTime = 0;
-        miningEndTime = 0;
-        isMiningActive = false;
+    // ইউজার যখনই CLAIM বাটন এ ক্লিক করবে, বর্তমান সেশনের মাইন করা কয়েন ব্যালেন্সে যোগ হবে এবং 
+    // পরবর্তী ৮ ঘণ্টার জন্য আবার নতুন করে মাইনিং স্টার্ট হয়ে যাবে।
+    const elapsedSec = miningStartTime > 0 ? Math.max(0, Math.floor((now - miningStartTime) / 1000)) : 0;
+    const currentMined = Math.min(miningRatePerHour * MINING_DURATION_HOURS, elapsedSec * miningRatePerSec);
 
-        try {
-            await db.collection("users").doc(userId).set({
-                balance: totalBalance,
-                miningStartTime: 0,
-                miningEndTime: 0
-            }, { merge: true });
+    totalBalance += currentMined;
+    const newStartTime = now;
+    const newEndTime = now + MINING_DURATION_MS;
 
-            updateUI();
-            alert(`🎉 Successfully claimed ${earnedAmount.toFixed(8)} MTR!`);
-        } catch (e) {
-            alert("Failed to claim mined tokens.");
-        }
-        return;
-    }
+    miningStartTime = newStartTime;
+    miningEndTime = newEndTime;
 
-    // Case 2: Not mining -> START MINING anytime user wants
-    if (!isMiningActive && miningEndTime === 0) {
-        const startTime = now;
-        const endTime = now + MINING_DURATION_MS;
-        
-        miningStartTime = startTime;
-        miningEndTime = endTime;
-        isMiningActive = true;
+    try {
+        await db.collection("users").doc(userId).set({
+            balance: totalBalance,
+            miningStartTime: newStartTime,
+            miningEndTime: newEndTime
+        }, { merge: true });
 
-        try {
-            await db.collection("users").doc(userId).set({
-                miningStartTime: startTime,
-                miningEndTime: endTime
-            }, { merge: true });
-
-            updateUI();
-            alert(`🚀 Mining started successfully for ${MINING_DURATION_HOURS} hours!`);
-        } catch (e) {
-            alert("Failed to start mining.");
-        }
+        updateUI();
+        alert(`🎉 Successfully claimed ${currentMined.toFixed(8)} MTR! New 8-hour mining session started.`);
+    } catch (e) {
+        alert("Failed to claim tokens.");
     }
 }
 
@@ -993,10 +975,15 @@ function updateUI() {
     }
 
     const now = Date.now();
-    if (miningEndTime > 0 && now < miningEndTime) {
-        isMiningActive = true;
-    } else {
-        isMiningActive = false;
+    
+    // যদি ডাটাবেজে মাইনিং স্টার্ট না করা থাকে, তবে প্রথমবার স্বয়ংক্রিয়ভাবে ৮ ঘণ্টার জন্য স্টার্ট করে দেওয়া হবে
+    if (isVerified && walletConnected && miningEndTime === 0) {
+        miningStartTime = now;
+        miningEndTime = now + MINING_DURATION_MS;
+        db.collection("users").doc(userId).set({
+            miningStartTime: miningStartTime,
+            miningEndTime: miningEndTime
+        }, { merge: true }).catch(() => {});
     }
 
     document.getElementById("totalBalance").textContent = totalBalance.toFixed(8);
@@ -1018,7 +1005,7 @@ function updateUI() {
     const button = document.getElementById("actionBtn");
     const sessionText = document.getElementById("sessionStatusText");
 
-    // Check Firestore verification status securely in real-time
+    // রিয়েল-টাইম ফায়ারবেস ভেরিফিকেশন চেক
     db.collection("users").doc(userId).get().then(doc => {
         if (doc.exists) {
             const data = doc.data();
@@ -1043,45 +1030,31 @@ function updateUI() {
     if (isVerified && walletConnected) {
         badge.textContent = "Verified ✓";
         badge.className = "status-badge verified";
-        document.getElementById("miningStatus").textContent = isMiningActive ? "Active" : "Ready / Claim";
         document.getElementById("miningRateText").textContent = `⚡ Mining Speed: +${miningRatePerHour} MTR/hour`;
 
-        if (isMiningActive) {
-            const elapsedSec = Math.max(0, Math.floor((now - miningStartTime) / 1000));
-            const liveSessionMined = Math.min(miningRatePerHour * MINING_DURATION_HOURS, elapsedSec * miningRatePerSec);
-            document.getElementById("sessionMined").textContent = liveSessionMined.toFixed(8);
+        // লাইভ সেশন মাইন হওয়া কয়েন হিসাব করা
+        const elapsedSec = miningStartTime > 0 ? Math.max(0, Math.floor((now - miningStartTime) / 1000)) : 0;
+        const liveSessionMined = Math.min(miningRatePerHour * MINING_DURATION_HOURS, elapsedSec * miningRatePerSec);
+        document.getElementById("sessionMined").textContent = liveSessionMined.toFixed(8);
 
+        if (miningEndTime > 0 && now < miningEndTime) {
             const timeLeft = miningEndTime - now;
             const hours = Math.floor(timeLeft / (1000 * 60 * 60));
             const minutes = Math.floor((timeLeft % (1000 * 60 * 60)) / (1000 * 60));
             const seconds = Math.floor((timeLeft % (1000 * 60)) / 1000);
 
             sessionText.innerHTML = `Mined in session: <strong><span id="sessionMined">${liveSessionMined.toFixed(8)}</span> MTR</strong>`;
-            document.getElementById("miningStatus").innerHTML = `Mining ends in: <strong>${hours}h ${minutes}m ${seconds}s</strong>`;
-            
-            button.className = "main-btn btn-green";
-            button.textContent = "MINING IN PROGRESS...";
-            button.disabled = true;
+            document.getElementById("miningStatus").innerHTML = `Active (${hours}h ${minutes}m left)`;
         } else {
-            if (miningEndTime > 0 && now >= miningEndTime) {
-                const maxMined = miningRatePerHour * MINING_DURATION_HOURS;
-                document.getElementById("sessionMined").textContent = maxMined.toFixed(8);
-                sessionText.innerHTML = `Mined in session: <strong>${maxMined.toFixed(8)} MTR (Completed)</strong>`;
-                document.getElementById("miningStatus").textContent = "Completed";
-
-                button.className = "main-btn btn-gold";
-                button.textContent = "CLAIM";
-                button.disabled = false;
-            } else {
-                document.getElementById("sessionMined").textContent = "0.00000000";
-                sessionText.innerHTML = `Mined in session: <strong>0.00000000 MTR</strong>`;
-                document.getElementById("miningStatus").textContent = "Ready to Start";
-
-                button.className = "main-btn btn-gold";
-                button.textContent = "START MINING";
-                button.disabled = false;
-            }
+            sessionText.innerHTML = `Mined in session: <strong>${liveSessionMined.toFixed(8)} MTR (Ready to Claim)</strong>`;
+            document.getElementById("miningStatus").textContent = "Session Complete";
         }
+
+        // CLAIM বাটন সবসময় সচল এবং দৃশ্যমান থাকবে
+        button.className = "main-btn btn-gold";
+        button.textContent = "CLAIM";
+        button.disabled = false;
+
     } else if (walletConnected) {
         badge.textContent = "Unverified";
         badge.className = "status-badge";
@@ -1141,18 +1114,19 @@ function escapeHTML(str) {
     return String(str).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'})[c]);
 }
 
+// প্রতি সেকেন্ডে লাইভ কয়েন ও টাইমার আপডেট করার জন্য
 setInterval(() => {
-    if (isVerified && walletConnected && miningEndTime > 0) {
+    if (isVerified && walletConnected && miningStartTime > 0) {
         const now = Date.now();
-        if (now < miningEndTime) {
-            const elapsedSec = Math.max(0, Math.floor((now - miningStartTime) / 1000));
-            const liveSessionMined = Math.min(miningRatePerHour * MINING_DURATION_HOURS, elapsedSec * miningRatePerSec);
-            
-            const sessionMinedEl = document.getElementById("sessionMined");
-            if (sessionMinedEl) {
-                sessionMinedEl.textContent = liveSessionMined.toFixed(8);
-            }
+        const elapsedSec = Math.max(0, Math.floor((now - miningStartTime) / 1000));
+        const liveSessionMined = Math.min(miningRatePerHour * MINING_DURATION_HOURS, elapsedSec * miningRatePerSec);
+        
+        const sessionMinedEl = document.getElementById("sessionMined");
+        if (sessionMinedEl) {
+            sessionMinedEl.textContent = liveSessionMined.toFixed(8);
+        }
 
+        if (miningEndTime > 0 && now < miningEndTime) {
             const timeLeft = miningEndTime - now;
             const hours = Math.floor(timeLeft / (1000 * 60 * 60));
             const minutes = Math.floor((timeLeft % (1000 * 60 * 60)) / (1000 * 60));
@@ -1160,21 +1134,12 @@ setInterval(() => {
 
             const miningStatusEl = document.getElementById("miningStatus");
             if (miningStatusEl) {
-                miningStatusEl.innerHTML = `Mining ends in: <strong>${hours}h ${minutes}m ${seconds}s</strong>`;
+                miningStatusEl.innerHTML = `Active (${hours}h ${minutes}m left)`;
             }
         } else {
-            isMiningActive = false;
-            const maxMined = miningRatePerHour * MINING_DURATION_HOURS;
-            const sessionText = document.getElementById("sessionStatusText");
             const miningStatusEl = document.getElementById("miningStatus");
-            const btn = document.getElementById("actionBtn");
-
-            if (sessionText) sessionText.innerHTML = `Mined in session: <strong>${maxMined.toFixed(8)} MTR (Completed)</strong>`;
-            if (miningStatusEl) miningStatusEl.textContent = "Completed";
-            if (btn) {
-                btn.className = "main-btn btn-gold";
-                btn.textContent = "CLAIM";
-                btn.disabled = false;
+            if (miningStatusEl) {
+                miningStatusEl.textContent = "Session Complete";
             }
         }
     }
