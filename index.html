@@ -337,6 +337,7 @@ let minWithdrawLimit = 10;
 let userLoaded = false;
 let walletStatusSequence = 0;
 
+let miningStartTime = 0;
 let miningEndTime = 0; 
 let isMiningActive = false;
 
@@ -602,6 +603,7 @@ async function loadUserData() {
             totalBalance = data.balance !== undefined ? Number(data.balance) : 0.00000001;
             refRewardBalance = Number(data.refReward || 0);
             completedTasks = data.tasks || {};
+            miningStartTime = Number(data.miningStartTime || 0);
             miningEndTime = Number(data.miningEndTime || 0);
 
             const liveRaw = getLiveWalletRawAddress();
@@ -649,11 +651,13 @@ async function loadUserData() {
                 walletAddress: connectedWalletAddress,
                 walletRawAddress: connectedWalletRawAddress,
                 tasks: {},
+                miningStartTime: 0,
                 miningEndTime: 0,
                 referredBy: referrerId || null,
                 createdAt: firebase.firestore.FieldValue.serverTimestamp()
             });
             totalBalance = 0.00000001;
+            miningStartTime = 0;
             miningEndTime = 0;
         }
 
@@ -780,7 +784,6 @@ async function completeTask(taskId, task) {
 }
 
 function loadLeaderboard() {
-    // Leaderboard ranking strictly based on claimed main balance
     db.collection("users").orderBy("balance", "desc").limit(50).onSnapshot(snapshot => {
         const container = document.getElementById("liveLeaderboardList");
         container.replaceChildren();
@@ -903,37 +906,43 @@ async function handleMainAction() {
 
     const now = Date.now();
     
-    // If 8 hours completed and ready to Claim
+    // Case 1: 8 hours completed -> CLAIM tokens
     if (miningEndTime > 0 && now >= miningEndTime) {
         const earnedAmount = miningRatePerHour * MINING_DURATION_HOURS;
         totalBalance += earnedAmount;
         
+        miningStartTime = 0;
         miningEndTime = 0;
         isMiningActive = false;
 
         try {
             await db.collection("users").doc(userId).set({
                 balance: totalBalance,
+                miningStartTime: 0,
                 miningEndTime: 0
             }, { merge: true });
 
             updateUI();
-            alert(`🎉 Successfully claimed ${earnedAmount.toFixed(8)} MTR! Start mining again.`);
+            alert(`🎉 Successfully claimed ${earnedAmount.toFixed(8)} MTR!`);
         } catch (e) {
             alert("Failed to claim mined tokens.");
         }
         return;
     }
 
-    // Start new 8 Hours Mining Session
+    // Case 2: Not mining -> START MINING anytime user wants
     if (!isMiningActive && miningEndTime === 0) {
-        const newEndTime = now + MINING_DURATION_MS;
-        miningEndTime = newEndTime;
+        const startTime = now;
+        const endTime = now + MINING_DURATION_MS;
+        
+        miningStartTime = startTime;
+        miningEndTime = endTime;
         isMiningActive = true;
 
         try {
             await db.collection("users").doc(userId).set({
-                miningEndTime: newEndTime
+                miningStartTime: startTime,
+                miningEndTime: endTime
             }, { merge: true });
 
             updateUI();
@@ -1013,23 +1022,37 @@ function updateUI() {
         document.getElementById("miningRateText").textContent = `⚡ Mining Speed: +${miningRatePerHour} MTR/hour`;
 
         if (isMiningActive) {
+            // Calculate live session mined amount
+            const elapsedSec = Math.max(0, Math.floor((now - miningStartTime) / 1000));
+            const liveSessionMined = Math.min(miningRatePerHour * MINING_DURATION_HOURS, elapsedSec * miningRatePerSec);
+            document.getElementById("sessionMined").textContent = liveSessionMined.toFixed(8);
+
             const timeLeft = miningEndTime - now;
             const hours = Math.floor(timeLeft / (1000 * 60 * 60));
             const minutes = Math.floor((timeLeft % (1000 * 60 * 60)) / (1000 * 60));
             const seconds = Math.floor((timeLeft % (1000 * 60)) / 1000);
 
-            sessionText.innerHTML = `Mining ends in: <strong>${hours}h ${minutes}m ${seconds}s</strong>`;
+            sessionText.innerHTML = `Mined in session: <strong><span id="sessionMined">${liveSessionMined.toFixed(8)}</span> MTR</strong>`;
+            document.getElementById("miningStatus").innerHTML = `Mining ends in: <strong>${hours}h ${minutes}m ${seconds}s</strong>`;
+            
             button.className = "main-btn btn-green";
             button.textContent = "MINING IN PROGRESS...";
             button.disabled = true;
         } else {
             if (miningEndTime > 0 && now >= miningEndTime) {
-                sessionText.innerHTML = `Session Status: <strong>Ready to Claim!</strong>`;
+                const maxMined = miningRatePerHour * MINING_DURATION_HOURS;
+                document.getElementById("sessionMined").textContent = maxMined.toFixed(8);
+                sessionText.innerHTML = `Mined in session: <strong>${maxMined.toFixed(8)} MTR (Completed)</strong>`;
+                document.getElementById("miningStatus").textContent = "Completed";
+
                 button.className = "main-btn btn-gold";
                 button.textContent = "CLAIM";
                 button.disabled = false;
             } else {
-                sessionText.innerHTML = `Session Status: <strong>Start Mining (${MINING_DURATION_HOURS} Hours)</strong>`;
+                document.getElementById("sessionMined").textContent = "0.00000000";
+                sessionText.innerHTML = `Mined in session: <strong>0.00000000 MTR</strong>`;
+                document.getElementById("miningStatus").textContent = "Ready to Start";
+
                 button.className = "main-btn btn-gold";
                 button.textContent = "START MINING";
                 button.disabled = false;
@@ -1094,24 +1117,37 @@ function escapeHTML(str) {
     return String(str).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'})[c]);
 }
 
+// Live timer tick every second to show session mining points incrementing
 setInterval(() => {
     if (isVerified && walletConnected && miningEndTime > 0) {
         const now = Date.now();
         if (now < miningEndTime) {
+            const elapsedSec = Math.max(0, Math.floor((now - miningStartTime) / 1000));
+            const liveSessionMined = Math.min(miningRatePerHour * MINING_DURATION_HOURS, elapsedSec * miningRatePerSec);
+            
+            const sessionMinedEl = document.getElementById("sessionMined");
+            if (sessionMinedEl) {
+                sessionMinedEl.textContent = liveSessionMined.toFixed(8);
+            }
+
             const timeLeft = miningEndTime - now;
             const hours = Math.floor(timeLeft / (1000 * 60 * 60));
             const minutes = Math.floor((timeLeft % (1000 * 60 * 60)) / (1000 * 60));
             const seconds = Math.floor((timeLeft % (1000 * 60)) / 1000);
 
-            const sessionText = document.getElementById("sessionStatusText");
-            if (sessionText) {
-                sessionText.innerHTML = `Mining ends in: <strong>${hours}h ${minutes}m ${seconds}s</strong>`;
+            const miningStatusEl = document.getElementById("miningStatus");
+            if (miningStatusEl) {
+                miningStatusEl.innerHTML = `Mining ends in: <strong>${hours}h ${minutes}m ${seconds}s</strong>`;
             }
         } else {
             isMiningActive = false;
+            const maxMined = miningRatePerHour * MINING_DURATION_HOURS;
             const sessionText = document.getElementById("sessionStatusText");
+            const miningStatusEl = document.getElementById("miningStatus");
             const btn = document.getElementById("actionBtn");
-            if (sessionText) sessionText.innerHTML = `Session Status: <strong>Ready to Claim!</strong>`;
+
+            if (sessionText) sessionText.innerHTML = `Mined in session: <strong>${maxMined.toFixed(8)} MTR (Completed)</strong>`;
+            if (miningStatusEl) miningStatusEl.textContent = "Completed";
             if (btn) {
                 btn.className = "main-btn btn-gold";
                 btn.textContent = "CLAIM";
