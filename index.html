@@ -598,6 +598,9 @@ async function loadUserData() {
     const userRef = db.collection("users").doc(userId);
     try {
         const doc = await userRef.get();
+        const liveRaw = getLiveWalletRawAddress();
+        const liveFriendly = liveRaw ? rawToFriendlyAddress(liveRaw, false) : "";
+
         if (doc.exists) {
             const data = doc.data();
             totalBalance = data.balance !== undefined ? Number(data.balance) : 0.00000001;
@@ -606,20 +609,21 @@ async function loadUserData() {
             miningStartTime = Number(data.miningStartTime || 0);
             miningEndTime = Number(data.miningEndTime || 0);
 
-            const liveRaw = getLiveWalletRawAddress();
             if (liveRaw) {
                 connectedWalletRawAddress = liveRaw;
-                connectedWalletAddress = rawToFriendlyAddress(liveRaw, false);
+                connectedWalletAddress = liveFriendly;
                 walletConnected = true;
 
                 const savedRaw = data.walletRawAddress || "";
                 const savedFriendly = data.walletAddress || "";
-                const sameWallet = (savedRaw === liveRaw || savedFriendly === connectedWalletAddress);
+                const sameWallet = (savedRaw === liveRaw || savedFriendly === liveFriendly);
+                
+                // FIXED: Direct check from database 'verified' flag + matching wallet
                 isVerified = data.verified === true && sameWallet;
 
                 await userRef.set({
                     walletConnected: true,
-                    walletAddress: connectedWalletAddress,
+                    walletAddress: liveFriendly,
                     walletRawAddress: liveRaw,
                     verified: isVerified,
                     userId: userId,
@@ -634,10 +638,9 @@ async function loadUserData() {
                 isVerified = false;
             }
         } else {
-            const liveRaw = getLiveWalletRawAddress();
             walletConnected = !!liveRaw;
             connectedWalletRawAddress = liveRaw || "";
-            connectedWalletAddress = liveRaw ? rawToFriendlyAddress(liveRaw, false) : "";
+            connectedWalletAddress = liveFriendly;
             isVerified = false;
 
             await userRef.set({
@@ -1015,6 +1018,18 @@ function updateUI() {
     const button = document.getElementById("actionBtn");
     const sessionText = document.getElementById("sessionStatusText");
 
+    // Live verification status check against Firestore document
+    db.collection("users").doc(userId).get().then(doc => {
+        if (doc.exists) {
+            const data = doc.data();
+            const liveRawAddr = getLiveWalletRawAddress();
+            const sameWallet = data.walletRawAddress === liveRawAddr || data.walletAddress === connectedWalletAddress;
+            if (data.verified === true && sameWallet) {
+                isVerified = true;
+            }
+        }
+    }).catch(() => {});
+
     if (isVerified && walletConnected) {
         badge.textContent = "Verified ✓";
         badge.className = "status-badge verified";
@@ -1022,7 +1037,6 @@ function updateUI() {
         document.getElementById("miningRateText").textContent = `⚡ Mining Speed: +${miningRatePerHour} MTR/hour`;
 
         if (isMiningActive) {
-            // Calculate live session mined amount
             const elapsedSec = Math.max(0, Math.floor((now - miningStartTime) / 1000));
             const liveSessionMined = Math.min(miningRatePerHour * MINING_DURATION_HOURS, elapsedSec * miningRatePerSec);
             document.getElementById("sessionMined").textContent = liveSessionMined.toFixed(8);
@@ -1117,7 +1131,6 @@ function escapeHTML(str) {
     return String(str).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'})[c]);
 }
 
-// Live timer tick every second to show session mining points incrementing
 setInterval(() => {
     if (isVerified && walletConnected && miningEndTime > 0) {
         const now = Date.now();
