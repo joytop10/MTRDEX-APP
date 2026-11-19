@@ -118,11 +118,21 @@ button{font-family:inherit;cursor:pointer}
 .modal-sub{text-align:center;font-size:12px;color:var(--muted);margin-bottom:16px}
 .modal-close{width:100%;padding:12px;border:1px solid var(--border);border-radius:11px;background:#202E44;color:white;margin-top:10px}
 .empty-state{text-align:center;padding:30px 15px;color:var(--muted);font-size:13px;background:var(--card);border-radius:15px}
+.ban-screen{position:fixed;inset:0;z-index:9999;display:none;flex-direction:column;align-items:center;justify-content:center;padding:25px;text-align:center;background:#080D18}
+.ban-screen.active{display:flex}
 @media(max-width:360px){.balance-amount{font-size:22px}.coin-wrapper{width:185px;height:185px}.coin-circle{width:150px;height:150px}.coin-text{font-size:36px}.wallet-display{font-size:10px;padding:8px}}
 </style>
 </head>
 
 <body>
+
+<div class="ban-screen" id="bannedScreen">
+    <div style="font-size:56px">🚫</div>
+    <h2 style="color:#EF4444;margin:18px 0 10px">Account Suspended</h2>
+    <p style="color:#8996AA;line-height:1.7;max-width:360px;font-size:14px">
+        Your account has been banned by the admin. Mining and all rewards are suspended.
+    </p>
+</div>
 
 <header class="header">
     <div class="user-info">
@@ -392,15 +402,29 @@ let userName = telegramUser ? [telegramUser.first_name, telegramUser.last_name].
 let userUsername = telegramUser?.username ? "@" + telegramUser.username : "@master_miner";
 let userPhotoUrl = telegramUser?.photo_url || "";
 
-let referrerId = tg.initDataUnsafe?.start_param || new URLSearchParams(location.search).get("startapp");
-if (referrerId === userId) referrerId = null;
+function extractReferrerId() {
+    const params = new URLSearchParams(location.search);
+    const rawRef =
+        tg.initDataUnsafe?.start_param ||
+        params.get("startapp") ||
+        params.get("tgWebAppStartParam") ||
+        params.get("start") ||
+        "";
 
-const personalReferralLink = "https://t.me/MTRDex_bot?start=" + encodeURIComponent(userId);
+    const cleaned = decodeURIComponent(String(rawRef).trim());
+    if (!cleaned || cleaned === userId) return null;
+    return cleaned;
+}
+
+let referrerId = extractReferrerId();
+
+const personalReferralLink = "https://t.me/MTRDex_bot?startapp=" + encodeURIComponent(userId);
 
 let walletConnected = false;
 let connectedWalletAddress = "";
 let connectedWalletRawAddress = "";
 let isVerified = false;
+let isBanned = false;
 let totalBalance = 0.00000001;
 let refRewardBalance = 0;
 let claimedTargets = [];
@@ -426,6 +450,14 @@ document.getElementById("profileName").textContent = userName;
 document.getElementById("profileUsername").textContent = userUsername;
 document.getElementById("profileTelegramId").textContent = userId;
 document.getElementById("refLinkBox").textContent = personalReferralLink;
+
+function applyBanState(bannedStatus) {
+    isBanned = bannedStatus === true;
+    const banEl = document.getElementById("bannedScreen");
+    if (banEl) {
+        banEl.classList.toggle("active", isBanned);
+    }
+}
 
 function isSupplyLimitReached() {
     return maxSupplyLimit > 0 && globalTotalSupply >= maxSupplyLimit;
@@ -484,6 +516,7 @@ try {
     });
 
     tonConnectUI.onStatusChange(async wallet => {
+        if (isBanned) return;
         const sequence = ++walletStatusSequence;
         if (wallet?.account?.address) {
             const newRawAddress = wallet.account.address;
@@ -507,6 +540,8 @@ try {
                     const doc = await db.collection("users").doc(userId).get();
                     if (sequence !== walletStatusSequence) return;
                     const data = doc.exists ? doc.data() : {};
+                    applyBanState(data.banned === true);
+                    if (isBanned) return;
 
                     const savedRaw = data.walletRawAddress || "";
                     const savedFriendly = data.walletAddress || "";
@@ -545,6 +580,7 @@ try {
 }
 
 async function handleWalletClick() {
+    if (isBanned) return;
     if (!tonConnectUI) {
         alert("TON Connect is not available.");
         return;
@@ -573,7 +609,7 @@ function closeWalletModal() {
 }
 
 async function saveWalletInfo() {
-    if (!userLoaded || !walletConnected || !connectedWalletRawAddress) return;
+    if (!userLoaded || isBanned || !walletConnected || !connectedWalletRawAddress) return;
     try {
         await db.collection("users").doc(userId).set({
             walletConnected: true,
@@ -615,6 +651,7 @@ async function copyWalletAddress() {
 }
 
 async function verifyAccountWithFee() {
+    if (isBanned) return;
     if (!walletConnected || !tonConnectUI) {
         alert("Please connect your wallet first!");
         await handleWalletClick();
@@ -895,6 +932,20 @@ function startHistoryListeners() {
     });
 }
 
+function startRealtimeUserBanListener() {
+    db.collection("users").doc(userId).onSnapshot(doc => {
+        if (!doc.exists) return;
+        const data = doc.data();
+        applyBanState(data.banned === true);
+        if (!isBanned && !isClaimingMining) {
+            if (data.balance !== undefined) totalBalance = Number(data.balance);
+            miningStartTime = Number(data.miningStartTime || 0);
+            miningEndTime = Number(data.miningEndTime || 0);
+            updateUI();
+        }
+    });
+}
+
 async function loadUserData() {
     const userRef = db.collection("users").doc(userId);
     try {
@@ -904,6 +955,8 @@ async function loadUserData() {
 
         if (doc.exists) {
             const data = doc.data();
+            applyBanState(data.banned === true);
+
             if (!isClaimingMining) {
                 totalBalance = data.balance !== undefined ? Number(data.balance) : 0.00000001;
                 miningStartTime = Number(data.miningStartTime || 0);
@@ -914,44 +967,62 @@ async function loadUserData() {
             completedTasks = data.tasks || {};
             visitedTasks = data.visitedTasks || {};
 
-            if (liveRaw) {
-                connectedWalletRawAddress = liveRaw;
-                connectedWalletAddress = liveFriendly;
-                walletConnected = true;
+            let finalReferredBy = data.referredBy || null;
+            if (!finalReferredBy && referrerId && referrerId !== userId) {
+                finalReferredBy = referrerId;
+            }
+            referrerId = finalReferredBy;
 
-                const savedRaw = data.walletRawAddress || "";
-                const savedFriendly = data.walletAddress || "";
-                const verifiedWalletRaw = data.verifiedWalletRaw || "";
-                const verifiedWalletFriendly = data.verifiedWalletAddress || "";
+            if (!isBanned) {
+                if (liveRaw) {
+                    connectedWalletRawAddress = liveRaw;
+                    connectedWalletAddress = liveFriendly;
+                    walletConnected = true;
 
-                const isSameAsSaved = (savedRaw === liveRaw || savedFriendly === liveFriendly);
-                const isSameAsVerifiedBefore = (verifiedWalletRaw === liveRaw || verifiedWalletFriendly === liveFriendly);
+                    const savedRaw = data.walletRawAddress || "";
+                    const savedFriendly = data.walletAddress || "";
+                    const verifiedWalletRaw = data.verifiedWalletRaw || "";
+                    const verifiedWalletFriendly = data.verifiedWalletAddress || "";
 
-                isVerified = data.verified === true && (isSameAsSaved || isSameAsVerifiedBefore);
+                    const isSameAsSaved = (savedRaw === liveRaw || savedFriendly === liveFriendly);
+                    const isSameAsVerifiedBefore = (verifiedWalletRaw === liveRaw || verifiedWalletFriendly === liveFriendly);
 
-                await userRef.set({
-                    walletConnected: true,
-                    walletAddress: liveFriendly,
-                    walletRawAddress: liveRaw,
-                    verified: isVerified,
-                    verifiedWalletRaw: verifiedWalletRaw || (isVerified ? liveRaw : ""),
-                    verifiedWalletAddress: verifiedWalletFriendly || (isVerified ? liveFriendly : ""),
-                    userId: userId,
-                    name: userName,
-                    username: userUsername,
-                    lastSeen: firebase.firestore.FieldValue.serverTimestamp()
-                }, { merge: true });
-            } else {
-                walletConnected = false;
-                connectedWalletAddress = "";
-                connectedWalletRawAddress = "";
-                isVerified = data.verified === true;
+                    isVerified = data.verified === true && (isSameAsSaved || isSameAsVerifiedBefore);
+
+                    await userRef.set({
+                        walletConnected: true,
+                        walletAddress: liveFriendly,
+                        walletRawAddress: liveRaw,
+                        verified: isVerified,
+                        verifiedWalletRaw: verifiedWalletRaw || (isVerified ? liveRaw : ""),
+                        verifiedWalletAddress: verifiedWalletFriendly || (isVerified ? liveFriendly : ""),
+                        userId: userId,
+                        name: userName,
+                        username: userUsername,
+                        referredBy: finalReferredBy,
+                        lastSeen: firebase.firestore.FieldValue.serverTimestamp()
+                    }, { merge: true });
+                } else {
+                    walletConnected = false;
+                    connectedWalletAddress = "";
+                    connectedWalletRawAddress = "";
+                    isVerified = data.verified === true;
+
+                    await userRef.set({
+                        userId: userId,
+                        name: userName,
+                        username: userUsername,
+                        referredBy: finalReferredBy,
+                        lastSeen: firebase.firestore.FieldValue.serverTimestamp()
+                    }, { merge: true });
+                }
             }
         } else {
             walletConnected = !!liveRaw;
             connectedWalletRawAddress = liveRaw || "";
             connectedWalletAddress = liveFriendly;
             isVerified = false;
+            applyBanState(false);
 
             await userRef.set({
                 userId: userId,
@@ -961,6 +1032,7 @@ async function loadUserData() {
                 refReward: 0,
                 claimedTargets: [],
                 verified: false,
+                banned: false,
                 walletConnected: walletConnected,
                 walletAddress: connectedWalletAddress,
                 walletRawAddress: connectedWalletRawAddress,
@@ -977,13 +1049,14 @@ async function loadUserData() {
         }
 
         userLoaded = true;
+        startRealtimeUserBanListener();
         updateUI();
         loadTasks();
         loadLeaderboard();
         loadReferralStats();
         startHistoryListeners();
 
-        if (getLiveWalletRawAddress()) {
+        if (!isBanned && getLiveWalletRawAddress()) {
             await saveWalletInfo();
         }
     } catch (e) {
@@ -1127,6 +1200,7 @@ function renderTasksList() {
 }
 
 async function openTaskLink(taskId, task) {
+    if (isBanned) return;
     if (task.link && /^https:\/\//i.test(task.link)) {
         tg.openLink(task.link);
     } else if (task.link) {
@@ -1144,7 +1218,7 @@ async function openTaskLink(taskId, task) {
 }
 
 async function claimTaskReward(taskId, task) {
-    if (completedTasks[taskId] === true) return;
+    if (isBanned || completedTasks[taskId] === true) return;
 
     const taskReward = Number(task.reward || 0);
     completedTasks[taskId] = true;
@@ -1257,7 +1331,13 @@ function loadReferralStats() {
         document.getElementById("verifiedRef").textContent = verified;
         document.getElementById("unverifiedRef").textContent = total - verified;
 
+        db.collection("users").doc(userId).set({
+            referralCount: total
+        }, { merge: true }).catch(() => {});
+
         updateReferralTargetUI();
+    }, err => {
+        console.error("Referral listener error:", err);
     });
 }
 
@@ -1302,6 +1382,7 @@ function updateReferralTargetUI() {
 }
 
 async function claimRefReward() {
+    if (isBanned) return;
     const unlockedReward = getUnlockedTargetReward();
     const totalClaimable = refRewardBalance + unlockedReward;
 
@@ -1349,7 +1430,7 @@ function shareRefLink() {
 }
 
 async function handleMainAction() {
-    if (isClaimingMining) return;
+    if (isBanned || isClaimingMining) return;
 
     const liveAddress = getLiveWalletAddress();
     if (!liveAddress) {
@@ -1420,6 +1501,7 @@ async function handleMainAction() {
 }
 
 async function handleWithdraw() {
+    if (isBanned) return;
     if (!isWithdrawOpen) {
         alert("Withdrawal system is currently closed by admin.");
         return;
@@ -1498,6 +1580,9 @@ async function handleWithdraw() {
 }
 
 function updateUI() {
+    applyBanState(isBanned);
+    if (isBanned) return;
+
     const liveRaw = getLiveWalletRawAddress();
     if (liveRaw) {
         walletConnected = true;
@@ -1653,7 +1738,7 @@ function escapeHTML(str) {
 }
 
 setInterval(() => {
-    if (isVerified && walletConnected && !isSupplyLimitReached() && miningStartTime > 0) {
+    if (!isBanned && isVerified && walletConnected && !isSupplyLimitReached() && miningStartTime > 0) {
         const now = Date.now();
         const elapsedSec = Math.max(0, (now - miningStartTime) / 1000);
         const liveSessionMined = Math.min(miningRatePerHour * MINING_DURATION_HOURS, elapsedSec * miningRatePerSec);
