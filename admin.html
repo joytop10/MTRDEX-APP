@@ -101,13 +101,19 @@
         }
         .filter-chip.active { border-color: var(--cyan-glow); color: var(--cyan-glow); background: rgba(0, 212, 255, 0.1); }
 
+        .target-row {
+            display: flex; justify-content: space-between; align-items: center;
+            background: #060B14; border: 1px solid rgba(245, 196, 67, 0.25);
+            padding: 12px 14px; border-radius: 10px; margin-bottom: 8px; gap: 10px;
+        }
+
         .table-responsive { width: 100%; overflow-x: auto; }
         table { width: 100%; border-collapse: collapse; text-align: left; font-size: 12px; }
         th, td { padding: 11px 10px; border-bottom: 1px solid rgba(255,255,255,0.08); white-space: nowrap; }
         th { color: var(--gold-light); background: rgba(6, 11, 20, 0.8); }
         tr:hover { background: rgba(0, 119, 255, 0.05); }
 
-        .action-btns { display: flex; gap: 5px; }
+        .action-btns { display: flex; gap: 5px; flex-wrap: wrap; }
         .badge { padding: 3px 8px; border-radius: 6px; font-size: 11px; font-weight: bold; }
         .badge-verified { background: rgba(50, 215, 75, 0.15); color: var(--success); }
         .badge-unverified { background: rgba(255, 69, 58, 0.15); color: var(--danger); }
@@ -168,6 +174,10 @@
                 <div class="stat-value" id="statRejectedWithdraws" style="color: var(--danger);">0</div>
             </div>
             <div class="stat-card">
+                <div class="stat-label">Total Paid MTR</div>
+                <div class="stat-value" id="statTotalPaidMtr" style="color: var(--gold-light);">0.00</div>
+            </div>
+            <div class="stat-card">
                 <div class="stat-label">Est. TON Revenue</div>
                 <div class="stat-value" id="statTonRevenue" style="color: var(--cyan-glow);">0.0 TON</div>
             </div>
@@ -181,7 +191,7 @@
         <div class="admin-tabs">
             <button class="tab-btn active" onclick="switchAdminTab('users', this)">👥 Users Search & Manage</button>
             <button class="tab-btn" onclick="switchAdminTab('withdrawals', this)">💸 Withdrawals</button>
-            <button class="tab-btn" onclick="switchAdminTab('referral', this)">🎁 Referral Target</button>
+            <button class="tab-btn" onclick="switchAdminTab('referral', this)">🎁 Referral Targets</button>
             <button class="tab-btn" onclick="switchAdminTab('tasks', this)">📋 Tasks Manager</button>
             <button class="tab-btn" onclick="switchAdminTab('settings', this)">⚙️ Admin & Site Settings</button>
         </div>
@@ -248,22 +258,33 @@
             </div>
         </div>
 
-        <!-- TAB 3: REFERRAL TARGET & REWARD -->
+        <!-- TAB 3: MULTIPLE REFERRAL TARGETS -->
         <div id="tab-referral" class="tab-content">
             <div class="section-card">
-                <div class="section-title">🎁 Referral Target & Reward Setup</div>
-                <p style="font-size: 12px; color: var(--text-muted); margin-bottom: 12px;">Set how many verified referrals are needed to unlock the target reward, plus optional per-referral commission.</p>
-                
-                <label style="font-size:12px; color:var(--text-muted);">Target Verified Referrals Count</label>
-                <input type="number" id="cfgRefTarget" class="form-control" placeholder="e.g. 5" min="1">
+                <div class="section-title">➕ Add New Referral Target Milestone</div>
+                <p style="font-size: 12px; color: var(--text-muted); margin-bottom: 12px;">Add multiple referral targets (e.g. 3 referrals = 5 MTR, 10 referrals = 20 MTR). Users can claim each milestone once reached.</p>
 
-                <label style="font-size:12px; color:var(--text-muted);">Target Reward Amount (MTR)</label>
-                <input type="number" id="cfgRefTargetReward" class="form-control" placeholder="e.g. 10" step="any">
+                <label style="font-size:12px; color:var(--text-muted);">Required Verified Referrals</label>
+                <input type="number" id="newRefTargetCount" class="form-control" placeholder="e.g. 5" min="1">
 
-                <label style="font-size:12px; color:var(--text-muted);">Per Verified Referral Commission (MTR)</label>
+                <label style="font-size:12px; color:var(--text-muted);">Reward Token / Points (MTR)</label>
+                <input type="number" id="newRefTargetReward" class="form-control" placeholder="e.g. 15" step="any">
+
+                <button class="main-btn btn-gold" onclick="addReferralTargetItem()">Add Target to List</button>
+            </div>
+
+            <div class="section-card">
+                <div class="section-title">🎯 Active Referral Targets List</div>
+                <div id="referralTargetsList">
+                    <p style="font-size: 12px; color: var(--text-muted);">No referral targets added yet.</p>
+                </div>
+
+                <hr style="border-color: rgba(255,255,255,0.1); margin: 16px 0;">
+
+                <label style="font-size:12px; color:var(--text-muted);">Optional Direct Commission Per Verified Referral (MTR)</label>
                 <input type="number" id="cfgRefCommission" class="form-control" placeholder="e.g. 0" step="any">
 
-                <button class="main-btn btn-gold" onclick="saveReferralSettings()">Save Referral Settings</button>
+                <button class="main-btn btn-success" onclick="saveAllReferralTargets()">Save All Referral Targets</button>
             </div>
         </div>
 
@@ -306,6 +327,21 @@
                     <button class="main-btn btn-primary" onclick="saveMaintenanceNotice()">Save Notice</button>
                     <button class="main-btn" id="toggleMaintenanceBtn" onclick="toggleMaintenanceMode()">Toggle Maintenance</button>
                 </div>
+            </div>
+
+            <!-- MINING SPEED & VERIFICATION FEE CONTROL -->
+            <div class="section-card">
+                <div class="section-title">⚡ Mining Speed & Verification Fee Control</div>
+                <label style="font-size:12px; color:var(--text-muted);">Mining Speed (MTR / Hour)</label>
+                <input type="number" id="cfgMiningRate" class="form-control" placeholder="e.g. 0.1" step="any">
+
+                <label style="font-size:12px; color:var(--text-muted);">Verification Fee (TON)</label>
+                <input type="number" id="cfgVerifyFee" class="form-control" placeholder="e.g. 0.1" step="any">
+
+                <label style="font-size:12px; color:var(--text-muted);">Admin Receiving TON Wallet</label>
+                <input type="text" id="cfgAdminWallet" class="form-control" placeholder="Enter TON Wallet Address">
+
+                <button class="main-btn btn-gold" onclick="saveMiningAndFeeSettings()">Save Mining & Fee Settings</button>
             </div>
 
             <!-- WITHDRAWAL CONTROL & LIMITS -->
@@ -367,11 +403,11 @@
 
         let allUsersData = [];
         let allWithdrawalsData = [];
+        let referralTargetsList = [];
         let currentFilter = 'all';
         let isWithdrawOpen = false;
         let isMaintenanceOn = false;
 
-        // Default credentials if not set in DB
         let ADMIN_PASSWORD = localStorage.getItem('mtr_admin_pass') || "admin123";
         let TRANSACTION_PIN = localStorage.getItem('mtr_tx_pin') || "1234";
 
@@ -398,10 +434,9 @@
             initAdminListeners();
         }
 
-        // Prompt user for Transaction PIN before sensitive operations
         function verifyTxPinAction(actionCallback) {
             let pinInput = prompt("🔒 Enter Transaction PIN to confirm action:");
-            if (pinInput === null) return; // Cancelled
+            if (pinInput === null) return;
             if (pinInput === TRANSACTION_PIN) {
                 actionCallback();
             } else {
@@ -422,7 +457,7 @@
                     allUsersData.push(data);
 
                     if (data.verified) verifiedCount++;
-                    totalMtr += (data.balance || 0);
+                    totalMtr += Number(data.balance || 0);
                 });
 
                 document.getElementById('statTotalUsers').innerText = allUsersData.length;
@@ -433,14 +468,13 @@
                 renderUsersTable();
             });
 
-            // 2. Listen to Global Settings & Maintenance Mode
+            // 2. Listen to Global Settings
             db.collection("settings").doc("config").onSnapshot((doc) => {
                 if (doc.exists) {
                     const data = doc.data();
                     isWithdrawOpen = data.withdrawOpen || false;
                     isMaintenanceOn = data.maintenanceMode || false;
 
-                    // Withdraw UI
                     const wDesc = document.getElementById('withdrawStatusDesc');
                     const wBtn = document.getElementById('toggleWithdrawBtn');
                     if (isWithdrawOpen) {
@@ -453,7 +487,6 @@
                         wBtn.innerText = "Open Withdrawal";
                     }
 
-                    // Maintenance UI
                     const mDesc = document.getElementById('maintenanceStatusDesc');
                     const mBtn = document.getElementById('toggleMaintenanceBtn');
                     if (isMaintenanceOn) {
@@ -470,9 +503,23 @@
                     if (data.maxWithdraw !== undefined) document.getElementById('maxWithdrawInput').value = data.maxWithdraw;
                     if (data.maintenanceNotice !== undefined) document.getElementById('maintenanceNoticeInput').value = data.maintenanceNotice;
 
-                    if (data.refTarget !== undefined) document.getElementById('cfgRefTarget').value = data.refTarget;
-                    if (data.refTargetReward !== undefined) document.getElementById('cfgRefTargetReward').value = data.refTargetReward;
-                    if (data.refCommission !== undefined) document.getElementById('cfgRefCommission').value = data.refCommission;
+                    if (data.miningRate !== undefined) document.getElementById('cfgMiningRate').value = data.miningRate;
+                    if (data.verifyFee !== undefined) document.getElementById('cfgVerifyFee').value = data.verifyFee;
+                    if (data.adminWallet !== undefined) document.getElementById('cfgAdminWallet').value = data.adminWallet;
+
+                    if (Array.isArray(data.refTargets)) {
+                        referralTargetsList = data.refTargets;
+                    } else if (data.refTarget !== undefined && data.refTargetReward !== undefined) {
+                        referralTargetsList = [{ target: Number(data.refTarget), reward: Number(data.refTargetReward) }];
+                    } else {
+                        referralTargetsList = [];
+                    }
+
+                    if (data.refCommission !== undefined) {
+                        document.getElementById('cfgRefCommission').value = data.refCommission;
+                    }
+
+                    renderReferralTargetsList();
                 }
             });
 
@@ -499,6 +546,7 @@
                 let pendingCount = 0;
                 let completedCount = 0;
                 let rejectedCount = 0;
+                let totalPaidMtr = 0;
 
                 snapshot.forEach((doc) => {
                     let w = doc.data();
@@ -507,7 +555,10 @@
                     w.status = st;
 
                     if (st === 'pending') pendingCount++;
-                    else if (st === 'approved') completedCount++;
+                    else if (st === 'approved') {
+                        completedCount++;
+                        totalPaidMtr += Number(w.amount || 0);
+                    }
                     else if (st === 'rejected') rejectedCount++;
 
                     allWithdrawalsData.push(w);
@@ -516,12 +567,66 @@
                 document.getElementById('statPendingWithdraws').innerText = pendingCount;
                 document.getElementById('statCompletedWithdraws').innerText = completedCount;
                 document.getElementById('statRejectedWithdraws').innerText = rejectedCount;
+                document.getElementById('statTotalPaidMtr').innerText = totalPaidMtr.toFixed(2);
 
                 renderWithdrawTable();
             });
         }
 
-        // FILTER & RENDER USERS TABLE (Supports Telegram ID, Username, Name, Wallet)
+        // REFERRAL TARGETS MANAGEMENT
+        function addReferralTargetItem() {
+            const targetCount = parseInt(document.getElementById('newRefTargetCount').value);
+            const rewardVal = parseFloat(document.getElementById('newRefTargetReward').value);
+
+            if (isNaN(targetCount) || targetCount < 1 || isNaN(rewardVal) || rewardVal <= 0) {
+                alert("Please enter valid referral count and reward MTR.");
+                return;
+            }
+
+            referralTargetsList.push({ target: targetCount, reward: rewardVal });
+            referralTargetsList.sort((a, b) => a.target - b.target);
+
+            document.getElementById('newRefTargetCount').value = "";
+            document.getElementById('newRefTargetReward').value = "";
+            renderReferralTargetsList();
+        }
+
+        function removeReferralTargetItem(index) {
+            referralTargetsList.splice(index, 1);
+            renderReferralTargetsList();
+        }
+
+        function renderReferralTargetsList() {
+            const container = document.getElementById('referralTargetsList');
+            if (!referralTargetsList.length) {
+                container.innerHTML = '<p style="font-size: 12px; color: var(--text-muted);">No referral targets added yet.</p>';
+                return;
+            }
+
+            container.innerHTML = referralTargetsList.map((item, idx) => `
+                <div class="target-row">
+                    <div>
+                        <strong style="color:var(--gold-light);">🎯 ${item.target} Verified Referrals</strong>
+                        <span style="color:var(--success); margin-left:10px; font-weight:bold;">+${item.reward} MTR</span>
+                    </div>
+                    <button class="main-btn btn-danger" style="padding:5px 10px;" onclick="removeReferralTargetItem(${idx})">Remove</button>
+                </div>
+            `).join("");
+        }
+
+        function saveAllReferralTargets() {
+            const refCommission = parseFloat(document.getElementById('cfgRefCommission').value) || 0;
+            verifyTxPinAction(() => {
+                db.collection("settings").doc("config").set({
+                    refTargets: referralTargetsList,
+                    refCommission: refCommission
+                }, { merge: true }).then(() => {
+                    alert("✅ All referral targets & commission saved!");
+                });
+            });
+        }
+
+        // FILTER & RENDER USERS TABLE
         function setUserFilter(filter, el) {
             currentFilter = filter;
             document.querySelectorAll('.filter-chip').forEach(c => c.classList.remove('active'));
@@ -550,7 +655,7 @@
 
             let html = "";
             filtered.forEach(u => {
-                let bal = (u.balance || 0).toFixed(4);
+                let bal = Number(u.balance || 0).toFixed(4);
                 let walletShort = u.walletAddress ? u.walletAddress.substring(0, 6) + "..." + u.walletAddress.slice(-4) : "None";
                 let statusBadge = u.banned ? `<span class="badge badge-banned">Banned</span>` :
                                   (u.verified ? `<span class="badge badge-verified">Verified ✓</span>` : `<span class="badge badge-unverified">Unverified</span>`);
@@ -566,7 +671,7 @@
                         <td>${statusBadge}</td>
                         <td>
                             <button class="main-btn btn-primary" style="padding:4px 8px; font-size:11px;" onclick="inspectReferrals('${u.id}', '${u.name}')">
-                                👥 ${u.referralCount || 0} Team
+                                👥 Team
                             </button>
                         </td>
                         <td title="${u.walletAddress || ''}">${walletShort}</td>
@@ -579,6 +684,7 @@
                                 <button class="main-btn ${u.banned ? 'btn-primary' : 'btn-danger'}" style="padding:5px 8px;" onclick="verifyTxPinAction(() => toggleUserBan('${u.id}', ${!!u.banned}))">
                                     ${u.banned ? 'Unban' : 'Ban'}
                                 </button>
+                                <button class="main-btn btn-danger" style="padding:5px 8px;" onclick="verifyTxPinAction(() => deleteUserAccount('${u.id}'))">🗑️ Delete</button>
                             </div>
                         </td>
                     </tr>
@@ -628,7 +734,7 @@
             document.getElementById('withdrawTableBody').innerHTML = html || "<tr><td colspan='5' style='text-align:center;'>No withdrawal requests found</td></tr>";
         }
 
-        // SECURE USER ACTIONS (Protected by PIN)
+        // SECURE USER ACTIONS
         function editUserBalance(uid, currentBal) {
             let val = prompt(`Edit MTR Balance for ${uid}:`, currentBal);
             if (val !== null && !isNaN(val) && val.trim() !== "") {
@@ -645,6 +751,12 @@
         function toggleUserBan(uid, currentBan) {
             db.collection("users").doc(uid).update({ banned: !currentBan })
               .then(() => alert("✅ Ban status updated!"));
+        }
+
+        function deleteUserAccount(uid) {
+            if (!confirm(`⚠️ Are you sure you want to permanently delete user ${uid}?`)) return;
+            db.collection("users").doc(uid).delete()
+              .then(() => alert("🗑️ User account deleted successfully!"));
         }
 
         function inspectReferrals(uid, name) {
@@ -683,34 +795,19 @@
                 if (newStatus === 'rejected' && oldStatus !== 'rejected') {
                     db.collection("users").doc(uid).get().then(doc => {
                         if (doc.exists) {
-                            let curBal = doc.data().balance || 0;
-                            db.collection("users").doc(uid).update({ balance: curBal + amount });
+                            let curBal = Number(doc.data().balance || 0);
+                            db.collection("users").doc(uid).update({ balance: curBal + Number(amount) });
                         }
                     });
                 } else if (oldStatus === 'rejected' && newStatus === 'approved') {
                     db.collection("users").doc(uid).get().then(doc => {
                         if (doc.exists) {
-                            let curBal = doc.data().balance || 0;
-                            db.collection("users").doc(uid).update({ balance: Math.max(0, curBal - amount) });
+                            let curBal = Number(doc.data().balance || 0);
+                            db.collection("users").doc(uid).update({ balance: Math.max(0, curBal - Number(amount)) });
                         }
                     });
                 }
                 alert(`Withdrawal status updated to ${newStatus}!`);
-            });
-        }
-
-        // REFERRAL TARGET SETTINGS
-        function saveReferralSettings() {
-            const refTarget = Math.max(1, parseInt(document.getElementById('cfgRefTarget').value) || 5);
-            const refTargetReward = parseFloat(document.getElementById('cfgRefTargetReward').value) || 0;
-            const refCommission = parseFloat(document.getElementById('cfgRefCommission').value) || 0;
-
-            verifyTxPinAction(() => {
-                db.collection("settings").doc("config").set({
-                    refTarget, refTargetReward, refCommission
-                }, { merge: true }).then(() => {
-                    alert("✅ Referral target & reward settings saved!");
-                });
             });
         }
 
@@ -741,6 +838,26 @@
         function deleteTask(taskId) {
             db.collection("tasks").doc(taskId).delete()
               .then(() => alert("Task deleted!"));
+        }
+
+        // MINING & FEE SETTINGS
+        function saveMiningAndFeeSettings() {
+            const miningRate = parseFloat(document.getElementById('cfgMiningRate').value);
+            const verifyFee = parseFloat(document.getElementById('cfgVerifyFee').value);
+            const adminWallet = document.getElementById('cfgAdminWallet').value.trim();
+
+            if (isNaN(miningRate) || miningRate < 0 || isNaN(verifyFee) || verifyFee < 0) {
+                alert("❌ Please enter valid mining rate and verification fee.");
+                return;
+            }
+
+            verifyTxPinAction(() => {
+                db.collection("settings").doc("config").set({
+                    miningRate,
+                    verifyFee,
+                    adminWallet
+                }, { merge: true }).then(() => alert("✅ Mining speed & fee settings saved!"));
+            });
         }
 
         // SETTINGS & MAINTENANCE ACTIONS
@@ -818,4 +935,4 @@
         }
     </script>
 </body>
-                    </html>
+    </html>
