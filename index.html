@@ -400,6 +400,7 @@ let minWithdrawLimit = 10;
 let maxWithdrawLimit = 1000000;
 let userLoaded = false;
 let walletStatusSequence = 0;
+let isClaimingMining = false;
 
 let activeHistoryFilter = "all";
 let claimActivities = [];
@@ -887,13 +888,15 @@ async function loadUserData() {
 
         if (doc.exists) {
             const data = doc.data();
-            totalBalance = data.balance !== undefined ? Number(data.balance) : 0.00000001;
+            if (!isClaimingMining) {
+                totalBalance = data.balance !== undefined ? Number(data.balance) : 0.00000001;
+                miningStartTime = Number(data.miningStartTime || 0);
+                miningEndTime = Number(data.miningEndTime || 0);
+            }
             refRewardBalance = Number(data.refReward || 0);
             claimedTargets = Array.isArray(data.claimedTargets) ? data.claimedTargets : [];
             completedTasks = data.tasks || {};
             visitedTasks = data.visitedTasks || {};
-            miningStartTime = Number(data.miningStartTime || 0);
-            miningEndTime = Number(data.miningEndTime || 0);
 
             if (liveRaw) {
                 connectedWalletRawAddress = liveRaw;
@@ -1318,6 +1321,8 @@ function shareRefLink() {
 }
 
 async function handleMainAction() {
+    if (isClaimingMining) return;
+
     const liveAddress = getLiveWalletAddress();
     if (!liveAddress) {
         await handleWalletClick();
@@ -1329,21 +1334,27 @@ async function handleMainAction() {
         return;
     }
 
+    isClaimingMining = true;
     const now = Date.now();
-
-    const elapsedSec = miningStartTime > 0 ? Math.max(0, Math.floor((now - miningStartTime) / 1000)) : 0;
+    const elapsedSec = miningStartTime > 0 ? Math.max(0, (now - miningStartTime) / 1000) : 0;
     const currentMined = Math.min(miningRatePerHour * MINING_DURATION_HOURS, elapsedSec * miningRatePerSec);
 
-    totalBalance += currentMined;
+    const prevBalance = totalBalance;
+    const prevStart = miningStartTime;
+    const prevEnd = miningEndTime;
+
+    const newBalance = prevBalance + currentMined;
     const newStartTime = now;
     const newEndTime = now + MINING_DURATION_MS;
 
+    totalBalance = newBalance;
     miningStartTime = newStartTime;
     miningEndTime = newEndTime;
+    updateUI();
 
     try {
         await db.collection("users").doc(userId).set({
-            balance: totalBalance,
+            balance: newBalance,
             miningStartTime: newStartTime,
             miningEndTime: newEndTime
         }, { merge: true });
@@ -1352,10 +1363,16 @@ async function handleMainAction() {
             await recordClaimActivity("mining", "Mining Claim", currentMined);
         }
 
-        updateUI();
         alert(`🎉 Successfully claimed ${currentMined.toFixed(8)} MTR! New 8-hour mining session started.`);
     } catch (e) {
+        console.error("Claim error:", e);
+        totalBalance = prevBalance;
+        miningStartTime = prevStart;
+        miningEndTime = prevEnd;
+        updateUI();
         alert("Failed to claim tokens.");
+    } finally {
+        isClaimingMining = false;
     }
 }
 
@@ -1482,35 +1499,13 @@ function updateUI() {
     const button = document.getElementById("actionBtn");
     const sessionText = document.getElementById("sessionStatusText");
 
-    db.collection("users").doc(userId).get().then(doc => {
-        if (doc.exists) {
-            const data = doc.data();
-            const currentRaw = getLiveWalletRawAddress();
-            const currentFriendly = getLiveWalletAddress();
-            const savedRaw = data.walletRawAddress || "";
-            const savedFriendly = data.walletAddress || "";
-            const verifiedRaw = data.verifiedWalletRaw || "";
-            const verifiedFriendly = data.verifiedWalletAddress || "";
-
-            const matchesCurrent = (savedRaw === currentRaw || savedFriendly === currentFriendly);
-            const matchesVerified = (verifiedRaw === currentRaw || verifiedFriendly === currentFriendly);
-
-            if (data.verified === true && (matchesCurrent || matchesVerified)) {
-                isVerified = true;
-                badge.textContent = "Verified ✓";
-                badge.className = "status-badge verified";
-            }
-        }
-    }).catch(() => {});
-
     if (isVerified && walletConnected) {
         badge.textContent = "Verified ✓";
         badge.className = "status-badge verified";
         document.getElementById("miningRateText").textContent = `⚡ Mining Speed: +${miningRatePerHour} MTR/hour`;
 
-        const elapsedSec = miningStartTime > 0 ? Math.max(0, Math.floor((now - miningStartTime) / 1000)) : 0;
+        const elapsedSec = miningStartTime > 0 ? Math.max(0, (now - miningStartTime) / 1000) : 0;
         const liveSessionMined = Math.min(miningRatePerHour * MINING_DURATION_HOURS, elapsedSec * miningRatePerSec);
-        document.getElementById("sessionMined").textContent = liveSessionMined.toFixed(8);
 
         if (miningEndTime > 0 && now < miningEndTime) {
             const timeLeft = miningEndTime - now;
@@ -1520,7 +1515,7 @@ function updateUI() {
             sessionText.innerHTML = `Mined in session: <strong><span id="sessionMined">${liveSessionMined.toFixed(8)}</span> MTR</strong>`;
             document.getElementById("miningStatus").innerHTML = `Active (${hours}h ${minutes}m left)`;
         } else {
-            sessionText.innerHTML = `Mined in session: <strong>${liveSessionMined.toFixed(8)} MTR (Ready to Claim)</strong>`;
+            sessionText.innerHTML = `Mined in session: <strong><span id="sessionMined">${liveSessionMined.toFixed(8)}</span> MTR (Ready to Claim)</strong>`;
             document.getElementById("miningStatus").textContent = "Session Complete";
         }
 
@@ -1594,7 +1589,7 @@ function escapeHTML(str) {
 setInterval(() => {
     if (isVerified && walletConnected && miningStartTime > 0) {
         const now = Date.now();
-        const elapsedSec = Math.max(0, Math.floor((now - miningStartTime) / 1000));
+        const elapsedSec = Math.max(0, (now - miningStartTime) / 1000);
         const liveSessionMined = Math.min(miningRatePerHour * MINING_DURATION_HOURS, elapsedSec * miningRatePerSec);
 
         const sessionMinedEl = document.getElementById("sessionMined");
