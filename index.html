@@ -85,11 +85,13 @@ button{font-family:inherit;cursor:pointer}
 .profile-avatar{width:55px;height:55px;border-radius:16px}
 .profile-name{font-size:16px;font-weight:800;color:var(--gold);margin-bottom:5px}
 .profile-username{color:#55B8FF;font-size:12px}
+.withdraw-box{background:linear-gradient(145deg,#17243A,#101827);border:1px solid rgba(245,197,66,.25);border-radius:17px;padding:18px;display:flex;flex-direction:column;gap:12px;width:100%}
 .withdraw-input{width:100%;padding:13px;background:#080D18;border:1px solid var(--border);border-radius:10px;color:white;font-size:14px;outline:none}
 .withdraw-input:focus{border-color:var(--gold)}
 .status-pending{color:#F5C542;font-size:11px;font-weight:700}
 .status-approved{color:#22C58B;font-size:11px;font-weight:700}
 .status-rejected{color:#EF4444;font-size:11px;font-weight:700}
+.target-progress{background:rgba(22,119,255,.1);border:1px solid rgba(22,119,255,.25);border-radius:12px;padding:12px;margin-top:12px;font-size:12px;color:#54B9FF}
 .bottom-nav{position:fixed;bottom:0;left:0;width:100%;display:flex;justify-content:space-around;align-items:center;padding:10px 0 calc(10px + env(safe-area-inset-bottom));background:rgba(11,17,29,.97);border-top:1px solid var(--border);backdrop-filter:blur(15px);z-index:100}
 .nav-item{width:20%;display:flex;flex-direction:column;align-items:center;gap:5px;color:var(--muted);font-size:11px;font-weight:600;cursor:pointer}
 .nav-icon{font-size:21px;filter:grayscale(1);opacity:.7}
@@ -197,38 +199,27 @@ button{font-family:inherit;cursor:pointer}
                 <div class="info-value" id="unverifiedRef">0</div>
             </div>
         </div>
-        <div style="margin-top:18px">
+
+        <div class="target-progress" id="refTargetBox">
+            🎯 Target: <strong id="refTargetCount">5</strong> Verified Referrals = <strong id="refTargetRewardText">10 MTR</strong>
+            <div style="margin-top:5px;font-size:11px;color:var(--muted)" id="refProgressText">Progress: 0 / 5</div>
+        </div>
+
+        <div style="margin-top:16px">
             <div class="balance-label">Referral Reward</div>
             <div class="balance-amount" style="font-size:24px"><span id="refRewardBalance">0.00000000</span> <small>MTR</small></div>
         </div>
-        <button class="main-btn btn-gold" onclick="claimRefReward()">CLAIM REWARD</button>
+        <button class="main-btn btn-gold" id="claimRefBtn" onclick="claimRefReward()">CLAIM REWARD</button>
     </div>
     <div class="list-card" style="display:block">
         <div class="list-title">🎁 Invite Friends & Earn</div>
-        <p class="list-sub" style="line-height:1.7;margin-top:8px">Invite new members to the MTR Master community using your personal referral link.</p>
+        <p class="list-sub" style="line-height:1.7;margin-top:8px">Invite new members to the MTR Master community using your personal referral link and hit the target set by admin.</p>
         <div class="copy-box" id="refLinkBox">Loading referral link...</div>
         <div class="button-row">
             <button class="main-btn btn-gold btn-small" onclick="copyRefLink()">COPY LINK</button>
             <button class="main-btn btn-connect btn-small" onclick="shareRefLink()">SHARE LINK</button>
         </div>
     </div>
-</section>
-
-<!-- উইথড্র ট্যাব -->
-<section class="container" id="tab-withdraw">
-    <div class="section-heading"><span>📤</span> Withdraw MTR</div>
-    <div class="balance-card">
-        <div class="balance-label">Available Balance</div>
-        <div class="balance-amount"><span id="withdrawPageBalance">0.00000001</span> <small>MTR</small></div>
-        <div class="mining-rate" id="withdrawMinLabel">Minimum withdraw: 10 MTR</div>
-        <div style="margin-top:16px;display:flex;flex-direction:column;gap:12px">
-            <input type="number" id="withdrawAmountInput" class="withdraw-input" placeholder="Enter amount to withdraw" step="any">
-            <button class="main-btn btn-gold" onclick="handleWithdraw()">SUBMIT WITHDRAWAL</button>
-        </div>
-    </div>
-    
-    <div class="section-heading" style="margin-top:10px"><span>📜</span> Withdrawal History</div>
-    <div id="withdrawHistoryList"><div class="empty-state">No withdrawal history yet.</div></div>
 </section>
 
 <section class="container" id="tab-profile">
@@ -268,7 +259,19 @@ button{font-family:inherit;cursor:pointer}
         </div>
         <div class="list-value">VIEW</div>
     </div>
-    <button class="main-btn btn-gold" onclick="switchTab('withdraw', document.querySelectorAll('.nav-item')[3])">📤 GO TO WITHDRAW</button>
+
+    <!-- Profile সেকশনের ভেতরে Withdraw Box -->
+    <div class="withdraw-box">
+        <div class="list-title" style="color:var(--gold);margin-bottom:0">📤 Withdraw MTR</div>
+        <div class="list-sub" id="withdrawMinLabel">Minimum withdraw: 10 MTR</div>
+        <input type="number" id="withdrawAmountInput" class="withdraw-input" placeholder="Enter amount to withdraw" step="any">
+        <button class="main-btn btn-gold" onclick="handleWithdraw()">SUBMIT WITHDRAWAL</button>
+    </div>
+
+    <!-- Withdrawal History -->
+    <div class="section-heading" style="margin-top:6px"><span>📜</span> Withdrawal History</div>
+    <div id="withdrawHistoryList"><div class="empty-state">No withdrawal history yet.</div></div>
+
     <button class="main-btn btn-connect" onclick="openTokenomicsModal()">📊 VIEW TOKENOMICS</button>
 </section>
 
@@ -299,7 +302,7 @@ button{font-family:inherit;cursor:pointer}
     <div class="nav-item active" onclick="switchTab('mine',this)"><span class="nav-icon">⛏️</span><span>Mine</span></div>
     <div class="nav-item" onclick="switchTab('leaderboard',this)"><span class="nav-icon">🏆</span><span>Rank</span></div>
     <div class="nav-item" onclick="switchTab('tasks',this)"><span class="nav-icon">📋</span><span>Tasks</span></div>
-    <div class="nav-item" onclick="switchTab('withdraw',this)"><span class="nav-icon">📤</span><span>Withdraw</span></div>
+    <div class="nav-item" onclick="switchTab('friends',this)"><span class="nav-icon">👥</span><span>Friends</span></div>
     <div class="nav-item" onclick="switchTab('profile',this)"><span class="nav-icon">👤</span><span>Profile</span></div>
 </nav>
 
@@ -327,6 +330,11 @@ let verifyFeeAmount = 0.1;
 let miningRatePerHour = 0.1;
 let miningRatePerSec = miningRatePerHour / 3600;
 
+// Admin controlled referral target & reward settings
+let refTargetCount = 5;
+let refTargetRewardAmount = 10;
+let refCommissionPerUser = 0;
+
 const MINING_DURATION_HOURS = 8;
 const MINING_DURATION_MS = MINING_DURATION_HOURS * 60 * 60 * 1000;
 
@@ -353,9 +361,12 @@ let connectedWalletRawAddress = "";
 let isVerified = false;
 let totalBalance = 0.00000001;
 let refRewardBalance = 0;
+let claimedTargetCycles = 0;
+let currentVerifiedReferrals = 0;
 let completedTasks = {};
 let isWithdrawOpen = false;
 let minWithdrawLimit = 10;
+let maxWithdrawLimit = 1000000;
 let userLoaded = false;
 let walletStatusSequence = 0;
 
@@ -605,6 +616,18 @@ async function verifyAccountWithFee() {
                 verifiedAt: firebase.firestore.FieldValue.serverTimestamp()
             }, { merge: true });
 
+            // If user was referred by someone, give referrer per-user commission if configured by admin
+            if (referrerId && refCommissionPerUser > 0) {
+                const refDocRef = db.collection("users").doc(referrerId);
+                const refSnap = await refDocRef.get();
+                if (refSnap.exists) {
+                    const currentRefReward = Number(refSnap.data().refReward || 0);
+                    await refDocRef.set({
+                        refReward: currentRefReward + refCommissionPerUser
+                    }, { merge: true });
+                }
+            }
+
             updateUI();
             alert(`Account verified and mining started successfully!`);
         }
@@ -625,6 +648,7 @@ async function loadUserData() {
             const data = doc.data();
             totalBalance = data.balance !== undefined ? Number(data.balance) : 0.00000001;
             refRewardBalance = Number(data.refReward || 0);
+            claimedTargetCycles = Number(data.claimedTargetCycles || 0);
             completedTasks = data.tasks || {};
             miningStartTime = Number(data.miningStartTime || 0);
             miningEndTime = Number(data.miningEndTime || 0);
@@ -674,6 +698,7 @@ async function loadUserData() {
                 username: userUsername,
                 balance: 0.00000001,
                 refReward: 0,
+                claimedTargetCycles: 0,
                 verified: false,
                 walletConnected: walletConnected,
                 walletAddress: connectedWalletAddress,
@@ -711,11 +736,27 @@ db.collection("settings").doc("config").onSnapshot(doc => {
     const data = doc.data();
     isWithdrawOpen = data.withdrawOpen === true;
     minWithdrawLimit = Number(data.minWithdraw || 10);
+    if (data.maxWithdraw !== undefined) {
+        maxWithdrawLimit = Number(data.maxWithdraw);
+    }
+
+    if (data.refTarget !== undefined) {
+        refTargetCount = Math.max(1, Number(data.refTarget));
+    }
+    if (data.refTargetReward !== undefined) {
+        refTargetRewardAmount = Number(data.refTargetReward);
+    }
+    if (data.refCommission !== undefined) {
+        refCommissionPerUser = Number(data.refCommission);
+    }
 
     const minLabel = document.getElementById("withdrawMinLabel");
     if (minLabel) {
-        minLabel.textContent = "Minimum withdraw: " + minWithdrawLimit + " MTR";
+        minLabel.textContent = `Min: ${minWithdrawLimit} MTR • Max: ${maxWithdrawLimit} MTR`;
     }
+
+    document.getElementById("refTargetCount").textContent = refTargetCount;
+    document.getElementById("refTargetRewardText").textContent = refTargetRewardAmount + " MTR";
 
     if (data.miningRate !== undefined) {
         miningRatePerHour = Number(data.miningRate);
@@ -738,6 +779,7 @@ db.collection("settings").doc("config").onSnapshot(doc => {
             <p style="color:#8996AA;line-height:1.7">${escapeHTML(data.maintenanceNotice || "We will be back soon.")}</p>
         </div>`;
     }
+    updateReferralTargetUI();
     updateUI();
 });
 
@@ -887,12 +929,30 @@ function loadReferralStats() {
             if (doc.data().verified === true) verified++;
         });
 
+        currentVerifiedReferrals = verified;
         const total = snapshot.size;
         document.getElementById("referralCount").textContent = total;
         document.getElementById("miniRefCount").textContent = total;
         document.getElementById("verifiedRef").textContent = verified;
         document.getElementById("unverifiedRef").textContent = total - verified;
+
+        updateReferralTargetUI();
     });
+}
+
+function updateReferralTargetUI() {
+    const eligibleCycles = Math.floor(currentVerifiedReferrals / refTargetCount);
+    const availableCycles = Math.max(0, eligibleCycles - claimedTargetCycles);
+    const pendingTargetReward = availableCycles * refTargetRewardAmount;
+
+    const totalDisplayReward = refRewardBalance + pendingTargetReward;
+    document.getElementById("refRewardBalance").textContent = totalDisplayReward.toFixed(8);
+
+    const progressEl = document.getElementById("refProgressText");
+    if (progressEl) {
+        const currentInCycle = currentVerifiedReferrals % refTargetCount;
+        progressEl.textContent = `Current Progress: ${currentInCycle} / ${refTargetCount} (Claimed Cycles: ${claimedTargetCycles})`;
+    }
 }
 
 function loadWithdrawHistory() {
@@ -948,22 +1008,31 @@ function loadWithdrawHistory() {
 }
 
 async function claimRefReward() {
-    if (refRewardBalance <= 0) {
-        alert("No referral rewards available to claim.");
+    const eligibleCycles = Math.floor(currentVerifiedReferrals / refTargetCount);
+    const availableCycles = Math.max(0, eligibleCycles - claimedTargetCycles);
+    const pendingTargetReward = availableCycles * refTargetRewardAmount;
+
+    const totalClaimable = refRewardBalance + pendingTargetReward;
+
+    if (totalClaimable <= 0) {
+        alert(`Reach ${refTargetCount} verified referrals to unlock target reward!`);
         return;
     }
-    totalBalance += refRewardBalance;
-    const claimedAmount = refRewardBalance;
+
+    totalBalance += totalClaimable;
     refRewardBalance = 0;
+    claimedTargetCycles = eligibleCycles;
 
     try {
         await db.collection("users").doc(userId).set({
             balance: totalBalance,
-            refReward: 0
+            refReward: 0,
+            claimedTargetCycles: claimedTargetCycles
         }, { merge: true });
 
+        updateReferralTargetUI();
         updateUI();
-        alert(`Successfully claimed ${claimedAmount.toFixed(8)} MTR referral reward!`);
+        alert(`Successfully claimed ${totalClaimable.toFixed(8)} MTR referral reward!`);
     } catch (e) {
         alert("Failed to claim referral reward.");
     }
@@ -1035,6 +1104,11 @@ async function handleWithdraw() {
         return;
     }
 
+    if (withdrawAmount > maxWithdrawLimit) {
+        alert("Maximum withdrawal limit is " + maxWithdrawLimit + " MTR");
+        return;
+    }
+
     if (withdrawAmount > totalBalance) {
         alert("You do not have enough balance to withdraw this amount!");
         return;
@@ -1100,8 +1174,6 @@ function updateUI() {
 
     document.getElementById("totalBalance").textContent = totalBalance.toFixed(8);
     document.getElementById("profileBalance").textContent = totalBalance.toFixed(8) + " MTR";
-    document.getElementById("withdrawPageBalance").textContent = totalBalance.toFixed(8);
-    document.getElementById("refRewardBalance").textContent = refRewardBalance.toFixed(8);
 
     const walletDisplay = document.getElementById("walletDisplay");
     const profileWallet = document.getElementById("profileWalletAddr");
@@ -1255,4 +1327,4 @@ setInterval(() => {
 }, 1000);
 </script>
 </body>
-    </html>
+        </html>
