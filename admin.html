@@ -1,448 +1,821 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>MTR Master Admin Panel</title>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>MTR Master - Secure Admin Panel</title>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore-compat.js"></script>
+    <style>
+        :root {
+            --bg-dark: #060B14;
+            --card-bg: #0D1522;
+            --gold-light: #F5C443;
+            --gold-dark: #C68B17;
+            --neon-blue: #0077FF;
+            --cyan-glow: #00D4FF;
+            --text-main: #FFFFFF;
+            --text-muted: #8E9BAE;
+            --danger: #FF453A;
+            --success: #32D74B;
+            --warning: #FF9F0A;
+        }
 
-<script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore-compat.js"></script>
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Segoe UI', Roboto, sans-serif; }
+        body { background-color: var(--bg-dark); color: var(--text-main); min-height: 100vh; padding: 16px; }
 
-<style>
-:root {
-    --bg: #080D18;
-    --card: #111B2C;
-    --card2: #17243A;
-    --gold: #F5C542;
-    --gold2: #FFE28A;
-    --blue: #1677FF;
-    --text: #FFFFFF;
-    --muted: #8996AA;
-    --green: #22C58B;
-    --red: #EF4444;
-    --border: rgba(255,255,255,0.08);
-}
-* { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Segoe UI', Roboto, sans-serif; }
-body { background: var(--bg); color: var(--text); padding: 20px; min-height: 100vh; }
-.wrapper { max-width: 900px; margin: auto; display: flex; flex-direction: column; gap: 20px; }
-.top-header { display: flex; justify-content: space-between; align-items: center; background: var(--card); padding: 18px 22px; border-radius: 16px; border: 1px solid var(--border); }
-.top-header h2 { color: var(--gold); font-size: 20px; font-weight: 800; }
-.badge-admin { background: rgba(245,197,66,0.15); color: var(--gold); padding: 6px 12px; border-radius: 20px; font-size: 12px; font-weight: 700; }
+        /* LOGIN OVERLAY */
+        #loginOverlay {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: var(--bg-dark); z-index: 9999;
+            display: flex; justify-content: center; align-items: center; padding: 20px;
+        }
+        .login-box {
+            background: var(--card-bg); border: 1px solid var(--gold-light);
+            border-radius: 16px; padding: 30px 24px; width: 100%; max-width: 360px; text-align: center;
+        }
 
-/* Stats Grid */
-.stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 14px; }
-.stat-card { background: linear-gradient(145deg, var(--card2), var(--card)); padding: 18px; border-radius: 16px; border: 1px solid var(--border); }
-.stat-label { color: var(--muted); font-size: 12px; font-weight: 600; margin-bottom: 8px; }
-.stat-value { font-size: 24px; font-weight: 800; color: var(--gold); }
-.stat-value.green { color: var(--green); }
-.stat-value.red { color: var(--red); }
+        .header {
+            display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px;
+            padding: 15px 20px; background: var(--card-bg); border: 1px solid rgba(0, 119, 255, 0.3);
+            border-radius: 14px; margin-bottom: 20px;
+        }
+        .header h2 { color: var(--gold-light); font-size: 19px; }
 
-/* Tabs */
-.tabs { display: flex; gap: 10px; flex-wrap: wrap; }
-.tab-btn { padding: 11px 18px; border-radius: 12px; border: 1px solid var(--border); background: var(--card); color: var(--muted); font-weight: 700; font-size: 13px; cursor: pointer; transition: 0.2s; }
-.tab-btn.active { background: var(--gold); color: #111827; border-color: var(--gold); }
+        .stats-grid {
+            display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 12px; margin-bottom: 20px;
+        }
+        .stat-card {
+            background: var(--card-bg); border: 1px solid rgba(245, 196, 67, 0.3);
+            border-radius: 14px; padding: 15px; text-align: center;
+        }
+        .stat-label { font-size: 11px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px; }
+        .stat-value { font-size: 20px; font-weight: 800; color: var(--gold-light); margin-top: 6px; }
 
-.panel-section { display: none; flex-direction: column; gap: 16px; }
-.panel-section.active { display: flex; }
+        /* NAVIGATION TABS */
+        .admin-tabs {
+            display: flex; gap: 8px; overflow-x: auto; margin-bottom: 18px; padding-bottom: 5px;
+        }
+        .tab-btn {
+            padding: 10px 16px; border-radius: 10px; border: 1px solid rgba(0, 119, 255, 0.3);
+            background: var(--card-bg); color: var(--text-muted); font-size: 13px; font-weight: bold;
+            cursor: pointer; white-space: nowrap;
+        }
+        .tab-btn.active {
+            background: linear-gradient(90deg, var(--gold-light), var(--gold-dark));
+            color: #000; border-color: var(--gold-light);
+        }
 
-/* Settings Form & Search */
-.box { background: var(--card); padding: 20px; border-radius: 16px; border: 1px solid var(--border); display: flex; flex-direction: column; gap: 14px; }
-.box h3 { font-size: 16px; color: var(--gold2); margin-bottom: 4px; }
-.search-input { width: 100%; padding: 13px 15px; border-radius: 12px; border: 1px solid rgba(245,197,66,0.35); background: #080D18; color: white; font-size: 14px; outline: none; }
-.search-input:focus { border-color: var(--gold); }
-.form-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 14px; }
-.form-group { display: flex; flex-direction: column; gap: 6px; }
-.form-group label { font-size: 12px; color: var(--muted); font-weight: 600; }
-.form-group input, .form-group select { padding: 12px; border-radius: 10px; border: 1px solid var(--border); background: #080D18; color: white; font-size: 14px; outline: none; }
-.form-group input:focus { border-color: var(--gold); }
+        .tab-content { display: none; }
+        .tab-content.active { display: block; }
 
-.btn-save { padding: 14px; border: 0; border-radius: 12px; background: linear-gradient(110deg, #FFE28A, #E5AC27); color: #111827; font-weight: 800; font-size: 14px; cursor: pointer; }
-.btn-save:active { transform: scale(0.99); }
+        .section-card {
+            background: var(--card-bg); border: 1px solid rgba(0, 119, 255, 0.3);
+            border-radius: 14px; padding: 18px; margin-bottom: 18px;
+        }
+        .section-title {
+            font-size: 15px; font-weight: 700; color: var(--gold-light); margin-bottom: 14px;
+            display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px;
+        }
 
-/* Withdraw List */
-.req-card { background: linear-gradient(145deg, var(--card2), var(--card)); padding: 16px; border-radius: 14px; border: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; }
-.req-info h4 { font-size: 14px; font-weight: 700; margin-bottom: 4px; }
-.req-info p { font-size: 12px; color: var(--muted); margin-bottom: 2px; word-break: break-all; }
-.req-amount { font-size: 16px; font-weight: 800; color: var(--gold); margin-top: 4px; }
-.req-actions { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
-.btn-approve { padding: 9px 14px; border: 0; border-radius: 9px; background: var(--green); color: #080D18; font-weight: 800; font-size: 12px; cursor: pointer; }
-.btn-reject { padding: 9px 14px; border: 0; border-radius: 9px; background: var(--red); color: white; font-weight: 800; font-size: 12px; cursor: pointer; }
-.status-tag { padding: 5px 10px; border-radius: 8px; font-size: 11px; font-weight: 800; text-transform: uppercase; }
-.tag-pending { background: rgba(245,197,66,0.15); color: var(--gold); }
-.tag-approved { background: rgba(34,197,139,0.15); color: var(--green); }
-.tag-rejected { background: rgba(239,68,68,0.15); color: var(--red); }
+        .form-control {
+            width: 100%; padding: 11px 12px; background: #060B14; border: 1px solid rgba(0, 119, 255, 0.4);
+            border-radius: 8px; color: #FFF; font-size: 13px; margin-bottom: 10px;
+        }
+        .form-control:focus { outline: none; border-color: var(--gold-light); }
 
-.empty { text-align: center; padding: 25px; color: var(--muted); background: var(--card); border-radius: 14px; font-size: 13px; }
-</style>
+        .main-btn {
+            padding: 10px 16px; border-radius: 8px; border: none; font-size: 12px; font-weight: bold;
+            cursor: pointer; text-transform: uppercase; transition: 0.2s;
+        }
+        .btn-primary { background: linear-gradient(90deg, var(--neon-blue), #0051B3); color: #FFF; }
+        .btn-success { background: var(--success); color: #000; }
+        .btn-danger { background: var(--danger); color: #FFF; }
+        .btn-warning { background: var(--warning); color: #000; }
+        .btn-gold { background: linear-gradient(90deg, var(--gold-light), var(--gold-dark)); color: #000; }
+
+        .filter-bar { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 12px; }
+        .filter-chip {
+            padding: 6px 12px; border-radius: 20px; font-size: 12px; cursor: pointer;
+            background: #060B14; border: 1px solid rgba(255,255,255,0.15); color: var(--text-muted);
+        }
+        .filter-chip.active { border-color: var(--cyan-glow); color: var(--cyan-glow); background: rgba(0, 212, 255, 0.1); }
+
+        .table-responsive { width: 100%; overflow-x: auto; }
+        table { width: 100%; border-collapse: collapse; text-align: left; font-size: 12px; }
+        th, td { padding: 11px 10px; border-bottom: 1px solid rgba(255,255,255,0.08); white-space: nowrap; }
+        th { color: var(--gold-light); background: rgba(6, 11, 20, 0.8); }
+        tr:hover { background: rgba(0, 119, 255, 0.05); }
+
+        .action-btns { display: flex; gap: 5px; }
+        .badge { padding: 3px 8px; border-radius: 6px; font-size: 11px; font-weight: bold; }
+        .badge-verified { background: rgba(50, 215, 75, 0.15); color: var(--success); }
+        .badge-unverified { background: rgba(255, 69, 58, 0.15); color: var(--danger); }
+        .badge-banned { background: #FF453A; color: #FFF; }
+
+        .modal {
+            display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.85); justify-content: center; align-items: center; z-index: 1000; padding: 20px;
+        }
+        .modal-content {
+            background: var(--card-bg); border: 1px solid var(--gold-light);
+            border-radius: 14px; width: 100%; max-width: 420px; padding: 20px; max-height: 80vh; overflow-y: auto;
+        }
+    </style>
 </head>
 <body>
 
-<div class="wrapper">
-    <div class="top-header">
-        <h2>👑 MTR Master Admin</h2>
-        <span class="badge-admin">CONTROL PANEL</span>
-    </div>
-
-    <!-- লাইভ স্ট্যাটাস ড্যাশবোর্ড -->
-    <div class="stats-grid">
-        <div class="stat-card">
-            <div class="stat-label">📥 Withdraw Requests (Pending)</div>
-            <div class="stat-value" id="statPendingCount">0</div>
-        </div>
-        <div class="stat-card">
-            <div class="stat-label">✅ Withdraw Completed</div>
-            <div class="stat-value green" id="statCompletedCount">0</div>
-        </div>
-        <div class="stat-card">
-            <div class="stat-label">❌ Withdraw Rejected</div>
-            <div class="stat-value red" id="statRejectedCount">0</div>
-        </div>
-        <div class="stat-card">
-            <div class="stat-label">👥 Total Users</div>
-            <div class="stat-value" id="statTotalUsers">0</div>
+    <!-- ADMIN LOGIN SCREEN -->
+    <div id="loginOverlay">
+        <div class="login-box">
+            <h2 style="color: var(--gold-light); margin-bottom: 8px;">🔐 Admin Access</h2>
+            <p style="font-size: 12px; color: var(--text-muted); margin-bottom: 18px;">Enter Admin Password to manage MTR Master</p>
+            <input type="password" id="adminPassInput" class="form-control" placeholder="Enter Admin Password...">
+            <button class="main-btn btn-gold" style="width: 100%; padding: 12px;" onclick="checkAdminLogin()">Unlock Panel</button>
         </div>
     </div>
 
-    <!-- নেভিগেশন ট্যাব -->
-    <div class="tabs">
-        <button class="tab-btn active" onclick="switchAdminTab('withdrawals', this)">📤 Withdrawals</button>
-        <button class="tab-btn" onclick="switchAdminTab('referral', this)">🎁 Referral Target</button>
-        <button class="tab-btn" onclick="switchAdminTab('limits', this)">⚙️ Limits & Mining</button>
-        <button class="tab-btn" onclick="switchAdminTab('tasks', this)">📋 Add Task</button>
+    <!-- MAIN DASHBOARD -->
+    <div id="adminDashboard" style="display: none;">
+        <div class="header">
+            <h2>👑 MTR Master Admin Panel</h2>
+            <div style="display: flex; align-items: center; gap: 10px;">
+                <span style="font-size: 12px; color: var(--success);">● Live Sync</span>
+                <button class="main-btn btn-danger" style="padding: 6px 10px;" onclick="logoutAdmin()">Logout</button>
+            </div>
+        </div>
+
+        <!-- LIVE ANALYTICS & WITHDRAW COUNTERS -->
+        <div class="stats-grid">
+            <div class="stat-card">
+                <div class="stat-label">Total Users</div>
+                <div class="stat-value" id="statTotalUsers">0</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-label">Verified Miners</div>
+                <div class="stat-value" id="statVerifiedUsers" style="color: var(--success);">0</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-label">Pending Withdraws</div>
+                <div class="stat-value" id="statPendingWithdraws" style="color: var(--warning);">0</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-label">Completed Withdraws</div>
+                <div class="stat-value" id="statCompletedWithdraws" style="color: var(--success);">0</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-label">Rejected Withdraws</div>
+                <div class="stat-value" id="statRejectedWithdraws" style="color: var(--danger);">0</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-label">Est. TON Revenue</div>
+                <div class="stat-value" id="statTonRevenue" style="color: var(--cyan-glow);">0.0 TON</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-label">Total MTR Supply</div>
+                <div class="stat-value" id="statTotalMtr">0.00</div>
+            </div>
+        </div>
+
+        <!-- NAVIGATION TABS -->
+        <div class="admin-tabs">
+            <button class="tab-btn active" onclick="switchAdminTab('users', this)">👥 Users Search & Manage</button>
+            <button class="tab-btn" onclick="switchAdminTab('withdrawals', this)">💸 Withdrawals</button>
+            <button class="tab-btn" onclick="switchAdminTab('referral', this)">🎁 Referral Target</button>
+            <button class="tab-btn" onclick="switchAdminTab('tasks', this)">📋 Tasks Manager</button>
+            <button class="tab-btn" onclick="switchAdminTab('settings', this)">⚙️ Admin & Site Settings</button>
+        </div>
+
+        <!-- TAB 1: USERS MANAGEMENT & SEARCH -->
+        <div id="tab-users" class="tab-content active">
+            <div class="section-card">
+                <div class="section-title">
+                    <span>🔍 Advanced User Search</span>
+                    <span id="filteredCountText" style="font-size: 12px; color: var(--cyan-glow);">Showing all users</span>
+                </div>
+                <input type="text" id="userSearchInput" class="form-control" placeholder="Search by Telegram ID (UID_...), Username (@...), Name, or Wallet Address..." onkeyup="renderUsersTable()">
+                <div class="filter-bar">
+                    <span class="filter-chip active" onclick="setUserFilter('all', this)">All Users</span>
+                    <span class="filter-chip" onclick="setUserFilter('verified', this)">Verified Only ✓</span>
+                    <span class="filter-chip" onclick="setUserFilter('unverified', this)">Unverified</span>
+                    <span class="filter-chip" onclick="setUserFilter('banned', this)">Banned 🚫</span>
+                </div>
+
+                <div class="table-responsive">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>User Info (Name / Username / ID)</th>
+                                <th>Balance</th>
+                                <th>Status</th>
+                                <th>Referrals</th>
+                                <th>Wallet Address</th>
+                                <th>Secure Actions (PIN Required)</th>
+                            </tr>
+                        </thead>
+                        <tbody id="usersTableBody">
+                            <tr><td colspan="6" style="text-align:center;">Loading users...</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- TAB 2: WITHDRAWALS WITH SEARCH & RE-ACTION -->
+        <div id="tab-withdrawals" class="tab-content">
+            <div class="section-card">
+                <div class="section-title">
+                    <span>📤 Withdrawal Requests & History Search</span>
+                    <span id="withdrawFilteredCount" style="font-size: 12px; color: var(--cyan-glow);">Showing all</span>
+                </div>
+                <input type="text" id="withdrawSearchInput" class="form-control" placeholder="Search by Telegram ID (UID_...), Wallet Address, User Name, or Status (pending/approved/rejected)..." onkeyup="renderWithdrawTable()">
+                <div class="table-responsive">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>User ID & Name</th>
+                                <th>Amount (MTR)</th>
+                                <th>TON Wallet Address</th>
+                                <th>Status</th>
+                                <th>Secure Action (PIN Required)</th>
+                            </tr>
+                        </thead>
+                        <tbody id="withdrawTableBody">
+                            <tr><td colspan="5" style="text-align:center;">No withdrawal requests found</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- TAB 3: REFERRAL TARGET & REWARD -->
+        <div id="tab-referral" class="tab-content">
+            <div class="section-card">
+                <div class="section-title">🎁 Referral Target & Reward Setup</div>
+                <p style="font-size: 12px; color: var(--text-muted); margin-bottom: 12px;">Set how many verified referrals are needed to unlock the target reward, plus optional per-referral commission.</p>
+                
+                <label style="font-size:12px; color:var(--text-muted);">Target Verified Referrals Count</label>
+                <input type="number" id="cfgRefTarget" class="form-control" placeholder="e.g. 5" min="1">
+
+                <label style="font-size:12px; color:var(--text-muted);">Target Reward Amount (MTR)</label>
+                <input type="number" id="cfgRefTargetReward" class="form-control" placeholder="e.g. 10" step="any">
+
+                <label style="font-size:12px; color:var(--text-muted);">Per Verified Referral Commission (MTR)</label>
+                <input type="number" id="cfgRefCommission" class="form-control" placeholder="e.g. 0" step="any">
+
+                <button class="main-btn btn-gold" onclick="saveReferralSettings()">Save Referral Settings</button>
+            </div>
+        </div>
+
+        <!-- TAB 4: TASKS MANAGER -->
+        <div id="tab-tasks" class="tab-content">
+            <div class="section-card">
+                <div class="section-title">➕ Add New Earn Task</div>
+                <input type="text" id="taskTitle" class="form-control" placeholder="Task Title (e.g. Join Official Telegram Channel)">
+                <input type="number" id="taskReward" class="form-control" placeholder="Reward MTR (e.g. 10)">
+                <input type="text" id="taskLink" class="form-control" placeholder="Link URL (e.g. https://t.me/yourchannel)">
+                <button class="main-btn btn-gold" onclick="addNewTask()">Publish Task</button>
+            </div>
+
+            <div class="section-card">
+                <div class="section-title">📋 Active Tasks List</div>
+                <div class="table-responsive">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Title</th>
+                                <th>Reward</th>
+                                <th>Link</th>
+                                <th>Action</th>
+                            </tr>
+                        </thead>
+                        <tbody id="tasksTableBody"></tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- TAB 5: ADMIN SETTINGS & SITE MAINTENANCE -->
+        <div id="tab-settings" class="tab-content">
+            <!-- MAINTENANCE MODE CONTROL -->
+            <div class="section-card" style="border-color: var(--warning);">
+                <div class="section-title">🛑 Site Maintenance Mode (Off Switch)</div>
+                <p style="font-size: 13px; color: var(--text-muted); margin-bottom: 12px;" id="maintenanceStatusDesc">Checking status...</p>
+                <input type="text" id="maintenanceNoticeInput" class="form-control" placeholder="Notice message to show users when site is offline (e.g. Upgrading server, back in 1 hour!)">
+                <div style="display: flex; gap: 10px;">
+                    <button class="main-btn btn-primary" onclick="saveMaintenanceNotice()">Save Notice</button>
+                    <button class="main-btn" id="toggleMaintenanceBtn" onclick="toggleMaintenanceMode()">Toggle Maintenance</button>
+                </div>
+            </div>
+
+            <!-- WITHDRAWAL CONTROL & LIMITS -->
+            <div class="section-card">
+                <div class="section-title">⚙️ Withdrawal System & Limits Control</div>
+                <p style="font-size: 13px; color: var(--text-muted); margin-bottom: 12px;" id="withdrawStatusDesc">Checking status...</p>
+                <button class="main-btn btn-primary" id="toggleWithdrawBtn" onclick="toggleWithdrawSystem()">Toggle Withdrawal</button>
+
+                <hr style="border-color: rgba(255,255,255,0.1); margin: 18px 0;">
+
+                <div class="section-title">💰 Minimum & Maximum Withdrawal Limit (MTR)</div>
+                <label style="font-size:12px; color:var(--text-muted);">Minimum Withdraw Limit (MTR)</label>
+                <input type="number" id="minWithdrawInput" class="form-control" placeholder="e.g. 10" step="any">
+
+                <label style="font-size:12px; color:var(--text-muted);">Maximum Withdraw Limit (MTR)</label>
+                <input type="number" id="maxWithdrawInput" class="form-control" placeholder="e.g. 1000" step="any">
+
+                <button class="main-btn btn-success" onclick="saveWithdrawLimits()">Save Min & Max Limits</button>
+            </div>
+
+            <!-- ADMIN PASSWORD & PIN SETTINGS -->
+            <div class="section-card">
+                <div class="section-title">🔐 Admin Security & Credentials</div>
+                <p style="font-size: 12px; color: var(--text-muted); margin-bottom: 10px;">Change Admin Panel Login Password:</p>
+                <input type="password" id="newAdminPass" class="form-control" placeholder="New Admin Password">
+                <button class="main-btn btn-gold" style="margin-bottom: 15px;" onclick="updateAdminPassword()">Update Admin Password</button>
+
+                <p style="font-size: 12px; color: var(--text-muted); margin-bottom: 10px;">Change Transaction PIN (Required for user actions):</p>
+                <input type="password" id="newTxPin" class="form-control" placeholder="New 4-digit PIN (e.g. 5678)">
+                <button class="main-btn btn-success" onclick="updateTxPin()">Update Transaction PIN</button>
+            </div>
+        </div>
     </div>
 
-    <!-- ১. উইথড্র রিকোয়েস্ট, সার্চ ও হিস্ট্রি সেকশন -->
-    <section class="panel-section active" id="sec-withdrawals">
-        <div class="box">
-            <h3>📤 User Withdrawal Requests & History</h3>
-            <input type="text" id="withdrawSearchInput" class="search-input" placeholder="🔍 Search by Telegram ID (UID_...), Wallet Address, Name or Status..." oninput="renderWithdrawList()">
-            <div id="adminWithdrawList"><div class="empty">Loading withdrawal requests...</div></div>
-        </div>
-    </section>
-
-    <!-- ২. রেফারেল টার্গেট ও রিওয়ার্ড সেটিংস -->
-    <section class="panel-section" id="sec-referral">
-        <div class="box">
-            <h3>🎁 Referral Target & Reward Setup</h3>
-            <div class="form-grid">
-                <div class="form-group">
-                    <label>Target Verified Referrals Count</label>
-                    <input type="number" id="cfgRefTarget" value="5" min="1">
-                </div>
-                <div class="form-group">
-                    <label>Target Reward Amount (MTR)</label>
-                    <input type="number" id="cfgRefTargetReward" value="10" step="any">
-                </div>
-                <div class="form-group">
-                    <label>Per Verified Referral Commission (MTR)</label>
-                    <input type="number" id="cfgRefCommission" value="0" step="any">
-                </div>
+    <!-- REFERRAL INSPECTOR MODAL -->
+    <div class="modal" id="refModal">
+        <div class="modal-content">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+                <h4 style="color: var(--gold-light);" id="refModalTitle">User Referrals</h4>
+                <button class="main-btn btn-danger" style="padding: 4px 8px;" onclick="closeRefModal()">X</button>
             </div>
-            <button class="btn-save" onclick="saveReferralSettings()">SAVE REFERRAL SETTINGS</button>
+            <div id="refModalList" style="font-size: 12px; text-align: left;">Loading...</div>
         </div>
-    </section>
+    </div>
 
-    <!-- ৩. উইথড্র লিমিট, মাইনিং রেট ও ওয়ালেট সেটিংস -->
-    <section class="panel-section" id="sec-limits">
-        <div class="box">
-            <h3>⚙️ Withdraw Limits, Mining & Wallet Config</h3>
-            <div class="form-grid">
-                <div class="form-group">
-                    <label>Minimum Withdraw Limit (MTR)</label>
-                    <input type="number" id="cfgMinWithdraw" value="10" step="any">
-                </div>
-                <div class="form-group">
-                    <label>Maximum Withdraw Limit (MTR)</label>
-                    <input type="number" id="cfgMaxWithdraw" value="1000" step="any">
-                </div>
-                <div class="form-group">
-                    <label>Mining Speed (MTR / Hour)</label>
-                    <input type="number" id="cfgMiningRate" value="0.1" step="any">
-                </div>
-                <div class="form-group">
-                    <label>Verification Fee (TON)</label>
-                    <input type="number" id="cfgVerifyFee" value="0.1" step="any">
-                </div>
-                <div class="form-group">
-                    <label>Withdraw System Status</label>
-                    <select id="cfgWithdrawOpen">
-                        <option value="true">Open (Allow Withdraw)</option>
-                        <option value="false">Closed (Maintenance)</option>
-                    </select>
-                </div>
-                <div class="form-group">
-                    <label>Admin Receiving TON Wallet</label>
-                    <input type="text" id="cfgAdminWallet" placeholder="Enter TON Wallet Address">
-                </div>
-            </div>
-            <button class="btn-save" onclick="saveGeneralSettings()">SAVE ALL SETTINGS</button>
-        </div>
-    </section>
+    <script>
+        // FIREBASE CONFIG
+        const firebaseConfig = {
+            apiKey: "AIzaSyA74QlASZn_mz9c4XjdpJAJQHyJqX9xdk4",
+            authDomain: "mtrdex.firebaseapp.com",
+            projectId: "mtrdex",
+            storageBucket: "mtrdex.firebasestorage.app",
+            messagingSenderId: "1086565020372",
+            appId: "1:1086565020372:web:908ecf8369e83c4d6dc141",
+            measurementId: "G-YP1ZKWZPL6"
+        };
+        if (!firebase.apps.length) firebase.initializeApp(firebaseConfig);
+        const db = firebase.firestore();
 
-    <!-- ৪. টাস্ক যুক্ত করার সেকশন -->
-    <section class="panel-section" id="sec-tasks">
-        <div class="box">
-            <h3>📋 Create New Task</h3>
-            <div class="form-grid">
-                <div class="form-group">
-                    <label>Task Title</label>
-                    <input type="text" id="taskTitle" placeholder="Join Telegram Channel">
-                </div>
-                <div class="form-group">
-                    <label>Reward (MTR)</label>
-                    <input type="number" id="taskReward" value="5" step="any">
-                </div>
-                <div class="form-group">
-                    <label>Task Link (https://...)</label>
-                    <input type="text" id="taskLink" placeholder="https://t.me/...">
-                </div>
-                <div class="form-group">
-                    <label>Icon Emoji</label>
-                    <input type="text" id="taskIcon" value="📢">
-                </div>
-            </div>
-            <button class="btn-save" onclick="addNewTask()">ADD TASK</button>
-        </div>
-    </section>
-</div>
+        let allUsersData = [];
+        let allWithdrawalsData = [];
+        let currentFilter = 'all';
+        let isWithdrawOpen = false;
+        let isMaintenanceOn = false;
 
-<script>
-const firebaseConfig = {
-    apiKey: "AIzaSyA74QlASZn_mz9c4XjdpJAJQHyJqX9xdk4",
-    authDomain: "mtrdex.firebaseapp.com",
-    projectId: "mtrdex",
-    storageBucket: "mtrdex.firebasestorage.app",
-    messagingSenderId: "1086565020372",
-    appId: "1:1086565020372:web:908ecf8369e83c4d6dc141",
-    measurementId: "G-YP1ZKWZPL6"
-};
+        // Default credentials if not set in DB
+        let ADMIN_PASSWORD = localStorage.getItem('mtr_admin_pass') || "admin123";
+        let TRANSACTION_PIN = localStorage.getItem('mtr_tx_pin') || "1234";
 
-if (!firebase.apps.length) firebase.initializeApp(firebaseConfig);
-const db = firebase.firestore();
-
-let allWithdrawals = [];
-
-function switchAdminTab(tabName, btn) {
-    document.querySelectorAll(".panel-section").forEach(s => s.classList.remove("active"));
-    document.querySelectorAll(".tab-btn").forEach(b => b.classList.remove("active"));
-    document.getElementById("sec-" + tabName).classList.add("active");
-    if (btn) btn.classList.add("active");
-}
-
-// সেটিংস লোড করা
-db.collection("settings").doc("config").onSnapshot(doc => {
-    if (!doc.exists) return;
-    const d = doc.data();
-    if (d.minWithdraw !== undefined) document.getElementById("cfgMinWithdraw").value = d.minWithdraw;
-    if (d.maxWithdraw !== undefined) document.getElementById("cfgMaxWithdraw").value = d.maxWithdraw;
-    if (d.miningRate !== undefined) document.getElementById("cfgMiningRate").value = d.miningRate;
-    if (d.verifyFee !== undefined) document.getElementById("cfgVerifyFee").value = d.verifyFee;
-    if (d.withdrawOpen !== undefined) document.getElementById("cfgWithdrawOpen").value = String(d.withdrawOpen);
-    if (d.adminWallet !== undefined) document.getElementById("cfgAdminWallet").value = d.adminWallet;
-
-    if (d.refTarget !== undefined) document.getElementById("cfgRefTarget").value = d.refTarget;
-    if (d.refTargetReward !== undefined) document.getElementById("cfgRefTargetReward").value = d.refTargetReward;
-    if (d.refCommission !== undefined) document.getElementById("cfgRefCommission").value = d.refCommission;
-});
-
-// টোটাল ইউজার কাউন্ট
-db.collection("users").onSnapshot(snap => {
-    document.getElementById("statTotalUsers").textContent = snap.size;
-});
-
-// উইথড্র রিকোয়েস্ট ও স্ট্যাটাস কাউন্টার
-db.collection("withdrawals").orderBy("createdAt", "desc").onSnapshot(snap => {
-    let pending = 0;
-    let completed = 0;
-    let rejected = 0;
-    allWithdrawals = [];
-
-    snap.forEach(doc => {
-        const w = doc.data();
-        const st = (w.status || "pending").toLowerCase();
-
-        if (st === "pending") pending++;
-        else if (st === "approved") completed++;
-        else if (st === "rejected") rejected++;
-
-        allWithdrawals.push({ id: doc.id, data: w, status: st });
-    });
-
-    document.getElementById("statPendingCount").textContent = pending;
-    document.getElementById("statCompletedCount").textContent = completed;
-    document.getElementById("statRejectedCount").textContent = rejected;
-
-    renderWithdrawList();
-});
-
-function renderWithdrawList() {
-    const query = (document.getElementById("withdrawSearchInput")?.value || "").trim().toLowerCase();
-    const listEl = document.getElementById("adminWithdrawList");
-    listEl.innerHTML = "";
-
-    const filtered = allWithdrawals.filter(item => {
-        if (!query) return true;
-        const d = item.data;
-        const uid = String(d.userId || "").toLowerCase();
-        const wallet = String(d.walletAddress || "").toLowerCase();
-        const name = String(d.userName || "").toLowerCase();
-        const username = String(d.userUsername || "").toLowerCase();
-        const st = String(item.status || "").toLowerCase();
-        return uid.includes(query) || wallet.includes(query) || name.includes(query) || username.includes(query) || st.includes(query);
-    });
-
-    if (filtered.length === 0) {
-        listEl.innerHTML = '<div class="empty">No matching withdrawal records found.</div>';
-        return;
-    }
-
-    filtered.forEach(item => {
-        const w = item.data;
-        const id = item.id;
-        const st = item.status;
-
-        const card = document.createElement("div");
-        card.className = "req-card";
-
-        const info = document.createElement("div");
-        info.className = "req-info";
-        info.innerHTML = `
-            <h4>${escapeHtml(w.userName || "User")} (${escapeHtml(w.userId || "")})</h4>
-            <p>Username: ${escapeHtml(w.userUsername || "@user")}</p>
-            <p>Wallet: ${escapeHtml(w.walletAddress || "N/A")}</p>
-            <div class="req-amount">${Number(w.amount || 0).toFixed(4)} MTR</div>
-        `;
-
-        const actions = document.createElement("div");
-        actions.className = "req-actions";
-
-        const tag = document.createElement("span");
-        tag.className = "status-tag tag-" + st;
-        tag.textContent = st;
-        actions.append(tag);
-
-        if (st !== "approved") {
-            const appBtn = document.createElement("button");
-            appBtn.className = "btn-approve";
-            appBtn.textContent = "Approve";
-            appBtn.onclick = () => updateWithdrawStatus(id, w, "approved", st);
-            actions.append(appBtn);
-        }
-
-        if (st !== "rejected") {
-            const rejBtn = document.createElement("button");
-            rejBtn.className = "btn-reject";
-            rejBtn.textContent = "Reject";
-            rejBtn.onclick = () => updateWithdrawStatus(id, w, "rejected", st);
-            actions.append(rejBtn);
-        }
-
-        card.append(info, actions);
-        listEl.append(card);
-    });
-}
-
-async function updateWithdrawStatus(docId, wData, newStatus, oldStatus) {
-    try {
-        await db.collection("withdrawals").doc(docId).update({
-            status: newStatus,
-            processedAt: firebase.firestore.FieldValue.serverTimestamp()
-        });
-
-        if (newStatus === "rejected" && oldStatus !== "rejected" && wData.userId && wData.amount) {
-            const uRef = db.collection("users").doc(wData.userId);
-            const uDoc = await uRef.get();
-            if (uDoc.exists) {
-                const currentBal = Number(uDoc.data().balance || 0);
-                await uRef.set({ balance: currentBal + Number(wData.amount) }, { merge: true });
+        function checkAdminLogin() {
+            const input = document.getElementById('adminPassInput').value;
+            if (input === ADMIN_PASSWORD) {
+                sessionStorage.setItem('mtr_admin_auth', 'true');
+                document.getElementById('loginOverlay').style.display = 'none';
+                document.getElementById('adminDashboard').style.display = 'block';
+                initAdminListeners();
+            } else {
+                alert("❌ Wrong Admin Password!");
             }
         }
 
-        if (oldStatus === "rejected" && newStatus === "approved" && wData.userId && wData.amount) {
-            const uRef = db.collection("users").doc(wData.userId);
-            const uDoc = await uRef.get();
-            if (uDoc.exists) {
-                const currentBal = Number(uDoc.data().balance || 0);
-                await uRef.set({ balance: Math.max(0, currentBal - Number(wData.amount)) }, { merge: true });
+        function logoutAdmin() {
+            sessionStorage.removeItem('mtr_admin_auth');
+            location.reload();
+        }
+
+        if (sessionStorage.getItem('mtr_admin_auth') === 'true') {
+            document.getElementById('loginOverlay').style.display = 'none';
+            document.getElementById('adminDashboard').style.display = 'block';
+            initAdminListeners();
+        }
+
+        // Prompt user for Transaction PIN before sensitive operations
+        function verifyTxPinAction(actionCallback) {
+            let pinInput = prompt("🔒 Enter Transaction PIN to confirm action:");
+            if (pinInput === null) return; // Cancelled
+            if (pinInput === TRANSACTION_PIN) {
+                actionCallback();
+            } else {
+                alert("❌ Incorrect Transaction PIN! Action aborted.");
             }
         }
 
-        alert(`Withdrawal status updated to ${newStatus.toUpperCase()}!`);
-    } catch (err) {
-        alert("Error updating withdrawal status.");
-    }
-}
+        function initAdminListeners() {
+            // 1. Listen to Users Collection
+            db.collection("users").onSnapshot((snapshot) => {
+                allUsersData = [];
+                let verifiedCount = 0;
+                let totalMtr = 0;
 
-async function saveReferralSettings() {
-    const refTarget = Math.max(1, Number(document.getElementById("cfgRefTarget").value || 5));
-    const refTargetReward = Number(document.getElementById("cfgRefTargetReward").value || 0);
-    const refCommission = Number(document.getElementById("cfgRefCommission").value || 0);
+                snapshot.forEach((doc) => {
+                    let data = doc.data();
+                    data.id = doc.id;
+                    allUsersData.push(data);
 
-    try {
-        await db.collection("settings").doc("config").set({
-            refTarget: refTarget,
-            refTargetReward: refTargetReward,
-            refCommission: refCommission
-        }, { merge: true });
-        alert("Referral target & reward settings saved!");
-    } catch (err) {
-        alert("Failed to save referral settings.");
-    }
-}
+                    if (data.verified) verifiedCount++;
+                    totalMtr += (data.balance || 0);
+                });
 
-async function saveGeneralSettings() {
-    const minWithdraw = Number(document.getElementById("cfgMinWithdraw").value || 10);
-    const maxWithdraw = Number(document.getElementById("cfgMaxWithdraw").value || 1000);
-    const miningRate = Number(document.getElementById("cfgMiningRate").value || 0.1);
-    const verifyFee = Number(document.getElementById("cfgVerifyFee").value || 0.1);
-    const withdrawOpen = document.getElementById("cfgWithdrawOpen").value === "true";
-    const adminWallet = document.getElementById("cfgAdminWallet").value.trim();
+                document.getElementById('statTotalUsers').innerText = allUsersData.length;
+                document.getElementById('statVerifiedUsers').innerText = verifiedCount;
+                document.getElementById('statTonRevenue').innerText = (verifiedCount * 0.1).toFixed(1) + " TON";
+                document.getElementById('statTotalMtr').innerText = totalMtr.toFixed(2);
 
-    try {
-        await db.collection("settings").doc("config").set({
-            minWithdraw: minWithdraw,
-            maxWithdraw: maxWithdraw,
-            miningRate: miningRate,
-            verifyFee: verifyFee,
-            withdrawOpen: withdrawOpen,
-            adminWallet: adminWallet
-        }, { merge: true });
-        alert("All settings saved successfully!");
-    } catch (err) {
-        alert("Failed to save settings.");
-    }
-}
+                renderUsersTable();
+            });
 
-async function addNewTask() {
-    const title = document.getElementById("taskTitle").value.trim();
-    const reward = Number(document.getElementById("taskReward").value || 0);
-    const link = document.getElementById("taskLink").value.trim();
-    const icon = document.getElementById("taskIcon").value.trim() || "📋";
+            // 2. Listen to Global Settings & Maintenance Mode
+            db.collection("settings").doc("config").onSnapshot((doc) => {
+                if (doc.exists) {
+                    const data = doc.data();
+                    isWithdrawOpen = data.withdrawOpen || false;
+                    isMaintenanceOn = data.maintenanceMode || false;
 
-    if (!title) {
-        alert("Please enter a task title.");
-        return;
-    }
+                    // Withdraw UI
+                    const wDesc = document.getElementById('withdrawStatusDesc');
+                    const wBtn = document.getElementById('toggleWithdrawBtn');
+                    if (isWithdrawOpen) {
+                        wDesc.innerHTML = "Current Status: <strong style='color:var(--success);'>OPEN</strong>";
+                        wBtn.className = "main-btn btn-danger";
+                        wBtn.innerText = "Close Withdrawal";
+                    } else {
+                        wDesc.innerHTML = "Current Status: <strong style='color:var(--danger);'>CLOSED</strong>";
+                        wBtn.className = "main-btn btn-success";
+                        wBtn.innerText = "Open Withdrawal";
+                    }
 
-    try {
-        await db.collection("tasks").add({
-            title: title,
-            reward: reward,
-            link: link,
-            icon: icon,
-            createdAt: firebase.firestore.FieldValue.serverTimestamp()
-        });
-        document.getElementById("taskTitle").value = "";
-        document.getElementById("taskLink").value = "";
-        alert("New task added!");
-    } catch (err) {
-        alert("Failed to add task.");
-    }
-}
+                    // Maintenance UI
+                    const mDesc = document.getElementById('maintenanceStatusDesc');
+                    const mBtn = document.getElementById('toggleMaintenanceBtn');
+                    if (isMaintenanceOn) {
+                        mDesc.innerHTML = "Current Status: <strong style='color:var(--danger);'>SITE IS OFFLINE (Maintenance Mode Active)</strong>";
+                        mBtn.className = "main-btn btn-success";
+                        mBtn.innerText = "Turn Site ONLINE";
+                    } else {
+                        mDesc.innerHTML = "Current Status: <strong style='color:var(--success);'>SITE IS ONLINE (Normal Operation)</strong>";
+                        mBtn.className = "main-btn btn-danger";
+                        mBtn.innerText = "Turn Site OFFLINE";
+                    }
 
-function escapeHtml(str) {
-    return String(str).replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
-}
-</script>
+                    if (data.minWithdraw !== undefined) document.getElementById('minWithdrawInput').value = data.minWithdraw;
+                    if (data.maxWithdraw !== undefined) document.getElementById('maxWithdrawInput').value = data.maxWithdraw;
+                    if (data.maintenanceNotice !== undefined) document.getElementById('maintenanceNoticeInput').value = data.maintenanceNotice;
+
+                    if (data.refTarget !== undefined) document.getElementById('cfgRefTarget').value = data.refTarget;
+                    if (data.refTargetReward !== undefined) document.getElementById('cfgRefTargetReward').value = data.refTargetReward;
+                    if (data.refCommission !== undefined) document.getElementById('cfgRefCommission').value = data.refCommission;
+                }
+            });
+
+            // 3. Listen to Tasks
+            db.collection("tasks").onSnapshot((snapshot) => {
+                let html = "";
+                snapshot.forEach((doc) => {
+                    let t = doc.data();
+                    html += `
+                        <tr>
+                            <td><strong>${t.title}</strong></td>
+                            <td style="color:var(--gold-light);">+${t.reward} MTR</td>
+                            <td><a href="${t.link}" target="_blank" style="color:var(--cyan-glow);">Open Link</a></td>
+                            <td><button class="main-btn btn-danger" style="padding:4px 8px;" onclick="verifyTxPinAction(() => deleteTask('${doc.id}'))">Delete</button></td>
+                        </tr>
+                    `;
+                });
+                document.getElementById('tasksTableBody').innerHTML = html || "<tr><td colspan='4' style='text-align:center;'>No active tasks</td></tr>";
+            });
+
+            // 4. Listen to Withdrawals
+            db.collection("withdrawals").orderBy("createdAt", "desc").onSnapshot((snapshot) => {
+                allWithdrawalsData = [];
+                let pendingCount = 0;
+                let completedCount = 0;
+                let rejectedCount = 0;
+
+                snapshot.forEach((doc) => {
+                    let w = doc.data();
+                    w.id = doc.id;
+                    const st = (w.status || 'pending').toLowerCase();
+                    w.status = st;
+
+                    if (st === 'pending') pendingCount++;
+                    else if (st === 'approved') completedCount++;
+                    else if (st === 'rejected') rejectedCount++;
+
+                    allWithdrawalsData.push(w);
+                });
+
+                document.getElementById('statPendingWithdraws').innerText = pendingCount;
+                document.getElementById('statCompletedWithdraws').innerText = completedCount;
+                document.getElementById('statRejectedWithdraws').innerText = rejectedCount;
+
+                renderWithdrawTable();
+            });
+        }
+
+        // FILTER & RENDER USERS TABLE (Supports Telegram ID, Username, Name, Wallet)
+        function setUserFilter(filter, el) {
+            currentFilter = filter;
+            document.querySelectorAll('.filter-chip').forEach(c => c.classList.remove('active'));
+            el.classList.add('active');
+            renderUsersTable();
+        }
+
+        function renderUsersTable() {
+            const query = document.getElementById('userSearchInput').value.toLowerCase().trim();
+            let filtered = allUsersData.filter(u => {
+                const name = (u.name || "").toLowerCase();
+                const uid = (u.id || "").toLowerCase();
+                const username = (u.username || "").toLowerCase();
+                const wallet = (u.walletAddress || "").toLowerCase();
+
+                const matchSearch = name.includes(query) || uid.includes(query) || username.includes(query) || wallet.includes(query);
+                if (!matchSearch) return false;
+
+                if (currentFilter === 'verified') return u.verified === true;
+                if (currentFilter === 'unverified') return !u.verified;
+                if (currentFilter === 'banned') return u.banned === true;
+                return true;
+            });
+
+            document.getElementById('filteredCountText').innerText = `Showing ${filtered.length} users`;
+
+            let html = "";
+            filtered.forEach(u => {
+                let bal = (u.balance || 0).toFixed(4);
+                let walletShort = u.walletAddress ? u.walletAddress.substring(0, 6) + "..." + u.walletAddress.slice(-4) : "None";
+                let statusBadge = u.banned ? `<span class="badge badge-banned">Banned</span>` :
+                                  (u.verified ? `<span class="badge badge-verified">Verified ✓</span>` : `<span class="badge badge-unverified">Unverified</span>`);
+
+                html += `
+                    <tr>
+                        <td>
+                            <strong>${u.name || "Unknown"}</strong><br>
+                            <span style="font-size:11px; color:var(--cyan-glow);">${u.username || '@no_username'}</span><br>
+                            <span style="font-size:10px; color:var(--text-muted);">${u.id}</span>
+                        </td>
+                        <td style="color:var(--gold-light); font-weight:bold;">${bal} MTR</td>
+                        <td>${statusBadge}</td>
+                        <td>
+                            <button class="main-btn btn-primary" style="padding:4px 8px; font-size:11px;" onclick="inspectReferrals('${u.id}', '${u.name}')">
+                                👥 ${u.referralCount || 0} Team
+                            </button>
+                        </td>
+                        <td title="${u.walletAddress || ''}">${walletShort}</td>
+                        <td>
+                            <div class="action-btns">
+                                <button class="main-btn btn-gold" style="padding:5px 8px;" onclick="verifyTxPinAction(() => editUserBalance('${u.id}', ${u.balance || 0}))">💰 Bal</button>
+                                <button class="main-btn ${u.verified ? 'btn-warning' : 'btn-success'}" style="padding:5px 8px;" onclick="verifyTxPinAction(() => toggleUserVerify('${u.id}', ${!!u.verified}))">
+                                    ${u.verified ? 'Unverify' : 'Verify'}
+                                </button>
+                                <button class="main-btn ${u.banned ? 'btn-primary' : 'btn-danger'}" style="padding:5px 8px;" onclick="verifyTxPinAction(() => toggleUserBan('${u.id}', ${!!u.banned}))">
+                                    ${u.banned ? 'Unban' : 'Ban'}
+                                </button>
+                            </div>
+                        </td>
+                    </tr>
+                `;
+            });
+
+            document.getElementById('usersTableBody').innerHTML = html || "<tr><td colspan='6' style='text-align:center;'>No matching users found</td></tr>";
+        }
+
+        // RENDER WITHDRAWALS TABLE WITH SEARCH & RE-ACTION
+        function renderWithdrawTable() {
+            const query = (document.getElementById('withdrawSearchInput')?.value || "").toLowerCase().trim();
+            const filtered = allWithdrawalsData.filter(w => {
+                if (!query) return true;
+                const uid = (w.userId || "").toLowerCase();
+                const name = (w.userName || "").toLowerCase();
+                const wallet = (w.walletAddress || "").toLowerCase();
+                const status = (w.status || "pending").toLowerCase();
+                return uid.includes(query) || name.includes(query) || wallet.includes(query) || status.includes(query);
+            });
+
+            const countEl = document.getElementById('withdrawFilteredCount');
+            if (countEl) countEl.innerText = `Showing ${filtered.length} records`;
+
+            let html = "";
+            filtered.forEach(w => {
+                const st = (w.status || 'pending').toLowerCase();
+                let statusColor = st === 'approved' ? 'var(--success)' : (st === 'rejected' ? 'var(--danger)' : 'var(--warning)');
+                html += `
+                    <tr>
+                        <td>
+                            <strong>${w.userName || "User"}</strong><br>
+                            <code>${w.userId}</code>
+                        </td>
+                        <td style="color:var(--gold-light); font-weight:bold;">${w.amount} MTR</td>
+                        <td style="font-size:11px;">${w.walletAddress}</td>
+                        <td style="color:${statusColor}; font-weight:bold; text-transform:uppercase;">${st}</td>
+                        <td>
+                            <div class="action-btns">
+                                ${st !== 'approved' ? `<button class="main-btn btn-success" style="padding:4px 8px;" onclick="verifyTxPinAction(() => handleWithdrawAction('${w.id}', '${w.userId}', ${w.amount}, 'approved', '${st}'))">Approve</button>` : ''}
+                                ${st !== 'rejected' ? `<button class="main-btn btn-danger" style="padding:4px 8px;" onclick="verifyTxPinAction(() => handleWithdrawAction('${w.id}', '${w.userId}', ${w.amount}, 'rejected', '${st}'))">Reject</button>` : ''}
+                            </div>
+                        </td>
+                    </tr>
+                `;
+            });
+            document.getElementById('withdrawTableBody').innerHTML = html || "<tr><td colspan='5' style='text-align:center;'>No withdrawal requests found</td></tr>";
+        }
+
+        // SECURE USER ACTIONS (Protected by PIN)
+        function editUserBalance(uid, currentBal) {
+            let val = prompt(`Edit MTR Balance for ${uid}:`, currentBal);
+            if (val !== null && !isNaN(val) && val.trim() !== "") {
+                db.collection("users").doc(uid).update({ balance: parseFloat(val) })
+                  .then(() => alert("✅ Balance successfully updated!"));
+            }
+        }
+
+        function toggleUserVerify(uid, currentStatus) {
+            db.collection("users").doc(uid).update({ verified: !currentStatus })
+              .then(() => alert("✅ Verification status changed!"));
+        }
+
+        function toggleUserBan(uid, currentBan) {
+            db.collection("users").doc(uid).update({ banned: !currentBan })
+              .then(() => alert("✅ Ban status updated!"));
+        }
+
+        function inspectReferrals(uid, name) {
+            document.getElementById('refModalTitle').innerText = `Referrals of ${name}`;
+            document.getElementById('refModalList').innerHTML = "Loading team...";
+            document.getElementById('refModal').style.display = 'flex';
+
+            const team = allUsersData.filter(u => u.referredBy === uid);
+            if (team.length === 0) {
+                document.getElementById('refModalList').innerHTML = "<p style='color:var(--text-muted);'>No referrals found for this user.</p>";
+                return;
+            }
+
+            let listHtml = `<p style="margin-bottom:8px; color:var(--cyan-glow);">Total Invited: ${team.length}</p>`;
+            team.forEach(m => {
+                listHtml += `
+                    <div style="padding:8px; border-bottom:1px solid rgba(255,255,255,0.1); display:flex; justify-content:space-between;">
+                        <span>${m.name} (${m.id})</span>
+                        <span style="color:${m.verified ? 'var(--success)' : 'var(--danger)'};">${m.verified ? 'Verified ✓' : 'Unverified'}</span>
+                    </div>
+                `;
+            });
+            document.getElementById('refModalList').innerHTML = listHtml;
+        }
+
+        function closeRefModal() {
+            document.getElementById('refModal').style.display = 'none';
+        }
+
+        // WITHDRAW ACTIONS
+        function handleWithdrawAction(docId, uid, amount, newStatus, oldStatus) {
+            db.collection("withdrawals").doc(docId).update({
+                status: newStatus,
+                processedAt: firebase.firestore.FieldValue.serverTimestamp()
+            }).then(() => {
+                if (newStatus === 'rejected' && oldStatus !== 'rejected') {
+                    db.collection("users").doc(uid).get().then(doc => {
+                        if (doc.exists) {
+                            let curBal = doc.data().balance || 0;
+                            db.collection("users").doc(uid).update({ balance: curBal + amount });
+                        }
+                    });
+                } else if (oldStatus === 'rejected' && newStatus === 'approved') {
+                    db.collection("users").doc(uid).get().then(doc => {
+                        if (doc.exists) {
+                            let curBal = doc.data().balance || 0;
+                            db.collection("users").doc(uid).update({ balance: Math.max(0, curBal - amount) });
+                        }
+                    });
+                }
+                alert(`Withdrawal status updated to ${newStatus}!`);
+            });
+        }
+
+        // REFERRAL TARGET SETTINGS
+        function saveReferralSettings() {
+            const refTarget = Math.max(1, parseInt(document.getElementById('cfgRefTarget').value) || 5);
+            const refTargetReward = parseFloat(document.getElementById('cfgRefTargetReward').value) || 0;
+            const refCommission = parseFloat(document.getElementById('cfgRefCommission').value) || 0;
+
+            verifyTxPinAction(() => {
+                db.collection("settings").doc("config").set({
+                    refTarget, refTargetReward, refCommission
+                }, { merge: true }).then(() => {
+                    alert("✅ Referral target & reward settings saved!");
+                });
+            });
+        }
+
+        // TASK ACTIONS
+        function addNewTask() {
+            const title = document.getElementById('taskTitle').value.trim();
+            const reward = parseFloat(document.getElementById('taskReward').value);
+            const link = document.getElementById('taskLink').value.trim();
+
+            if (!title || isNaN(reward) || !link) {
+                alert("Please fill all task fields properly!");
+                return;
+            }
+
+            verifyTxPinAction(() => {
+                db.collection("tasks").add({
+                    title, reward, link,
+                    createdAt: firebase.firestore.FieldValue.serverTimestamp()
+                }).then(() => {
+                    alert("✅ Task added!");
+                    document.getElementById('taskTitle').value = "";
+                    document.getElementById('taskReward').value = "";
+                    document.getElementById('taskLink').value = "";
+                });
+            });
+        }
+
+        function deleteTask(taskId) {
+            db.collection("tasks").doc(taskId).delete()
+              .then(() => alert("Task deleted!"));
+        }
+
+        // SETTINGS & MAINTENANCE ACTIONS
+        function toggleWithdrawSystem() {
+            verifyTxPinAction(() => {
+                db.collection("settings").doc("config").set({ withdrawOpen: !isWithdrawOpen }, { merge: true })
+                  .then(() => alert("Withdrawal system status toggled!"));
+            });
+        }
+
+        function toggleMaintenanceMode() {
+            verifyTxPinAction(() => {
+                db.collection("settings").doc("config").set({ maintenanceMode: !isMaintenanceOn }, { merge: true })
+                  .then(() => alert("Maintenance mode toggled!"));
+            });
+        }
+
+        function saveMaintenanceNotice() {
+            const msg = document.getElementById('maintenanceNoticeInput').value.trim();
+            verifyTxPinAction(() => {
+                db.collection("settings").doc("config").set({ maintenanceNotice: msg }, { merge: true })
+                  .then(() => alert("✅ Maintenance notice updated!"));
+            });
+        }
+
+        function saveWithdrawLimits() {
+            const minVal = parseFloat(document.getElementById('minWithdrawInput').value);
+            const maxVal = parseFloat(document.getElementById('maxWithdrawInput').value);
+
+            if (!isNaN(minVal) && minVal > 0 && !isNaN(maxVal) && maxVal >= minVal) {
+                verifyTxPinAction(() => {
+                    db.collection("settings").doc("config").set({
+                        minWithdraw: minVal,
+                        maxWithdraw: maxVal
+                    }, { merge: true }).then(() => alert("✅ Min & Max withdrawal limits updated!"));
+                });
+            } else {
+                alert("❌ Please enter valid Min and Max withdrawal limits (Max must be >= Min).");
+            }
+        }
+
+        function updateAdminPassword() {
+            const newPass = document.getElementById('newAdminPass').value.trim();
+            if (newPass.length < 4) {
+                alert("Password must be at least 4 characters!");
+                return;
+            }
+            verifyTxPinAction(() => {
+                ADMIN_PASSWORD = newPass;
+                localStorage.setItem('mtr_admin_pass', newPass);
+                document.getElementById('newAdminPass').value = "";
+                alert("✅ Admin password updated successfully!");
+            });
+        }
+
+        function updateTxPin() {
+            const newPin = document.getElementById('newTxPin').value.trim();
+            if (newPin.length !== 4 || isNaN(newPin)) {
+                alert("Transaction PIN must be a 4-digit number!");
+                return;
+            }
+            verifyTxPinAction(() => {
+                TRANSACTION_PIN = newPin;
+                localStorage.setItem('mtr_tx_pin', newPin);
+                document.getElementById('newTxPin').value = "";
+                alert("✅ Transaction PIN updated successfully!");
+            });
+        }
+
+        function switchAdminTab(tabName, el) {
+            document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
+            document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+            document.getElementById('tab-' + tabName).classList.add('active');
+            el.classList.add('active');
+        }
+    </script>
 </body>
-</html>
+                    </html>
