@@ -745,13 +745,13 @@ db.collection("settings").doc("config").onSnapshot(doc => {
             target: Number(t.target),
             reward: Number(t.reward)
         }));
-    } else if (data.refTarget !== undefined && data.refTargetReward !== undefined) {
+    } else if (data.refTarget !== undefined && data.refTargetReward !== undefined && Number(data.refTarget) > 0) {
         refTargetsList = [{
             target: Number(data.refTarget),
             reward: Number(data.refTargetReward)
         }];
     } else {
-        refTargetsList = [{ target: 5, reward: 10 }];
+        refTargetsList = [];
     }
 
     if (data.refCommission !== undefined) {
@@ -1403,4 +1403,4 @@ setInterval(() => {
 }, 1000);
 </script>
 </body>
-                </html>
+</html>
