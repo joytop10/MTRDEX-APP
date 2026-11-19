@@ -41,6 +41,8 @@ button{font-family:inherit;cursor:pointer}
 .container.active{display:flex}
 .section-heading{width:100%;font-size:17px;font-weight:800;display:flex;align-items:center;gap:9px;margin-bottom:2px}
 .section-heading span{color:var(--gold)}
+.supply-stop-banner{display:none;width:100%;padding:14px 16px;border-radius:14px;background:rgba(239,68,68,.14);border:1px solid rgba(239,68,68,.45);color:#FFB4B4;font-size:13px;line-height:1.5;text-align:center}
+.supply-stop-banner strong{display:block;color:#FF6B6B;font-size:14px;margin-bottom:4px}
 .balance-card{width:100%;padding:23px 18px;border-radius:20px;text-align:center;background:linear-gradient(145deg,#17243A,#101827);border:1px solid rgba(245,197,66,.25);box-shadow:0 12px 35px rgba(0,0,0,.2);position:relative;overflow:hidden}
 .balance-card:before{content:"";position:absolute;width:180px;height:180px;border-radius:50%;background:rgba(245,197,66,.045);top:-110px;right:-50px}
 .balance-label{color:var(--muted);font-size:11px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase}
@@ -56,13 +58,14 @@ button{font-family:inherit;cursor:pointer}
 .coin-text{font-size:42px;font-weight:900;color:var(--gold);letter-spacing:2px;text-shadow:0 0 15px rgba(245,197,66,.3)}
 .coin-sub{font-size:10px;letter-spacing:4px;color:var(--gold2);font-weight:700}
 @keyframes glow{0%,100%{box-shadow:0 0 15px rgba(22,119,255,.25)}50%{box-shadow:0 0 32px rgba(22,119,255,.55)}}
-.session-text{color:var(--muted);font-size:13px;font-weight:500;margin:14px 0 18px}
+.session-text{color:var(--muted);font-size:13px;font-weight:500;margin:14px 0 18px;text-align:center}
 .session-text strong{color:white}
 .main-btn{width:100%;padding:16px;border:0;border-radius:14px;font-size:14px;font-weight:800;transition:.2s}
 .main-btn:active{transform:scale(.98);opacity:.85}
+.main-btn:disabled{opacity:.65;cursor:not-allowed}
 .btn-connect{background:linear-gradient(110deg,#0878FF,#0754C8);color:white;box-shadow:0 7px 20px rgba(22,119,255,.2)}
 .btn-gold{background:linear-gradient(110deg,#FFE28A,#E5AC27);color:#111827;box-shadow:0 7px 20px rgba(245,197,66,.12)}
-.btn-green{background:linear-gradient(110deg,#22C58B,#159A69);color:white}
+.btn-danger{background:linear-gradient(110deg,#EF4444,#B91C1C);color:white}
 .btn-small{padding:11px 14px;font-size:12px}
 .info-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;width:100%}
 .info-box{background:var(--card);border:1px solid var(--border);border-radius:15px;padding:16px}
@@ -133,6 +136,11 @@ button{font-family:inherit;cursor:pointer}
 </header>
 
 <section class="container active" id="tab-mine">
+    <div class="supply-stop-banner" id="supplyStopBanner">
+        <strong>🛑 Mining Stopped — Supply Limit Reached</strong>
+        <span id="supplyStopNoticeText">Total MTR supply limit has been reached! Mining is now stopped.</span>
+    </div>
+
     <div class="balance-card">
         <div class="balance-label">Total MTR Assets</div>
         <div class="balance-amount"><span id="totalBalance">0.00000001</span> <small>MTR</small></div>
@@ -362,6 +370,10 @@ let verifyFeeAmount = 0.1;
 let miningRatePerHour = 0.1;
 let miningRatePerSec = miningRatePerHour / 3600;
 
+let maxSupplyLimit = 0;
+let supplyStopNotice = "Total MTR supply limit has been reached! Mining is now stopped.";
+let globalTotalSupply = 0;
+
 let refTargetsList = [];
 let refCommissionPerUser = 0;
 
@@ -414,6 +426,10 @@ document.getElementById("profileName").textContent = userName;
 document.getElementById("profileUsername").textContent = userUsername;
 document.getElementById("profileTelegramId").textContent = userId;
 document.getElementById("refLinkBox").textContent = personalReferralLink;
+
+function isSupplyLimitReached() {
+    return maxSupplyLimit > 0 && globalTotalSupply >= maxSupplyLimit;
+}
 
 function setAvatar(element) {
     if (userPhotoUrl) {
@@ -637,8 +653,8 @@ async function verifyAccountWithFee() {
             const currentFriendly = getLiveWalletAddress();
 
             const now = Date.now();
-            miningStartTime = now;
-            miningEndTime = now + MINING_DURATION_MS;
+            miningStartTime = isSupplyLimitReached() ? 0 : now;
+            miningEndTime = isSupplyLimitReached() ? 0 : (now + MINING_DURATION_MS);
 
             await db.collection("users").doc(userId).set({
                 verified: true,
@@ -664,7 +680,7 @@ async function verifyAccountWithFee() {
             }
 
             updateUI();
-            alert(`Account verified and mining started successfully!`);
+            alert(`Account verified successfully!`);
         }
     } catch (error) {
         console.error("Verification transaction failed:", error);
@@ -986,6 +1002,11 @@ db.collection("settings").doc("config").onSnapshot(doc => {
         maxWithdrawLimit = Number(data.maxWithdraw);
     }
 
+    maxSupplyLimit = Number(data.maxSupplyLimit || 0);
+    if (data.supplyStopNotice) {
+        supplyStopNotice = data.supplyStopNotice;
+    }
+
     if (Array.isArray(data.refTargets) && data.refTargets.length > 0) {
         refTargetsList = data.refTargets.map(t => ({
             target: Number(t.target),
@@ -1153,9 +1174,16 @@ document.addEventListener("visibilitychange", () => {
 });
 
 function loadLeaderboard() {
-    db.collection("users").orderBy("balance", "desc").limit(50).onSnapshot(snapshot => {
+    db.collection("users").orderBy("balance", "desc").limit(100).onSnapshot(snapshot => {
         const container = document.getElementById("liveLeaderboardList");
         container.replaceChildren();
+
+        let sumSupply = 0;
+        snapshot.forEach(doc => {
+            sumSupply += Number(doc.data().balance || 0);
+        });
+        globalTotalSupply = sumSupply;
+        updateUI();
 
         let rank = 1;
         let myRank = "--";
@@ -1334,18 +1362,29 @@ async function handleMainAction() {
         return;
     }
 
+    if (isSupplyLimitReached()) {
+        alert(supplyStopNotice);
+        updateUI();
+        return;
+    }
+
     isClaimingMining = true;
     const now = Date.now();
     const elapsedSec = miningStartTime > 0 ? Math.max(0, (now - miningStartTime) / 1000) : 0;
-    const currentMined = Math.min(miningRatePerHour * MINING_DURATION_HOURS, elapsedSec * miningRatePerSec);
+    let currentMined = Math.min(miningRatePerHour * MINING_DURATION_HOURS, elapsedSec * miningRatePerSec);
+
+    if (maxSupplyLimit > 0 && globalTotalSupply + currentMined > maxSupplyLimit) {
+        currentMined = Math.max(0, maxSupplyLimit - globalTotalSupply);
+    }
 
     const prevBalance = totalBalance;
     const prevStart = miningStartTime;
     const prevEnd = miningEndTime;
 
     const newBalance = prevBalance + currentMined;
-    const newStartTime = now;
-    const newEndTime = now + MINING_DURATION_MS;
+    const reachedAfterClaim = maxSupplyLimit > 0 && (globalTotalSupply + currentMined) >= maxSupplyLimit;
+    const newStartTime = reachedAfterClaim ? 0 : now;
+    const newEndTime = reachedAfterClaim ? 0 : (now + MINING_DURATION_MS);
 
     totalBalance = newBalance;
     miningStartTime = newStartTime;
@@ -1363,7 +1402,11 @@ async function handleMainAction() {
             await recordClaimActivity("mining", "Mining Claim", currentMined);
         }
 
-        alert(`🎉 Successfully claimed ${currentMined.toFixed(8)} MTR! New 8-hour mining session started.`);
+        if (reachedAfterClaim) {
+            alert(`🎉 Claimed ${currentMined.toFixed(8)} MTR! ${supplyStopNotice}`);
+        } else {
+            alert(`🎉 Successfully claimed ${currentMined.toFixed(8)} MTR! New 8-hour mining session started.`);
+        }
     } catch (e) {
         console.error("Claim error:", e);
         totalBalance = prevBalance;
@@ -1471,8 +1514,20 @@ function updateUI() {
     }
 
     const now = Date.now();
+    const supplyReached = isSupplyLimitReached();
 
-    if (isVerified && walletConnected && miningEndTime === 0) {
+    const bannerEl = document.getElementById("supplyStopBanner");
+    const noticeTextEl = document.getElementById("supplyStopNoticeText");
+    if (bannerEl && noticeTextEl) {
+        if (supplyReached) {
+            noticeTextEl.textContent = supplyStopNotice;
+            bannerEl.style.display = "block";
+        } else {
+            bannerEl.style.display = "none";
+        }
+    }
+
+    if (isVerified && walletConnected && !supplyReached && miningEndTime === 0) {
         miningStartTime = now;
         miningEndTime = now + MINING_DURATION_MS;
         db.collection("users").doc(userId).set({
@@ -1502,6 +1557,17 @@ function updateUI() {
     if (isVerified && walletConnected) {
         badge.textContent = "Verified ✓";
         badge.className = "status-badge verified";
+
+        if (supplyReached) {
+            document.getElementById("miningRateText").textContent = `🛑 Mining Stopped (Supply Limit Reached)`;
+            sessionText.innerHTML = `<strong>${escapeHTML(supplyStopNotice)}</strong>`;
+            document.getElementById("miningStatus").innerHTML = `<span style="color:var(--red);">Stopped</span>`;
+            button.className = "main-btn btn-danger";
+            button.textContent = "MINING STOPPED";
+            button.disabled = true;
+            return;
+        }
+
         document.getElementById("miningRateText").textContent = `⚡ Mining Speed: +${miningRatePerHour} MTR/hour`;
 
         const elapsedSec = miningStartTime > 0 ? Math.max(0, (now - miningStartTime) / 1000) : 0;
@@ -1587,7 +1653,7 @@ function escapeHTML(str) {
 }
 
 setInterval(() => {
-    if (isVerified && walletConnected && miningStartTime > 0) {
+    if (isVerified && walletConnected && !isSupplyLimitReached() && miningStartTime > 0) {
         const now = Date.now();
         const elapsedSec = Math.max(0, (now - miningStartTime) / 1000);
         const liveSessionMined = Math.min(miningRatePerHour * MINING_DURATION_HOURS, elapsedSec * miningRatePerSec);
