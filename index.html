@@ -76,7 +76,8 @@ button{font-family:inherit;cursor:pointer}
 .list-title{font-size:13px;font-weight:700;margin-bottom:5px;overflow-wrap:anywhere}
 .list-sub{color:var(--muted);font-size:11px}
 .list-value{color:var(--gold);font-size:12px;font-weight:800;white-space:nowrap}
-.task-btn{border:0;border-radius:9px;padding:9px 13px;background:var(--gold);color:#111827;font-weight:800;font-size:11px}
+.task-btn{border:0;border-radius:9px;padding:9px 13px;background:var(--gold);color:#111827;font-weight:800;font-size:11px;white-space:nowrap}
+.task-btn.claim-ready{background:linear-gradient(110deg,#22C58B,#159A69);color:#FFF}
 .task-btn.claimed{background:rgba(34,197,139,.13);color:var(--green)}
 .copy-box{width:100%;padding:14px;border-radius:12px;background:#080D18;border:1px solid var(--border);color:#53B9FF;font-size:12px;overflow-wrap:anywhere;text-align:center;margin:12px 0}
 .button-row{display:flex;gap:10px}
@@ -91,7 +92,9 @@ button{font-family:inherit;cursor:pointer}
 .status-pending{color:#F5C542;font-size:11px;font-weight:700}
 .status-approved{color:#22C58B;font-size:11px;font-weight:700}
 .status-rejected{color:#EF4444;font-size:11px;font-weight:700}
-.target-progress{background:rgba(22,119,255,.1);border:1px solid rgba(22,119,255,.25);border-radius:12px;padding:12px;margin-top:12px;font-size:12px;color:#54B9FF}
+.target-progress{background:rgba(22,119,255,.1);border:1px solid rgba(22,119,255,.25);border-radius:12px;padding:12px;margin-top:12px;font-size:12px;color:#54B9FF;text-align:left}
+.target-item{padding:8px 0;border-bottom:1px solid rgba(255,255,255,.08);display:flex;justify-content:space-between;align-items:center;gap:8px}
+.target-item:last-child{border-bottom:none}
 .bottom-nav{position:fixed;bottom:0;left:0;width:100%;display:flex;justify-content:space-around;align-items:center;padding:10px 0 calc(10px + env(safe-area-inset-bottom));background:rgba(11,17,29,.97);border-top:1px solid var(--border);backdrop-filter:blur(15px);z-index:100}
 .nav-item{width:20%;display:flex;flex-direction:column;align-items:center;gap:5px;color:var(--muted);font-size:11px;font-weight:600;cursor:pointer}
 .nav-icon{font-size:21px;filter:grayscale(1);opacity:.7}
@@ -179,7 +182,7 @@ button{font-family:inherit;cursor:pointer}
     <div class="balance-card">
         <div class="balance-label">Complete Tasks</div>
         <div class="balance-amount">Earn MTR</div>
-        <div class="mining-rate">Complete available activities</div>
+        <div class="mining-rate">Open link → return to bot → tap Claim</div>
     </div>
     <div id="dynamicTasksList"><div class="empty-state">Loading tasks...</div></div>
 </section>
@@ -201,19 +204,18 @@ button{font-family:inherit;cursor:pointer}
         </div>
 
         <div class="target-progress" id="refTargetBox">
-            🎯 Target: <strong id="refTargetCount">5</strong> Verified Referrals = <strong id="refTargetRewardText">10 MTR</strong>
-            <div style="margin-top:5px;font-size:11px;color:var(--muted)" id="refProgressText">Progress: 0 / 5</div>
+            🎯 Loading referral targets...
         </div>
 
         <div style="margin-top:16px">
-            <div class="balance-label">Referral Reward</div>
+            <div class="balance-label">Claimable Referral Reward</div>
             <div class="balance-amount" style="font-size:24px"><span id="refRewardBalance">0.00000000</span> <small>MTR</small></div>
         </div>
         <button class="main-btn btn-gold" id="claimRefBtn" onclick="claimRefReward()">CLAIM REWARD</button>
     </div>
     <div class="list-card" style="display:block">
         <div class="list-title">🎁 Invite Friends & Earn</div>
-        <p class="list-sub" style="line-height:1.7;margin-top:8px">Invite new members to the MTR Master community using your personal referral link and hit the target set by admin.</p>
+        <p class="list-sub" style="line-height:1.7;margin-top:8px">Invite new members to the MTR Master community using your personal referral link and reach referral targets set by admin.</p>
         <div class="copy-box" id="refLinkBox">Loading referral link...</div>
         <div class="button-row">
             <button class="main-btn btn-gold btn-small" onclick="copyRefLink()">COPY LINK</button>
@@ -260,7 +262,6 @@ button{font-family:inherit;cursor:pointer}
         <div class="list-value">VIEW</div>
     </div>
 
-    <!-- Profile সেকশনের ভেতরে Withdraw Box -->
     <div class="withdraw-box">
         <div class="list-title" style="color:var(--gold);margin-bottom:0">📤 Withdraw MTR</div>
         <div class="list-sub" id="withdrawMinLabel">Minimum withdraw: 10 MTR</div>
@@ -268,7 +269,6 @@ button{font-family:inherit;cursor:pointer}
         <button class="main-btn btn-gold" onclick="handleWithdraw()">SUBMIT WITHDRAWAL</button>
     </div>
 
-    <!-- Withdrawal History -->
     <div class="section-heading" style="margin-top:6px"><span>📜</span> Withdrawal History</div>
     <div id="withdrawHistoryList"><div class="empty-state">No withdrawal history yet.</div></div>
 
@@ -330,9 +330,7 @@ let verifyFeeAmount = 0.1;
 let miningRatePerHour = 0.1;
 let miningRatePerSec = miningRatePerHour / 3600;
 
-// Admin controlled referral target & reward settings
-let refTargetCount = 5;
-let refTargetRewardAmount = 10;
+let refTargetsList = [];
 let refCommissionPerUser = 0;
 
 const MINING_DURATION_HOURS = 8;
@@ -361,9 +359,10 @@ let connectedWalletRawAddress = "";
 let isVerified = false;
 let totalBalance = 0.00000001;
 let refRewardBalance = 0;
-let claimedTargetCycles = 0;
+let claimedTargets = [];
 let currentVerifiedReferrals = 0;
 let completedTasks = {};
+let visitedTasks = {};
 let isWithdrawOpen = false;
 let minWithdrawLimit = 10;
 let maxWithdrawLimit = 1000000;
@@ -371,7 +370,7 @@ let userLoaded = false;
 let walletStatusSequence = 0;
 
 let miningStartTime = 0;
-let miningEndTime = 0; 
+let miningEndTime = 0;
 
 document.getElementById("headerUserName").textContent = userName;
 document.getElementById("profileName").textContent = userName;
@@ -455,7 +454,7 @@ try {
                     const doc = await db.collection("users").doc(userId).get();
                     if (sequence !== walletStatusSequence) return;
                     const data = doc.exists ? doc.data() : {};
-                    
+
                     const savedRaw = data.walletRawAddress || "";
                     const savedFriendly = data.walletAddress || "";
                     const verifiedWalletRaw = data.verifiedWalletRaw || "";
@@ -594,7 +593,7 @@ async function verifyAccountWithFee() {
 
         alert(`Sending ${verifyFeeAmount} TON verification transaction. Please confirm in your wallet app.`);
         const result = await tonConnectUI.sendTransaction(transaction);
-        
+
         if (result && result.boc) {
             isVerified = true;
             const currentRaw = getLiveWalletRawAddress();
@@ -616,7 +615,6 @@ async function verifyAccountWithFee() {
                 verifiedAt: firebase.firestore.FieldValue.serverTimestamp()
             }, { merge: true });
 
-            // If user was referred by someone, give referrer per-user commission if configured by admin
             if (referrerId && refCommissionPerUser > 0) {
                 const refDocRef = db.collection("users").doc(referrerId);
                 const refSnap = await refDocRef.get();
@@ -648,8 +646,9 @@ async function loadUserData() {
             const data = doc.data();
             totalBalance = data.balance !== undefined ? Number(data.balance) : 0.00000001;
             refRewardBalance = Number(data.refReward || 0);
-            claimedTargetCycles = Number(data.claimedTargetCycles || 0);
+            claimedTargets = Array.isArray(data.claimedTargets) ? data.claimedTargets : [];
             completedTasks = data.tasks || {};
+            visitedTasks = data.visitedTasks || {};
             miningStartTime = Number(data.miningStartTime || 0);
             miningEndTime = Number(data.miningEndTime || 0);
 
@@ -698,12 +697,13 @@ async function loadUserData() {
                 username: userUsername,
                 balance: 0.00000001,
                 refReward: 0,
-                claimedTargetCycles: 0,
+                claimedTargets: [],
                 verified: false,
                 walletConnected: walletConnected,
                 walletAddress: connectedWalletAddress,
                 walletRawAddress: connectedWalletRawAddress,
                 tasks: {},
+                visitedTasks: {},
                 miningStartTime: 0,
                 miningEndTime: 0,
                 referredBy: referrerId || null,
@@ -740,12 +740,20 @@ db.collection("settings").doc("config").onSnapshot(doc => {
         maxWithdrawLimit = Number(data.maxWithdraw);
     }
 
-    if (data.refTarget !== undefined) {
-        refTargetCount = Math.max(1, Number(data.refTarget));
+    if (Array.isArray(data.refTargets) && data.refTargets.length > 0) {
+        refTargetsList = data.refTargets.map(t => ({
+            target: Number(t.target),
+            reward: Number(t.reward)
+        }));
+    } else if (data.refTarget !== undefined && data.refTargetReward !== undefined) {
+        refTargetsList = [{
+            target: Number(data.refTarget),
+            reward: Number(data.refTargetReward)
+        }];
+    } else {
+        refTargetsList = [{ target: 5, reward: 10 }];
     }
-    if (data.refTargetReward !== undefined) {
-        refTargetRewardAmount = Number(data.refTargetReward);
-    }
+
     if (data.refCommission !== undefined) {
         refCommissionPerUser = Number(data.refCommission);
     }
@@ -754,9 +762,6 @@ db.collection("settings").doc("config").onSnapshot(doc => {
     if (minLabel) {
         minLabel.textContent = `Min: ${minWithdrawLimit} MTR • Max: ${maxWithdrawLimit} MTR`;
     }
-
-    document.getElementById("refTargetCount").textContent = refTargetCount;
-    document.getElementById("refTargetRewardText").textContent = refTargetRewardAmount + " MTR";
 
     if (data.miningRate !== undefined) {
         miningRatePerHour = Number(data.miningRate);
@@ -783,81 +788,121 @@ db.collection("settings").doc("config").onSnapshot(doc => {
     updateUI();
 });
 
+let latestTasksSnapshot = null;
+
 function loadTasks() {
     db.collection("tasks").onSnapshot(snapshot => {
-        const container = document.getElementById("dynamicTasksList");
-        container.replaceChildren();
-
-        if (snapshot.empty) {
-            container.innerHTML = '<div class="empty-state">No tasks available right now.</div>';
-            return;
-        }
-
-        snapshot.forEach(docSnap => {
-            const task = docSnap.data();
-            const taskId = docSnap.id;
-            const claimed = completedTasks[taskId] === true;
-
-            const card = document.createElement("div");
-            card.className = "list-card";
-
-            const left = document.createElement("div");
-            left.className = "list-left";
-
-            const icon = document.createElement("div");
-            icon.className = "task-icon";
-            icon.textContent = task.icon || "📋";
-
-            const info = document.createElement("div");
-            const title = document.createElement("div");
-            title.className = "list-title";
-            title.textContent = task.title || "Task";
-
-            const reward = document.createElement("div");
-            reward.className = "list-sub";
-            reward.style.color = "var(--gold)";
-            reward.textContent = "+" + Number(task.reward || 0) + " MTR";
-
-            info.append(title, reward);
-            left.append(icon, info);
-
-            const button = document.createElement("button");
-            button.className = "task-btn" + (claimed ? " claimed" : "");
-            button.textContent = claimed ? "Claimed ✓" : "Start";
-            button.disabled = claimed;
-
-            if (!claimed) {
-                button.onclick = () => completeTask(taskId, task);
-            }
-
-            card.append(left, button);
-            container.append(card);
-        });
+        latestTasksSnapshot = snapshot;
+        renderTasksList();
     });
 }
 
-async function completeTask(taskId, task) {
+function renderTasksList() {
+    const container = document.getElementById("dynamicTasksList");
+    if (!container) return;
+    container.replaceChildren();
+
+    if (!latestTasksSnapshot || latestTasksSnapshot.empty) {
+        container.innerHTML = '<div class="empty-state">No tasks available right now.</div>';
+        return;
+    }
+
+    latestTasksSnapshot.forEach(docSnap => {
+        const task = docSnap.data();
+        const taskId = docSnap.id;
+        const claimed = completedTasks[taskId] === true;
+        const visited = visitedTasks[taskId] === true;
+
+        const card = document.createElement("div");
+        card.className = "list-card";
+
+        const left = document.createElement("div");
+        left.className = "list-left";
+
+        const icon = document.createElement("div");
+        icon.className = "task-icon";
+        icon.textContent = task.icon || "📋";
+
+        const info = document.createElement("div");
+        const title = document.createElement("div");
+        title.className = "list-title";
+        title.textContent = task.title || "Task";
+
+        const reward = document.createElement("div");
+        reward.className = "list-sub";
+        reward.style.color = "var(--gold)";
+        reward.textContent = "+" + Number(task.reward || 0) + " MTR";
+
+        info.append(title, reward);
+        left.append(icon, info);
+
+        const button = document.createElement("button");
+
+        if (claimed) {
+            button.className = "task-btn claimed";
+            button.textContent = "Claimed ✓";
+            button.disabled = true;
+        } else if (visited) {
+            button.className = "task-btn claim-ready";
+            button.textContent = "Claim";
+            button.disabled = false;
+            button.onclick = () => claimTaskReward(taskId, task);
+        } else {
+            button.className = "task-btn";
+            button.textContent = "Start";
+            button.disabled = false;
+            button.onclick = () => openTaskLink(taskId, task);
+        }
+
+        card.append(left, button);
+        container.append(card);
+    });
+}
+
+async function openTaskLink(taskId, task) {
     if (task.link && /^https:\/\//i.test(task.link)) {
         tg.openLink(task.link);
+    } else if (task.link) {
+        window.open(task.link, "_blank");
     }
-    
-    completedTasks[taskId] = true;
+
+    visitedTasks[taskId] = true;
+    renderTasksList();
+
+    try {
+        await db.collection("users").doc(userId).set({
+            visitedTasks: visitedTasks
+        }, { merge: true });
+    } catch (e) {}
+}
+
+async function claimTaskReward(taskId, task) {
+    if (completedTasks[taskId] === true) return;
+
     const taskReward = Number(task.reward || 0);
+    completedTasks[taskId] = true;
     totalBalance += taskReward;
 
     try {
         await db.collection("users").doc(userId).set({
             balance: totalBalance,
-            tasks: completedTasks
+            tasks: completedTasks,
+            visitedTasks: visitedTasks
         }, { merge: true });
 
         updateUI();
-        loadTasks();
-        alert(`Task completed! Earned ${taskReward} MTR.`);
+        renderTasksList();
+        alert(`🎉 Task claimed! Earned +${taskReward} MTR.`);
     } catch (e) {
         alert("Failed to claim task reward.");
     }
 }
+
+document.addEventListener("visibilitychange", () => {
+    if (!document.hidden) {
+        renderTasksList();
+    }
+});
 
 function loadLeaderboard() {
     db.collection("users").orderBy("balance", "desc").limit(50).onSnapshot(snapshot => {
@@ -910,7 +955,7 @@ function loadLeaderboard() {
 
             card.append(left, balance);
             container.append(card);
-            
+
             rank++;
             renderedCount++;
         });
@@ -940,19 +985,44 @@ function loadReferralStats() {
     });
 }
 
+function getUnlockedTargetReward() {
+    let unlockedSum = 0;
+    refTargetsList.forEach(item => {
+        const key = `${item.target}_${item.reward}`;
+        if (currentVerifiedReferrals >= item.target && !claimedTargets.includes(key)) {
+            unlockedSum += Number(item.reward || 0);
+        }
+    });
+    return unlockedSum;
+}
+
 function updateReferralTargetUI() {
-    const eligibleCycles = Math.floor(currentVerifiedReferrals / refTargetCount);
-    const availableCycles = Math.max(0, eligibleCycles - claimedTargetCycles);
-    const pendingTargetReward = availableCycles * refTargetRewardAmount;
+    const box = document.getElementById("refTargetBox");
+    if (box) {
+        if (!refTargetsList.length) {
+            box.innerHTML = `🎯 No referral targets set by admin yet.`;
+        } else {
+            box.innerHTML = refTargetsList.map(item => {
+                const key = `${item.target}_${item.reward}`;
+                const isClaimed = claimedTargets.includes(key);
+                const isUnlocked = currentVerifiedReferrals >= item.target;
 
-    const totalDisplayReward = refRewardBalance + pendingTargetReward;
-    document.getElementById("refRewardBalance").textContent = totalDisplayReward.toFixed(8);
+                let statusBadge = `<span style="color:var(--muted);">${currentVerifiedReferrals}/${item.target}</span>`;
+                if (isClaimed) statusBadge = `<span style="color:var(--green);font-weight:700;">Claimed ✓</span>`;
+                else if (isUnlocked) statusBadge = `<span style="color:var(--gold);font-weight:700;">Ready 🎁</span>`;
 
-    const progressEl = document.getElementById("refProgressText");
-    if (progressEl) {
-        const currentInCycle = currentVerifiedReferrals % refTargetCount;
-        progressEl.textContent = `Current Progress: ${currentInCycle} / ${refTargetCount} (Claimed Cycles: ${claimedTargetCycles})`;
+                return `
+                    <div class="target-item">
+                        <div>🎯 <strong>${item.target}</strong> Verified Refs = <strong style="color:var(--gold);">${item.reward} MTR</strong></div>
+                        <div>${statusBadge}</div>
+                    </div>
+                `;
+            }).join("");
+        }
     }
+
+    const totalClaimable = refRewardBalance + getUnlockedTargetReward();
+    document.getElementById("refRewardBalance").textContent = totalClaimable.toFixed(8);
 }
 
 function loadWithdrawHistory() {
@@ -992,7 +1062,7 @@ function loadWithdrawHistory() {
             const statusBadge = document.createElement("div");
             const status = (data.status || "pending").toLowerCase();
             statusBadge.textContent = status.toUpperCase();
-            
+
             if (status === "approved") {
                 statusBadge.className = "status-approved";
             } else if (status === "rejected") {
@@ -1008,26 +1078,31 @@ function loadWithdrawHistory() {
 }
 
 async function claimRefReward() {
-    const eligibleCycles = Math.floor(currentVerifiedReferrals / refTargetCount);
-    const availableCycles = Math.max(0, eligibleCycles - claimedTargetCycles);
-    const pendingTargetReward = availableCycles * refTargetRewardAmount;
-
-    const totalClaimable = refRewardBalance + pendingTargetReward;
+    const unlockedReward = getUnlockedTargetReward();
+    const totalClaimable = refRewardBalance + unlockedReward;
 
     if (totalClaimable <= 0) {
-        alert(`Reach ${refTargetCount} verified referrals to unlock target reward!`);
+        alert("Reach a referral target or earn referral commission to claim reward!");
         return;
     }
 
+    const updatedClaimed = [...claimedTargets];
+    refTargetsList.forEach(item => {
+        const key = `${item.target}_${item.reward}`;
+        if (currentVerifiedReferrals >= item.target && !updatedClaimed.includes(key)) {
+            updatedClaimed.push(key);
+        }
+    });
+
     totalBalance += totalClaimable;
     refRewardBalance = 0;
-    claimedTargetCycles = eligibleCycles;
+    claimedTargets = updatedClaimed;
 
     try {
         await db.collection("users").doc(userId).set({
             balance: totalBalance,
             refReward: 0,
-            claimedTargetCycles: claimedTargetCycles
+            claimedTargets: claimedTargets
         }, { merge: true });
 
         updateReferralTargetUI();
@@ -1060,7 +1135,7 @@ async function handleMainAction() {
     }
 
     const now = Date.now();
-    
+
     const elapsedSec = miningStartTime > 0 ? Math.max(0, Math.floor((now - miningStartTime) / 1000)) : 0;
     const currentMined = Math.min(miningRatePerHour * MINING_DURATION_HOURS, elapsedSec * miningRatePerSec);
 
@@ -1162,7 +1237,7 @@ function updateUI() {
     }
 
     const now = Date.now();
-    
+
     if (isVerified && walletConnected && miningEndTime === 0) {
         miningStartTime = now;
         miningEndTime = now + MINING_DURATION_MS;
@@ -1224,7 +1299,6 @@ function updateUI() {
             const timeLeft = miningEndTime - now;
             const hours = Math.floor(timeLeft / (1000 * 60 * 60));
             const minutes = Math.floor((timeLeft % (1000 * 60 * 60)) / (1000 * 60));
-            const seconds = Math.floor((timeLeft % (1000 * 60)) / 1000);
 
             sessionText.innerHTML = `Mined in session: <strong><span id="sessionMined">${liveSessionMined.toFixed(8)}</span> MTR</strong>`;
             document.getElementById("miningStatus").innerHTML = `Active (${hours}h ${minutes}m left)`;
@@ -1267,6 +1341,9 @@ function switchTab(tab, element) {
         target.classList.add("active");
         if (element) element.classList.add("active");
         window.scrollTo({top: 0, behavior: "smooth"});
+        if (tab === "tasks") {
+            renderTasksList();
+        }
     }
 }
 
@@ -1301,7 +1378,7 @@ setInterval(() => {
         const now = Date.now();
         const elapsedSec = Math.max(0, Math.floor((now - miningStartTime) / 1000));
         const liveSessionMined = Math.min(miningRatePerHour * MINING_DURATION_HOURS, elapsedSec * miningRatePerSec);
-        
+
         const sessionMinedEl = document.getElementById("sessionMined");
         if (sessionMinedEl) {
             sessionMinedEl.textContent = liveSessionMined.toFixed(8);
@@ -1311,7 +1388,6 @@ setInterval(() => {
             const timeLeft = miningEndTime - now;
             const hours = Math.floor(timeLeft / (1000 * 60 * 60));
             const minutes = Math.floor((timeLeft % (1000 * 60 * 60)) / (1000 * 60));
-            const seconds = Math.floor((timeLeft % (1000 * 60)) / 1000);
 
             const miningStatusEl = document.getElementById("miningStatus");
             if (miningStatusEl) {
@@ -1327,4 +1403,4 @@ setInterval(() => {
 }, 1000);
 </script>
 </body>
-        </html>
+                </html>
