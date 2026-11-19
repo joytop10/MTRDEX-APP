@@ -24,7 +24,6 @@
         * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Segoe UI', Roboto, sans-serif; }
         body { background-color: var(--bg-dark); color: var(--text-main); min-height: 100vh; padding: 16px; }
 
-        /* LOGIN OVERLAY */
         #loginOverlay {
             position: fixed; top: 0; left: 0; width: 100%; height: 100%;
             background: var(--bg-dark); z-index: 9999;
@@ -52,7 +51,6 @@
         .stat-label { font-size: 11px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px; }
         .stat-value { font-size: 20px; font-weight: 800; color: var(--gold-light); margin-top: 6px; }
 
-        /* NAVIGATION TABS */
         .admin-tabs {
             display: flex; gap: 8px; overflow-x: auto; margin-bottom: 18px; padding-bottom: 5px;
         }
@@ -113,7 +111,7 @@
         th { color: var(--gold-light); background: rgba(6, 11, 20, 0.8); }
         tr:hover { background: rgba(0, 119, 255, 0.05); }
 
-        .action-btns { display: flex; gap: 5px; flex-wrap: wrap; }
+        .action-btns { display: flex; gap: 5px; flex-wrap: wrap; align-items: center; }
         .badge { padding: 3px 8px; border-radius: 6px; font-size: 11px; font-weight: bold; }
         .badge-verified { background: rgba(50, 215, 75, 0.15); color: var(--success); }
         .badge-unverified { background: rgba(255, 69, 58, 0.15); color: var(--danger); }
@@ -131,7 +129,6 @@
 </head>
 <body>
 
-    <!-- ADMIN LOGIN SCREEN -->
     <div id="loginOverlay">
         <div class="login-box">
             <h2 style="color: var(--gold-light); margin-bottom: 8px;">🔐 Admin Access</h2>
@@ -141,7 +138,6 @@
         </div>
     </div>
 
-    <!-- MAIN DASHBOARD -->
     <div id="adminDashboard" style="display: none;">
         <div class="header">
             <h2>👑 MTR Master Admin Panel</h2>
@@ -151,7 +147,6 @@
             </div>
         </div>
 
-        <!-- LIVE ANALYTICS & WITHDRAW COUNTERS -->
         <div class="stats-grid">
             <div class="stat-card">
                 <div class="stat-label">Total Users</div>
@@ -187,7 +182,6 @@
             </div>
         </div>
 
-        <!-- NAVIGATION TABS -->
         <div class="admin-tabs">
             <button class="tab-btn active" onclick="switchAdminTab('users', this)">👥 Users Search & Manage</button>
             <button class="tab-btn" onclick="switchAdminTab('withdrawals', this)">💸 Withdrawals</button>
@@ -196,7 +190,7 @@
             <button class="tab-btn" onclick="switchAdminTab('settings', this)">⚙️ Admin & Site Settings</button>
         </div>
 
-        <!-- TAB 1: USERS MANAGEMENT & SEARCH -->
+        <!-- TAB 1: USERS -->
         <div id="tab-users" class="tab-content active">
             <div class="section-card">
                 <div class="section-title">
@@ -231,7 +225,7 @@
             </div>
         </div>
 
-        <!-- TAB 2: WITHDRAWALS WITH SEARCH & RE-ACTION -->
+        <!-- TAB 2: WITHDRAWALS -->
         <div id="tab-withdrawals" class="tab-content">
             <div class="section-card">
                 <div class="section-title">
@@ -262,7 +256,7 @@
         <div id="tab-referral" class="tab-content">
             <div class="section-card">
                 <div class="section-title">➕ Add New Referral Target Milestone</div>
-                <p style="font-size: 12px; color: var(--text-muted); margin-bottom: 12px;">Add multiple referral targets (e.g. 3 referrals = 5 MTR, 10 referrals = 20 MTR). Users can claim each milestone once reached.</p>
+                <p style="font-size: 12px; color: var(--text-muted); margin-bottom: 12px;">Add multiple referral targets (e.g. 3 referrals = 5 MTR, 10 referrals = 20 MTR). Click "Save All Referral Targets" after adding.</p>
 
                 <label style="font-size:12px; color:var(--text-muted);">Required Verified Referrals</label>
                 <input type="number" id="newRefTargetCount" class="form-control" placeholder="e.g. 5" min="1">
@@ -288,7 +282,7 @@
             </div>
         </div>
 
-        <!-- TAB 4: TASKS MANAGER -->
+        <!-- TAB 4: TASKS -->
         <div id="tab-tasks" class="tab-content">
             <div class="section-card">
                 <div class="section-title">➕ Add New Earn Task</div>
@@ -316,20 +310,18 @@
             </div>
         </div>
 
-        <!-- TAB 5: ADMIN SETTINGS & SITE MAINTENANCE -->
+        <!-- TAB 5: SETTINGS -->
         <div id="tab-settings" class="tab-content">
-            <!-- MAINTENANCE MODE CONTROL -->
             <div class="section-card" style="border-color: var(--warning);">
                 <div class="section-title">🛑 Site Maintenance Mode (Off Switch)</div>
                 <p style="font-size: 13px; color: var(--text-muted); margin-bottom: 12px;" id="maintenanceStatusDesc">Checking status...</p>
-                <input type="text" id="maintenanceNoticeInput" class="form-control" placeholder="Notice message to show users when site is offline (e.g. Upgrading server, back in 1 hour!)">
+                <input type="text" id="maintenanceNoticeInput" class="form-control" placeholder="Notice message to show users when site is offline">
                 <div style="display: flex; gap: 10px;">
                     <button class="main-btn btn-primary" onclick="saveMaintenanceNotice()">Save Notice</button>
                     <button class="main-btn" id="toggleMaintenanceBtn" onclick="toggleMaintenanceMode()">Toggle Maintenance</button>
                 </div>
             </div>
 
-            <!-- MINING SPEED & VERIFICATION FEE CONTROL -->
             <div class="section-card">
                 <div class="section-title">⚡ Mining Speed & Verification Fee Control</div>
                 <label style="font-size:12px; color:var(--text-muted);">Mining Speed (MTR / Hour)</label>
@@ -344,7 +336,6 @@
                 <button class="main-btn btn-gold" onclick="saveMiningAndFeeSettings()">Save Mining & Fee Settings</button>
             </div>
 
-            <!-- WITHDRAWAL CONTROL & LIMITS -->
             <div class="section-card">
                 <div class="section-title">⚙️ Withdrawal System & Limits Control</div>
                 <p style="font-size: 13px; color: var(--text-muted); margin-bottom: 12px;" id="withdrawStatusDesc">Checking status...</p>
@@ -362,7 +353,6 @@
                 <button class="main-btn btn-success" onclick="saveWithdrawLimits()">Save Min & Max Limits</button>
             </div>
 
-            <!-- ADMIN PASSWORD & PIN SETTINGS -->
             <div class="section-card">
                 <div class="section-title">🔐 Admin Security & Credentials</div>
                 <p style="font-size: 12px; color: var(--text-muted); margin-bottom: 10px;">Change Admin Panel Login Password:</p>
@@ -376,7 +366,6 @@
         </div>
     </div>
 
-    <!-- REFERRAL INSPECTOR MODAL -->
     <div class="modal" id="refModal">
         <div class="modal-content">
             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
@@ -388,7 +377,6 @@
     </div>
 
     <script>
-        // FIREBASE CONFIG
         const firebaseConfig = {
             apiKey: "AIzaSyA74QlASZn_mz9c4XjdpJAJQHyJqX9xdk4",
             authDomain: "mtrdex.firebaseapp.com",
@@ -445,7 +433,6 @@
         }
 
         function initAdminListeners() {
-            // 1. Listen to Users Collection
             db.collection("users").onSnapshot((snapshot) => {
                 allUsersData = [];
                 let verifiedCount = 0;
@@ -468,7 +455,6 @@
                 renderUsersTable();
             });
 
-            // 2. Listen to Global Settings
             db.collection("settings").doc("config").onSnapshot((doc) => {
                 if (doc.exists) {
                     const data = doc.data();
@@ -523,7 +509,6 @@
                 }
             });
 
-            // 3. Listen to Tasks
             db.collection("tasks").onSnapshot((snapshot) => {
                 let html = "";
                 snapshot.forEach((doc) => {
@@ -540,7 +525,6 @@
                 document.getElementById('tasksTableBody').innerHTML = html || "<tr><td colspan='4' style='text-align:center;'>No active tasks</td></tr>";
             });
 
-            // 4. Listen to Withdrawals
             db.collection("withdrawals").orderBy("createdAt", "desc").onSnapshot((snapshot) => {
                 allWithdrawalsData = [];
                 let pendingCount = 0;
@@ -573,7 +557,6 @@
             });
         }
 
-        // REFERRAL TARGETS MANAGEMENT
         function addReferralTargetItem() {
             const targetCount = parseInt(document.getElementById('newRefTargetCount').value);
             const rewardVal = parseFloat(document.getElementById('newRefTargetReward').value);
@@ -617,8 +600,11 @@
         function saveAllReferralTargets() {
             const refCommission = parseFloat(document.getElementById('cfgRefCommission').value) || 0;
             verifyTxPinAction(() => {
+                const primaryTarget = referralTargetsList[0] || { target: 5, reward: 10 };
                 db.collection("settings").doc("config").set({
                     refTargets: referralTargetsList,
+                    refTarget: primaryTarget.target,
+                    refTargetReward: primaryTarget.reward,
                     refCommission: refCommission
                 }, { merge: true }).then(() => {
                     alert("✅ All referral targets & commission saved!");
@@ -626,7 +612,6 @@
             });
         }
 
-        // FILTER & RENDER USERS TABLE
         function setUserFilter(filter, el) {
             currentFilter = filter;
             document.querySelectorAll('.filter-chip').forEach(c => c.classList.remove('active'));
@@ -694,7 +679,7 @@
             document.getElementById('usersTableBody').innerHTML = html || "<tr><td colspan='6' style='text-align:center;'>No matching users found</td></tr>";
         }
 
-        // RENDER WITHDRAWALS TABLE WITH SEARCH & RE-ACTION
+        // Reject বা Approved হয়ে গেলে কোনো বাটন আর দেখানো হবে না
         function renderWithdrawTable() {
             const query = (document.getElementById('withdrawSearchInput')?.value || "").toLowerCase().trim();
             const filtered = allWithdrawalsData.filter(w => {
@@ -713,6 +698,21 @@
             filtered.forEach(w => {
                 const st = (w.status || 'pending').toLowerCase();
                 let statusColor = st === 'approved' ? 'var(--success)' : (st === 'rejected' ? 'var(--danger)' : 'var(--warning)');
+
+                let actionContent = `<span style="color:var(--text-muted); font-size:11px;">Completed</span>`;
+                if (st === 'pending') {
+                    actionContent = `
+                        <div class="action-btns">
+                            <button class="main-btn btn-success" style="padding:4px 8px;" onclick="verifyTxPinAction(() => handleWithdrawAction('${w.id}', '${w.userId}', ${w.amount}, 'approved', '${st}'))">Approve</button>
+                            <button class="main-btn btn-danger" style="padding:4px 8px;" onclick="verifyTxPinAction(() => handleWithdrawAction('${w.id}', '${w.userId}', ${w.amount}, 'rejected', '${st}'))">Reject</button>
+                        </div>
+                    `;
+                } else if (st === 'rejected') {
+                    actionContent = `<span class="badge badge-unverified">Rejected (No Actions)</span>`;
+                } else if (st === 'approved') {
+                    actionContent = `<span class="badge badge-verified">Approved ✓</span>`;
+                }
+
                 html += `
                     <tr>
                         <td>
@@ -722,19 +722,13 @@
                         <td style="color:var(--gold-light); font-weight:bold;">${w.amount} MTR</td>
                         <td style="font-size:11px;">${w.walletAddress}</td>
                         <td style="color:${statusColor}; font-weight:bold; text-transform:uppercase;">${st}</td>
-                        <td>
-                            <div class="action-btns">
-                                ${st !== 'approved' ? `<button class="main-btn btn-success" style="padding:4px 8px;" onclick="verifyTxPinAction(() => handleWithdrawAction('${w.id}', '${w.userId}', ${w.amount}, 'approved', '${st}'))">Approve</button>` : ''}
-                                ${st !== 'rejected' ? `<button class="main-btn btn-danger" style="padding:4px 8px;" onclick="verifyTxPinAction(() => handleWithdrawAction('${w.id}', '${w.userId}', ${w.amount}, 'rejected', '${st}'))">Reject</button>` : ''}
-                            </div>
-                        </td>
+                        <td>${actionContent}</td>
                     </tr>
                 `;
             });
             document.getElementById('withdrawTableBody').innerHTML = html || "<tr><td colspan='5' style='text-align:center;'>No withdrawal requests found</td></tr>";
         }
 
-        // SECURE USER ACTIONS
         function editUserBalance(uid, currentBal) {
             let val = prompt(`Edit MTR Balance for ${uid}:`, currentBal);
             if (val !== null && !isNaN(val) && val.trim() !== "") {
@@ -786,24 +780,20 @@
             document.getElementById('refModal').style.display = 'none';
         }
 
-        // WITHDRAW ACTIONS
         function handleWithdrawAction(docId, uid, amount, newStatus, oldStatus) {
+            if (oldStatus === 'rejected' || oldStatus === 'approved') {
+                alert("⚠️ This withdrawal request has already been finalized.");
+                return;
+            }
             db.collection("withdrawals").doc(docId).update({
                 status: newStatus,
                 processedAt: firebase.firestore.FieldValue.serverTimestamp()
             }).then(() => {
-                if (newStatus === 'rejected' && oldStatus !== 'rejected') {
+                if (newStatus === 'rejected') {
                     db.collection("users").doc(uid).get().then(doc => {
                         if (doc.exists) {
                             let curBal = Number(doc.data().balance || 0);
                             db.collection("users").doc(uid).update({ balance: curBal + Number(amount) });
-                        }
-                    });
-                } else if (oldStatus === 'rejected' && newStatus === 'approved') {
-                    db.collection("users").doc(uid).get().then(doc => {
-                        if (doc.exists) {
-                            let curBal = Number(doc.data().balance || 0);
-                            db.collection("users").doc(uid).update({ balance: Math.max(0, curBal - Number(amount)) });
                         }
                     });
                 }
@@ -811,7 +801,6 @@
             });
         }
 
-        // TASK ACTIONS
         function addNewTask() {
             const title = document.getElementById('taskTitle').value.trim();
             const reward = parseFloat(document.getElementById('taskReward').value);
@@ -840,7 +829,6 @@
               .then(() => alert("Task deleted!"));
         }
 
-        // MINING & FEE SETTINGS
         function saveMiningAndFeeSettings() {
             const miningRate = parseFloat(document.getElementById('cfgMiningRate').value);
             const verifyFee = parseFloat(document.getElementById('cfgVerifyFee').value);
@@ -860,7 +848,6 @@
             });
         }
 
-        // SETTINGS & MAINTENANCE ACTIONS
         function toggleWithdrawSystem() {
             verifyTxPinAction(() => {
                 db.collection("settings").doc("config").set({ withdrawOpen: !isWithdrawOpen }, { merge: true })
