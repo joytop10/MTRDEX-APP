@@ -89,12 +89,21 @@ button{font-family:inherit;cursor:pointer}
 .withdraw-box{background:linear-gradient(145deg,#17243A,#101827);border:1px solid rgba(245,197,66,.25);border-radius:17px;padding:18px;display:flex;flex-direction:column;gap:12px;width:100%}
 .withdraw-input{width:100%;padding:13px;background:#080D18;border:1px solid var(--border);border-radius:10px;color:white;font-size:14px;outline:none}
 .withdraw-input:focus{border-color:var(--gold)}
+.history-switch{display:flex;gap:8px;width:100%;background:#080D18;padding:6px;border-radius:13px;border:1px solid var(--border)}
+.history-tab-btn{flex:1;padding:10px 12px;border:0;border-radius:9px;background:transparent;color:var(--muted);font-size:12px;font-weight:800;transition:.2s}
+.history-tab-btn.active{background:linear-gradient(110deg,#FFE28A,#E5AC27);color:#111827}
 .status-pending{color:#F5C542;font-size:11px;font-weight:700}
 .status-approved{color:#22C58B;font-size:11px;font-weight:700}
 .status-rejected{color:#EF4444;font-size:11px;font-weight:700}
+.status-claim{color:#45C7FF;font-size:11px;font-weight:700}
 .target-progress{background:rgba(22,119,255,.1);border:1px solid rgba(22,119,255,.25);border-radius:12px;padding:12px;margin-top:12px;font-size:12px;color:#54B9FF;text-align:left}
 .target-item{padding:8px 0;border-bottom:1px solid rgba(255,255,255,.08);display:flex;justify-content:space-between;align-items:center;gap:8px}
 .target-item:last-child{border-bottom:none}
+.fullscreen-screen{position:fixed;inset:0;z-index:500;display:none;flex-direction:column;background:var(--bg);overflow-y:auto;padding-bottom:36px}
+.fullscreen-screen.active{display:flex}
+.fullscreen-header{position:sticky;top:0;z-index:20;display:flex;align-items:center;justify-content:space-between;gap:12px;padding:14px 16px;background:rgba(17,27,44,.97);backdrop-filter:blur(15px);border-bottom:1px solid var(--border)}
+.back-btn{border:1px solid var(--border);background:#17243A;color:#FFF;padding:9px 14px;border-radius:11px;font-size:12px;font-weight:800;white-space:nowrap}
+.fullscreen-body{width:100%;max-width:640px;margin:0 auto;padding:18px 16px;display:flex;flex-direction:column;gap:14px}
 .bottom-nav{position:fixed;bottom:0;left:0;width:100%;display:flex;justify-content:space-around;align-items:center;padding:10px 0 calc(10px + env(safe-area-inset-bottom));background:rgba(11,17,29,.97);border-top:1px solid var(--border);backdrop-filter:blur(15px);z-index:100}
 .nav-item{width:20%;display:flex;flex-direction:column;align-items:center;gap:5px;color:var(--muted);font-size:11px;font-weight:600;cursor:pointer}
 .nav-icon{font-size:21px;filter:grayscale(1);opacity:.7}
@@ -269,11 +278,34 @@ button{font-family:inherit;cursor:pointer}
         <button class="main-btn btn-gold" onclick="handleWithdraw()">SUBMIT WITHDRAWAL</button>
     </div>
 
-    <div class="section-heading" style="margin-top:6px"><span>📜</span> Withdrawal History</div>
-    <div id="withdrawHistoryList"><div class="empty-state">No withdrawal history yet.</div></div>
+    <div class="list-card highlight" onclick="openFullHistoryScreen()">
+        <div class="list-left">
+            <div class="task-icon">📜</div>
+            <div>
+                <div class="list-title">History</div>
+                <div class="list-sub">View full-screen All History & Withdraw History</div>
+            </div>
+        </div>
+        <div class="list-value">OPEN FULL SCREEN →</div>
+    </div>
 
     <button class="main-btn btn-connect" onclick="openTokenomicsModal()">📊 VIEW TOKENOMICS</button>
 </section>
+
+<div class="fullscreen-screen" id="fullHistoryScreen">
+    <div class="fullscreen-header">
+        <button type="button" class="back-btn" onclick="closeFullHistoryScreen()">← Back</button>
+        <div style="font-size:15px;font-weight:800;color:var(--gold)">📜 <span id="fullHistoryTitle">Full History</span></div>
+        <div style="width:64px"></div>
+    </div>
+    <div class="fullscreen-body">
+        <div class="history-switch">
+            <button type="button" class="history-tab-btn active" id="btnAllHistory" onclick="setHistoryFilter('all')">All History</button>
+            <button type="button" class="history-tab-btn" id="btnWithdrawHistory" onclick="setHistoryFilter('withdraw')">Withdraw History</button>
+        </div>
+        <div id="historyListContainer"><div class="empty-state">No history yet.</div></div>
+    </div>
+</div>
 
 <div class="modal" id="walletModal">
     <div class="modal-content">
@@ -368,6 +400,10 @@ let minWithdrawLimit = 10;
 let maxWithdrawLimit = 1000000;
 let userLoaded = false;
 let walletStatusSequence = 0;
+
+let activeHistoryFilter = "all";
+let claimActivities = [];
+let withdrawActivities = [];
 
 let miningStartTime = 0;
 let miningEndTime = 0;
@@ -635,6 +671,213 @@ async function verifyAccountWithFee() {
     }
 }
 
+async function recordClaimActivity(category, title, amount) {
+    const numericAmount = Number(amount || 0);
+    if (numericAmount <= 0) return;
+
+    const timestampMs = Date.now();
+    const localItem = {
+        id: "local_" + timestampMs + "_" + Math.random().toString(36).slice(2, 7),
+        kind: "claim",
+        category: category,
+        title: title,
+        amount: numericAmount,
+        status: "CLAIMED",
+        timestampMs: timestampMs
+    };
+
+    claimActivities = [localItem, ...claimActivities];
+    renderHistoryList();
+
+    try {
+        await db.collection("activity_history").add({
+            userId: userId,
+            kind: "claim",
+            category: category,
+            title: title,
+            amount: numericAmount,
+            status: "CLAIMED",
+            timestampMs: timestampMs,
+            createdAt: firebase.firestore.FieldValue.serverTimestamp()
+        });
+    } catch (e) {
+        console.error("Failed to save claim history:", e);
+    }
+}
+
+function getTimestampMs(val) {
+    if (!val) return 0;
+    if (typeof val === "number") return val;
+    if (typeof val.toMillis === "function") return val.toMillis();
+    if (val.seconds) return val.seconds * 1000;
+    return 0;
+}
+
+function formatHistoryDate(ms) {
+    if (!ms) return "Just now";
+    try {
+        return new Date(ms).toLocaleString([], {
+            month: "short",
+            day: "numeric",
+            hour: "2-digit",
+            minute: "2-digit"
+        });
+    } catch (e) {
+        return "Recorded";
+    }
+}
+
+function openFullHistoryScreen() {
+    const screen = document.getElementById("fullHistoryScreen");
+    if (screen) {
+        screen.classList.add("active");
+        screen.scrollTo({ top: 0, behavior: "smooth" });
+    }
+    renderHistoryList();
+}
+
+function closeFullHistoryScreen() {
+    const screen = document.getElementById("fullHistoryScreen");
+    if (screen) {
+        screen.classList.remove("active");
+    }
+}
+
+function setHistoryFilter(filter) {
+    activeHistoryFilter = filter;
+    const allBtn = document.getElementById("btnAllHistory");
+    const withdrawBtn = document.getElementById("btnWithdrawHistory");
+    const titleEl = document.getElementById("fullHistoryTitle");
+
+    if (filter === "withdraw") {
+        if (allBtn) allBtn.classList.remove("active");
+        if (withdrawBtn) withdrawBtn.classList.add("active");
+        if (titleEl) titleEl.textContent = "Withdraw History";
+    } else {
+        if (withdrawBtn) withdrawBtn.classList.remove("active");
+        if (allBtn) allBtn.classList.add("active");
+        if (titleEl) titleEl.textContent = "All History";
+    }
+
+    renderHistoryList();
+}
+
+function renderHistoryList() {
+    const container = document.getElementById("historyListContainer");
+    if (!container) return;
+    container.replaceChildren();
+
+    const items = activeHistoryFilter === "withdraw"
+        ? [...withdrawActivities]
+        : [...claimActivities, ...withdrawActivities];
+
+    items.sort((a, b) => (b.timestampMs || 0) - (a.timestampMs || 0));
+
+    if (items.length === 0) {
+        container.innerHTML = activeHistoryFilter === "withdraw"
+            ? '<div class="empty-state">No withdrawal history yet.</div>'
+            : '<div class="empty-state">No claim or withdrawal history yet.</div>';
+        return;
+    }
+
+    items.forEach(item => {
+        const card = document.createElement("div");
+        card.className = "list-card";
+
+        const left = document.createElement("div");
+        left.className = "list-left";
+
+        const icon = document.createElement("div");
+        icon.className = "task-icon";
+
+        const info = document.createElement("div");
+        const title = document.createElement("div");
+        title.className = "list-title";
+
+        const sub = document.createElement("div");
+        sub.className = "list-sub";
+
+        const rightSide = document.createElement("div");
+        rightSide.style.textAlign = "right";
+
+        const statusBadge = document.createElement("div");
+
+        if (item.kind === "withdraw") {
+            icon.textContent = "📤";
+            title.textContent = "-" + Number(item.amount || 0).toFixed(4) + " MTR (Withdraw)";
+            const walletShort = item.walletAddress
+                ? item.walletAddress.slice(0, 6) + "..." + item.walletAddress.slice(-4)
+                : "Wallet";
+            sub.textContent = walletShort + " • " + formatHistoryDate(item.timestampMs);
+
+            const st = (item.status || "pending").toLowerCase();
+            statusBadge.textContent = st.toUpperCase();
+            if (st === "approved") statusBadge.className = "status-approved";
+            else if (st === "rejected") statusBadge.className = "status-rejected";
+            else statusBadge.className = "status-pending";
+        } else {
+            if (item.category === "mining") icon.textContent = "⛏️";
+            else if (item.category === "task") icon.textContent = "📋";
+            else icon.textContent = "🎁";
+
+            title.textContent = "+" + Number(item.amount || 0).toFixed(8) + " MTR (" + (item.title || "Claim") + ")";
+            sub.textContent = formatHistoryDate(item.timestampMs);
+            statusBadge.textContent = "CLAIMED";
+            statusBadge.className = "status-claim";
+        }
+
+        info.append(title, sub);
+        left.append(icon, info);
+        rightSide.append(statusBadge);
+
+        card.append(left, rightSide);
+        container.append(card);
+    });
+}
+
+function startHistoryListeners() {
+    db.collection("activity_history").where("userId", "==", userId).onSnapshot(snapshot => {
+        const list = [];
+        snapshot.forEach(doc => {
+            const d = doc.data();
+            list.push({
+                id: doc.id,
+                kind: "claim",
+                category: d.category || "mining",
+                title: d.title || "Token Claim",
+                amount: Number(d.amount || 0),
+                status: d.status || "CLAIMED",
+                timestampMs: Number(d.timestampMs || getTimestampMs(d.createdAt))
+            });
+        });
+        claimActivities = list;
+        renderHistoryList();
+    }, err => {
+        console.error("Claim history listener error:", err);
+        renderHistoryList();
+    });
+
+    db.collection("withdrawals").where("userId", "==", userId).onSnapshot(snapshot => {
+        const list = [];
+        snapshot.forEach(doc => {
+            const d = doc.data();
+            list.push({
+                id: doc.id,
+                kind: "withdraw",
+                amount: Number(d.amount || 0),
+                walletAddress: d.walletAddress || "",
+                status: d.status || "pending",
+                timestampMs: Number(d.timestampMs || getTimestampMs(d.createdAt))
+            });
+        });
+        withdrawActivities = list;
+        renderHistoryList();
+    }, err => {
+        console.error("Withdraw history listener error:", err);
+        renderHistoryList();
+    });
+}
+
 async function loadUserData() {
     const userRef = db.collection("users").doc(userId);
     try {
@@ -719,7 +962,7 @@ async function loadUserData() {
         loadTasks();
         loadLeaderboard();
         loadReferralStats();
-        loadWithdrawHistory();
+        startHistoryListeners();
 
         if (getLiveWalletRawAddress()) {
             await saveWalletInfo();
@@ -890,6 +1133,8 @@ async function claimTaskReward(taskId, task) {
             visitedTasks: visitedTasks
         }, { merge: true });
 
+        await recordClaimActivity("task", task.title || "Task Reward", taskReward);
+
         updateUI();
         renderTasksList();
         alert(`🎉 Task claimed! Earned +${taskReward} MTR.`);
@@ -1025,58 +1270,6 @@ function updateReferralTargetUI() {
     document.getElementById("refRewardBalance").textContent = totalClaimable.toFixed(8);
 }
 
-function loadWithdrawHistory() {
-    db.collection("withdrawals").where("userId", "==", userId).orderBy("createdAt", "desc").onSnapshot(snapshot => {
-        const container = document.getElementById("withdrawHistoryList");
-        container.replaceChildren();
-
-        if (snapshot.empty) {
-            container.innerHTML = '<div class="empty-state">No withdrawal history yet.</div>';
-            return;
-        }
-
-        snapshot.forEach(doc => {
-            const data = doc.data();
-            const card = document.createElement("div");
-            card.className = "list-card";
-
-            const left = document.createElement("div");
-            left.className = "list-left";
-
-            const icon = document.createElement("div");
-            icon.className = "task-icon";
-            icon.textContent = "📤";
-
-            const info = document.createElement("div");
-            const title = document.createElement("div");
-            title.className = "list-title";
-            title.textContent = Number(data.amount || 0).toFixed(4) + " MTR";
-
-            const sub = document.createElement("div");
-            sub.className = "list-sub";
-            sub.textContent = data.walletAddress ? data.walletAddress.slice(0, 6) + "..." + data.walletAddress.slice(-4) : "Wallet";
-
-            info.append(title, sub);
-            left.append(icon, info);
-
-            const statusBadge = document.createElement("div");
-            const status = (data.status || "pending").toLowerCase();
-            statusBadge.textContent = status.toUpperCase();
-
-            if (status === "approved") {
-                statusBadge.className = "status-approved";
-            } else if (status === "rejected") {
-                statusBadge.className = "status-rejected";
-            } else {
-                statusBadge.className = "status-pending";
-            }
-
-            card.append(left, statusBadge);
-            container.append(card);
-        });
-    });
-}
-
 async function claimRefReward() {
     const unlockedReward = getUnlockedTargetReward();
     const totalClaimable = refRewardBalance + unlockedReward;
@@ -1104,6 +1297,8 @@ async function claimRefReward() {
             refReward: 0,
             claimedTargets: claimedTargets
         }, { merge: true });
+
+        await recordClaimActivity("referral", "Referral Reward", totalClaimable);
 
         updateReferralTargetUI();
         updateUI();
@@ -1153,6 +1348,10 @@ async function handleMainAction() {
             miningEndTime: newEndTime
         }, { merge: true });
 
+        if (currentMined > 0) {
+            await recordClaimActivity("mining", "Mining Claim", currentMined);
+        }
+
         updateUI();
         alert(`🎉 Successfully claimed ${currentMined.toFixed(8)} MTR! New 8-hour mining session started.`);
     } catch (e) {
@@ -1196,21 +1395,39 @@ async function handleWithdraw() {
     }
 
     totalBalance -= withdrawAmount;
+    const nowMs = Date.now();
+    const localWithdrawId = "local_wd_" + nowMs + "_" + Math.random().toString(36).slice(2, 7);
+
+    withdrawActivities = [{
+        id: localWithdrawId,
+        kind: "withdraw",
+        amount: withdrawAmount,
+        walletAddress: liveAddress,
+        status: "pending",
+        timestampMs: nowMs
+    }, ...withdrawActivities];
+    renderHistoryList();
 
     try {
         await db.collection("users").doc(userId).set({
             balance: totalBalance
         }, { merge: true });
 
-        await db.collection("withdrawals").add({
+        const docRef = await db.collection("withdrawals").add({
             userId: userId,
             userName: userName,
             userUsername: userUsername,
             walletAddress: liveAddress,
             amount: withdrawAmount,
             status: "pending",
+            timestampMs: nowMs,
             createdAt: firebase.firestore.FieldValue.serverTimestamp()
         });
+
+        withdrawActivities = withdrawActivities.map(item =>
+            item.id === localWithdrawId ? { ...item, id: docRef.id } : item
+        );
+        renderHistoryList();
 
         withdrawInput.value = "";
         updateUI();
@@ -1333,6 +1550,7 @@ function updateUI() {
 }
 
 function switchTab(tab, element) {
+    closeFullHistoryScreen();
     document.querySelectorAll(".container").forEach(item => item.classList.remove("active"));
     document.querySelectorAll(".nav-item").forEach(item => item.classList.remove("active"));
 
