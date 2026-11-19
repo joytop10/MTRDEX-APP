@@ -321,7 +321,6 @@ function renderWithdrawList() {
         tag.textContent = st;
         actions.append(tag);
 
-        // যেকোনো স্ট্যাটাস থেকেও নতুন করে Approve বা Reject করার বাটন রাখা হয়েছে
         if (st !== "approved") {
             const appBtn = document.createElement("button");
             appBtn.className = "btn-approve";
@@ -350,7 +349,6 @@ async function updateWithdrawStatus(docId, wData, newStatus, oldStatus) {
             processedAt: firebase.firestore.FieldValue.serverTimestamp()
         });
 
-        // আগে পেন্ডিং বা অ্যাপ্রুভড থাকা অবস্থায় রিজেক্ট করলে ইউজারের ব্যালেন্স ফেরত দেওয়া হবে
         if (newStatus === "rejected" && oldStatus !== "rejected" && wData.userId && wData.amount) {
             const uRef = db.collection("users").doc(wData.userId);
             const uDoc = await uRef.get();
@@ -360,7 +358,6 @@ async function updateWithdrawStatus(docId, wData, newStatus, oldStatus) {
             }
         }
 
-        // আগে রিজেক্ট করা হয়ে থাকলে এবং এখন নতুন করে অ্যাপ্রুভ করলে ব্যালেন্স পুনরায় কাটা হবে
         if (oldStatus === "rejected" && newStatus === "approved" && wData.userId && wData.amount) {
             const uRef = db.collection("users").doc(wData.userId);
             const uDoc = await uRef.get();
