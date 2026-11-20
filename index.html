@@ -12,19 +12,7 @@
 <script src="https://unpkg.com/@tonconnect/ui@latest/dist/tonconnect-ui.min.js"></script>
 
 <style>
-:root {
-    --bg:#080D18;
-    --card:#111B2C;
-    --card2:#17243A;
-    --gold:#F5C542;
-    --gold2:#FFE28A;
-    --blue:#1677FF;
-    --text:#FFFFFF;
-    --muted:#8996AA;
-    --green:#22C58B;
-    --red:#EF4444;
-    --border:rgba(255,255,255,.07);
-}
+:root{--bg:#080D18;--card:#111B2C;--card2:#17243A;--gold:#F5C542;--gold2:#FFE28A;--blue:#1677FF;--text:#FFF;--muted:#8996AA;--green:#22C58B;--red:#EF4444;--border:rgba(255,255,255,.07)}
 *{box-sizing:border-box;margin:0;padding:0;font-family:'Segoe UI',Roboto,sans-serif;-webkit-tap-highlight-color:transparent}
 html{background:var(--bg);scroll-behavior:smooth}
 body{background:radial-gradient(ellipse at 50% 10%,rgba(22,119,255,.13),transparent 48%),var(--bg);color:var(--text);min-height:100vh;padding-bottom:90px}
@@ -120,6 +108,27 @@ button{font-family:inherit;cursor:pointer}
 .empty-state{text-align:center;padding:30px 15px;color:var(--muted);font-size:13px;background:var(--card);border-radius:15px}
 .ban-screen{position:fixed;inset:0;z-index:9999;display:none;flex-direction:column;align-items:center;justify-content:center;padding:25px;text-align:center;background:#080D18}
 .ban-screen.active{display:flex}
+
+/* MULTI LEVEL TEAM DESIGN */
+.team-screen{position:fixed;inset:0;z-index:600;display:none;flex-direction:column;background:var(--bg);overflow-y:auto;padding-bottom:30px}
+.team-screen.active{display:flex}
+.team-header{position:sticky;top:0;z-index:10;display:flex;align-items:center;justify-content:space-between;padding:14px 16px;background:rgba(17,27,44,.97);border-bottom:1px solid var(--border)}
+.team-body{width:100%;max-width:640px;margin:auto;padding:18px 16px;display:flex;flex-direction:column;gap:14px}
+.team-stats{display:grid;grid-template-columns:repeat(3,1fr);gap:9px}
+.team-stat{background:var(--card);border:1px solid var(--border);border-radius:13px;padding:13px 8px;text-align:center}
+.team-stat strong{display:block;color:var(--gold);font-size:20px;margin-top:6px}
+.team-stat span{color:var(--muted);font-size:10px}
+.team-search{width:100%;padding:14px;background:#080D18;border:1px solid var(--border);border-radius:12px;color:white;outline:none;font-size:13px}
+.team-search:focus{border-color:var(--gold)}
+.team-search-results{color:var(--muted);font-size:11px}
+.team-level-title{padding:13px;background:var(--card2);border:1px solid var(--border);border-radius:12px;font-size:14px;font-weight:800;color:var(--gold);margin-top:5px}
+.team-member{background:linear-gradient(145deg,var(--card2),var(--card));border:1px solid var(--border);border-radius:14px;padding:14px;display:flex;flex-direction:column;gap:10px;margin-bottom:10px}
+.team-member-top{display:flex;justify-content:space-between;align-items:center;gap:8px}
+.team-member-name{font-size:14px;font-weight:800;overflow-wrap:anywhere}
+.team-member-info{color:var(--muted);font-size:11px;overflow-wrap:anywhere;line-height:1.5}
+.team-copy-row{display:flex;gap:7px;align-items:center;flex-wrap:wrap}
+.team-copy-btn{background:rgba(22,119,255,.14);color:#55B8FF;border:1px solid rgba(22,119,255,.25);padding:9px 10px;border-radius:9px;font-size:10px;font-weight:800}
+.team-copy-btn:active{opacity:.7}
 @media(max-width:360px){.balance-amount{font-size:22px}.coin-wrapper{width:185px;height:185px}.coin-circle{width:150px;height:150px}.coin-text{font-size:36px}.wallet-display{font-size:10px;padding:8px}}
 </style>
 </head>
@@ -129,9 +138,7 @@ button{font-family:inherit;cursor:pointer}
 <div class="ban-screen" id="bannedScreen">
     <div style="font-size:56px">🚫</div>
     <h2 style="color:#EF4444;margin:18px 0 10px">Account Suspended</h2>
-    <p style="color:#8996AA;line-height:1.7;max-width:360px;font-size:14px">
-        Your account has been banned by the admin. Mining and all rewards are suspended.
-    </p>
+    <p style="color:#8996AA;line-height:1.7;max-width:360px;font-size:14px">Your account has been banned by the admin. Mining and all rewards are suspended.</p>
 </div>
 
 <header class="header">
@@ -150,13 +157,11 @@ button{font-family:inherit;cursor:pointer}
         <strong>🛑 Mining Stopped — Supply Limit Reached</strong>
         <span id="supplyStopNoticeText">Total MTR supply limit has been reached! Mining is now stopped.</span>
     </div>
-
     <div class="balance-card">
         <div class="balance-label">Total MTR Assets</div>
         <div class="balance-amount"><span id="totalBalance">0.00000001</span> <small>MTR</small></div>
         <div class="mining-rate" id="miningRateText">Connect wallet to begin</div>
     </div>
-
     <div class="coin-area">
         <div class="coin-wrapper">
             <div class="coin-circle">
@@ -168,28 +173,12 @@ button{font-family:inherit;cursor:pointer}
         <p class="session-text" id="sessionStatusText">Mined in session: <strong><span id="sessionMined">0.00000000</span> MTR</strong></p>
         <button class="main-btn btn-connect" id="actionBtn" onclick="handleMainAction()">CONNECT WALLET</button>
     </div>
-
     <div class="info-grid">
-        <div class="info-box">
-            <div class="info-icon">⚡</div>
-            <div class="info-label">Mining Status</div>
-            <div class="info-value" id="miningStatus">Inactive</div>
-        </div>
-        <div class="info-box">
-            <div class="info-icon">👥</div>
-            <div class="info-label">Total Referrals</div>
-            <div class="info-value" id="miniRefCount">0</div>
-        </div>
+        <div class="info-box"><div class="info-icon">⚡</div><div class="info-label">Mining Status</div><div class="info-value" id="miningStatus">Inactive</div></div>
+        <div class="info-box"><div class="info-icon">👥</div><div class="info-label">Total Referrals</div><div class="info-value" id="miniRefCount">0</div></div>
     </div>
-
     <div class="list-card">
-        <div class="list-left">
-            <div class="task-icon">🏆</div>
-            <div>
-                <div class="list-title">MTR Mining Program</div>
-                <div class="list-sub">Your mining dashboard</div>
-            </div>
-        </div>
+        <div class="list-left"><div class="task-icon">🏆</div><div><div class="list-title">MTR Mining Program</div><div class="list-sub">Your mining dashboard</div></div></div>
         <div class="list-value">MASTER</div>
     </div>
 </section>
@@ -220,26 +209,32 @@ button{font-family:inherit;cursor:pointer}
         <div class="balance-label">Total Referrals</div>
         <div class="balance-amount" id="referralCount">0</div>
         <div class="info-grid">
-            <div class="info-box">
-                <div class="info-label">Verified</div>
-                <div class="info-value" id="verifiedRef">0</div>
-            </div>
-            <div class="info-box">
-                <div class="info-label">Unverified</div>
-                <div class="info-value" id="unverifiedRef">0</div>
-            </div>
+            <div class="info-box"><div class="info-label">Verified</div><div class="info-value" id="verifiedRef">0</div></div>
+            <div class="info-box"><div class="info-label">Unverified</div><div class="info-value" id="unverifiedRef">0</div></div>
         </div>
-
-        <div class="target-progress" id="refTargetBox">
-            🎯 Loading referral targets...
-        </div>
-
+        <div class="target-progress" id="refTargetBox">🎯 Loading referral targets...</div>
         <div style="margin-top:16px">
             <div class="balance-label">Claimable Referral Reward</div>
             <div class="balance-amount" style="font-size:24px"><span id="refRewardBalance">0.00000000</span> <small>MTR</small></div>
         </div>
         <button class="main-btn btn-gold" id="claimRefBtn" onclick="claimRefReward()">CLAIM REWARD</button>
     </div>
+
+    <div class="list-card" style="display:block">
+        <div class="list-title">🎟️ Your Unique Referral Code</div>
+        <p class="list-sub" style="line-height:1.7;margin-top:8px">Share your personal referral code with your friends.</p>
+        <div class="copy-box" id="myReferralCode">Generating code...</div>
+        <button class="main-btn btn-gold btn-small" onclick="copyMyReferralCode()">COPY REFERRAL CODE</button>
+    </div>
+
+    <div class="list-card" id="applyReferralBox" style="display:block">
+        <div class="list-title">🎁 Apply Referral Code / Telegram ID</div>
+        <p class="list-sub" style="line-height:1.7;margin-top:8px">Enter your friend's MTR referral code or Telegram ID number. You can apply only once.</p>
+        <input type="text" id="referralInput" class="withdraw-input" placeholder="MTR-A7K9P2 or Telegram ID" maxlength="40" style="margin-top:12px">
+        <button class="main-btn btn-connect btn-small" id="applyReferralBtn" onclick="applyReferral()">APPLY REFERRAL</button>
+    </div>
+    <div id="referralAppliedBox" class="target-progress" style="display:none">✅ Referral successfully applied. You cannot change it.</div>
+
     <div class="list-card" style="display:block">
         <div class="list-title">🎁 Invite Friends & Earn</div>
         <p class="list-sub" style="line-height:1.7;margin-top:8px">Invite new members to the MTR Master community using your personal referral link and reach referral targets set by admin.</p>
@@ -255,60 +250,66 @@ button{font-family:inherit;cursor:pointer}
     <div class="section-heading"><span>👤</span> My Profile</div>
     <div class="profile-card">
         <div class="avatar profile-avatar" id="profileAvatar">M</div>
-        <div>
-            <div class="profile-name" id="profileName">Master Miner</div>
-            <div class="profile-username" id="profileUsername">@username</div>
-        </div>
-    </div>
-    <div class="list-card">
-        <div class="list-left">
-            <div class="task-icon">🆔</div>
-            <div>
-                <div class="list-sub">Telegram ID</div>
-                <div class="list-title" id="profileTelegramId">UID_000000</div>
-            </div>
-        </div>
-    </div>
-    <div class="list-card">
-        <div class="list-left">
-            <div class="task-icon">💰</div>
-            <div>
-                <div class="list-sub">Total Mined Balance</div>
-                <div class="list-title" id="profileBalance">0.00000001 MTR</div>
-            </div>
-        </div>
-    </div>
-    <div class="list-card" onclick="handleWalletClick()">
-        <div class="list-left">
-            <div class="task-icon">💎</div>
-            <div>
-                <div class="list-sub">Connected Wallet</div>
-                <div class="list-title" id="profileWalletAddr">Not Connected</div>
-            </div>
-        </div>
-        <div class="list-value">VIEW</div>
+        <div><div class="profile-name" id="profileName">Master Miner</div><div class="profile-username" id="profileUsername">@username</div></div>
     </div>
 
+    <!-- NEW TEAM BUTTON -->
+    <button class="main-btn btn-gold" onclick="openTeamScreen()">👥 MY TEAM — MULTI LEVEL</button>
+
+    <div class="list-card">
+        <div class="list-left"><div class="task-icon">🆔</div><div><div class="list-sub">Telegram ID</div><div class="list-title" id="profileTelegramId">-</div></div></div>
+    </div>
+    <div class="list-card">
+        <div class="list-left"><div class="task-icon">🎟️</div><div><div class="list-sub">Your Referral Code</div><div class="list-title" id="profileReferralCode">Generating...</div></div></div>
+    </div>
+    <div class="list-card">
+        <div class="list-left"><div class="task-icon">👥</div><div><div class="list-sub">Referred By Telegram ID</div><div class="list-title" id="profileReferredById">Not Referred</div></div></div>
+    </div>
+    <div class="list-card">
+        <div class="list-left"><div class="task-icon">🎟️</div><div><div class="list-sub">Referred By Referral Code</div><div class="list-title" id="profileReferredByCode">Not Referred</div></div></div>
+    </div>
+    <div class="list-card">
+        <div class="list-left"><div class="task-icon">💰</div><div><div class="list-sub">Total Mined Balance</div><div class="list-title" id="profileBalance">0.00000001 MTR</div></div></div>
+    </div>
+    <div class="list-card" onclick="handleWalletClick()">
+        <div class="list-left"><div class="task-icon">💎</div><div><div class="list-sub">Connected Wallet</div><div class="list-title" id="profileWalletAddr">Not Connected</div></div></div>
+        <div class="list-value">VIEW</div>
+    </div>
     <div class="withdraw-box">
         <div class="list-title" style="color:var(--gold);margin-bottom:0">📤 Withdraw MTR</div>
         <div class="list-sub" id="withdrawMinLabel">Minimum withdraw: 10 MTR</div>
         <input type="number" id="withdrawAmountInput" class="withdraw-input" placeholder="Enter amount to withdraw" step="any">
         <button class="main-btn btn-gold" onclick="handleWithdraw()">SUBMIT WITHDRAWAL</button>
     </div>
-
     <div class="list-card highlight" onclick="openFullHistoryScreen()">
-        <div class="list-left">
-            <div class="task-icon">📜</div>
-            <div>
-                <div class="list-title">History</div>
-                <div class="list-sub">View full-screen All History & Withdraw History</div>
-            </div>
-        </div>
+        <div class="list-left"><div class="task-icon">📜</div><div><div class="list-title">History</div><div class="list-sub">View full-screen All History & Withdraw History</div></div></div>
         <div class="list-value">OPEN FULL SCREEN →</div>
     </div>
-
     <button class="main-btn btn-connect" onclick="openTokenomicsModal()">📊 VIEW TOKENOMICS</button>
 </section>
+
+<!-- NEW MULTI LEVEL TEAM SCREEN -->
+<div class="team-screen" id="teamScreen">
+    <div class="team-header">
+        <button class="back-btn" onclick="closeTeamScreen()">← Back</button>
+        <strong style="color:var(--gold)">👥 MY TEAM</strong>
+        <button class="back-btn" onclick="loadMyTeam(true)">↻ Refresh</button>
+    </div>
+    <div class="team-body">
+        <div class="team-stats">
+            <div class="team-stat"><span>Total Team</span><strong id="teamTotal">0</strong></div>
+            <div class="team-stat"><span>Total Levels</span><strong id="teamLevels">0</strong></div>
+            <div class="team-stat"><span>Verified</span><strong id="teamVerified">0</strong></div>
+        </div>
+        <input type="search" id="teamSearchInput" class="team-search"
+            placeholder="Search by Telegram ID or Username..."
+            oninput="searchTeamMembers()">
+        <div class="team-search-results" id="teamSearchInfo">Search your complete team</div>
+        <div id="teamMembersContainer">
+            <div class="empty-state">Open Team to load members.</div>
+        </div>
+    </div>
+</div>
 
 <div class="fullscreen-screen" id="fullHistoryScreen">
     <div class="fullscreen-header">
@@ -368,10 +369,8 @@ const firebaseConfig = {
 };
 
 if (!firebase.apps.length) firebase.initializeApp(firebaseConfig);
-
 const db = firebase.firestore();
 const tg = window.Telegram.WebApp;
-
 tg.ready();
 tg.expand();
 
@@ -379,17 +378,14 @@ let ADMIN_WALLET_ADDRESS = "";
 let verifyFeeAmount = 0.1;
 let miningRatePerHour = 0.1;
 let miningRatePerSec = miningRatePerHour / 3600;
-
 let maxSupplyLimit = 0;
 let supplyStopNotice = "Total MTR supply limit has been reached! Mining is now stopped.";
 let globalTotalSupply = 0;
-
 let refTargetsList = [];
 let refCommissionPerUser = 0;
 
 const MINING_DURATION_HOURS = 8;
 const MINING_DURATION_MS = MINING_DURATION_HOURS * 60 * 60 * 1000;
-
 const telegramUser = tg.initDataUnsafe?.user || null;
 
 let userId = telegramUser ? "UID_" + telegramUser.id : localStorage.getItem("mtr_local_uid");
@@ -398,27 +394,29 @@ if (!userId) {
     localStorage.setItem("mtr_local_uid", userId);
 }
 
+const telegramIdNumber = telegramUser ? String(telegramUser.id) : userId.replace(/^UID_/, "");
 let userName = telegramUser ? [telegramUser.first_name, telegramUser.last_name].filter(Boolean).join(" ") : "Master Miner";
 let userUsername = telegramUser?.username ? "@" + telegramUser.username : "@master_miner";
 let userPhotoUrl = telegramUser?.photo_url || "";
 
-function extractReferrerId() {
+let personalReferralCode = "";
+let personalReferralLink = "";
+let referrerId = null;
+let referrerCode = "";
+let incomingReferral = "";
+
+try {
     const params = new URLSearchParams(location.search);
-    const rawRef =
+    incomingReferral = String(
         tg.initDataUnsafe?.start_param ||
         params.get("startapp") ||
         params.get("tgWebAppStartParam") ||
-        params.get("start") ||
-        "";
-
-    const cleaned = decodeURIComponent(String(rawRef).trim());
-    if (!cleaned || cleaned === userId) return null;
-    return cleaned;
+        params.get("start") || ""
+    ).trim();
+    incomingReferral = decodeURIComponent(incomingReferral);
+} catch (e) {
+    incomingReferral = "";
 }
-
-let referrerId = extractReferrerId();
-
-const personalReferralLink = "https://t.me/MTRDex_bot?startapp=" + encodeURIComponent(userId);
 
 let walletConnected = false;
 let connectedWalletAddress = "";
@@ -437,26 +435,25 @@ let maxWithdrawLimit = 1000000;
 let userLoaded = false;
 let walletStatusSequence = 0;
 let isClaimingMining = false;
-
 let activeHistoryFilter = "all";
 let claimActivities = [];
 let withdrawActivities = [];
-
 let miningStartTime = 0;
 let miningEndTime = 0;
+
+/* TEAM VARIABLES */
+let allTeamMembers = [];
+let teamLoading = false;
+let teamLoaded = false;
 
 document.getElementById("headerUserName").textContent = userName;
 document.getElementById("profileName").textContent = userName;
 document.getElementById("profileUsername").textContent = userUsername;
-document.getElementById("profileTelegramId").textContent = userId;
-document.getElementById("refLinkBox").textContent = personalReferralLink;
+document.getElementById("profileTelegramId").textContent = telegramIdNumber;
 
-function applyBanState(bannedStatus) {
-    isBanned = bannedStatus === true;
-    const banEl = document.getElementById("bannedScreen");
-    if (banEl) {
-        banEl.classList.toggle("active", isBanned);
-    }
+function applyBanState(status) {
+    isBanned = status === true;
+    document.getElementById("bannedScreen").classList.toggle("active", isBanned);
 }
 
 function isSupplyLimitReached() {
@@ -480,11 +477,9 @@ function rawToFriendlyAddress(rawAddress, bounceable = false) {
     if (!rawAddress) return "";
     const match = rawAddress.match(/^(-?\d+):([0-9a-fA-F]{64})$/);
     if (!match) return rawAddress;
-
     const workchain = Number(match[1]);
     const hashBytes = match[2].match(/.{2}/g).map(byte => parseInt(byte, 16));
     const addressBytes = [bounceable ? 0x11 : 0x51, workchain & 0xff, ...hashBytes];
-
     let crc = 0x0000;
     for (const byte of addressBytes) {
         crc ^= byte << 8;
@@ -493,23 +488,19 @@ function rawToFriendlyAddress(rawAddress, bounceable = false) {
             crc &= 0xffff;
         }
     }
-    addressBytes.push((crc >> 8) & 0xff);
-    addressBytes.push(crc & 0xff);
-
-    const binary = String.fromCharCode(...addressBytes);
-    return btoa(binary).replace(/\+/g, "-").replace(/\//g, "_").replace(/=/g, "");
-}
-
-function getLiveWalletRawAddress() {
-    return tonConnectUI?.wallet?.account?.address || "";
-}
-
-function getLiveWalletAddress() {
-    const rawAddress = getLiveWalletRawAddress();
-    return rawAddress ? rawToFriendlyAddress(rawAddress, false) : "";
+    addressBytes.push((crc >> 8) & 0xff, crc & 0xff);
+    return btoa(String.fromCharCode(...addressBytes)).replace(/\+/g, "-").replace(/\//g, "_").replace(/=/g, "");
 }
 
 let tonConnectUI = null;
+function getLiveWalletRawAddress() {
+    return tonConnectUI?.wallet?.account?.address || "";
+}
+function getLiveWalletAddress() {
+    const raw = getLiveWalletRawAddress();
+    return raw ? rawToFriendlyAddress(raw, false) : "";
+}
+
 try {
     tonConnectUI = new TON_CONNECT_UI.TonConnectUI({
         manifestUrl: "https://mtrdex-app.vercel.app/tonconnect-manifest.json"
@@ -518,11 +509,12 @@ try {
     tonConnectUI.onStatusChange(async wallet => {
         if (isBanned) return;
         const sequence = ++walletStatusSequence;
+
         if (wallet?.account?.address) {
-            const newRawAddress = wallet.account.address;
-            let newFriendlyAddress;
+            const newRaw = wallet.account.address;
+            let newFriendly;
             try {
-                newFriendlyAddress = rawToFriendlyAddress(newRawAddress, false);
+                newFriendly = rawToFriendlyAddress(newRaw, false);
             } catch (e) {
                 walletConnected = false;
                 connectedWalletAddress = "";
@@ -532,8 +524,8 @@ try {
             }
 
             walletConnected = true;
-            connectedWalletRawAddress = newRawAddress;
-            connectedWalletAddress = newFriendlyAddress;
+            connectedWalletRawAddress = newRaw;
+            connectedWalletAddress = newFriendly;
 
             if (userLoaded) {
                 try {
@@ -545,18 +537,12 @@ try {
 
                     const savedRaw = data.walletRawAddress || "";
                     const savedFriendly = data.walletAddress || "";
-                    const verifiedWalletRaw = data.verifiedWalletRaw || "";
-                    const verifiedWalletFriendly = data.verifiedWalletAddress || "";
+                    const verifiedRaw = data.verifiedWalletRaw || "";
+                    const verifiedFriendly = data.verifiedWalletAddress || "";
+                    const sameSaved = savedRaw === newRaw || savedFriendly === newFriendly;
+                    const sameVerified = verifiedRaw === newRaw || verifiedFriendly === newFriendly;
 
-                    const isSameAsSaved = (savedRaw === newRawAddress || savedFriendly === newFriendlyAddress);
-                    const isSameAsVerifiedBefore = (verifiedWalletRaw === newRawAddress || verifiedWalletFriendly === newFriendlyAddress);
-
-                    if (data.verified === true && (isSameAsSaved || isSameAsVerifiedBefore)) {
-                        isVerified = true;
-                    } else {
-                        isVerified = false;
-                    }
-
+                    isVerified = data.verified === true && (sameSaved || sameVerified);
                     await saveWalletInfo();
                     updateUI();
                 } catch (e) {
@@ -626,13 +612,11 @@ async function disconnectWallet() {
         walletConnected = false;
         connectedWalletAddress = "";
         connectedWalletRawAddress = "";
-
         await db.collection("users").doc(userId).set({
             walletConnected: false,
             walletAddress: "",
             walletRawAddress: ""
         }, { merge: true });
-
         closeWalletModal();
         updateUI();
         alert("Wallet disconnected successfully!");
@@ -643,11 +627,256 @@ async function disconnectWallet() {
 
 async function copyWalletAddress() {
     const address = getLiveWalletAddress();
-    if (!address) {
-        alert("No wallet connected!");
+    if (!address) return alert("No wallet connected!");
+    await copyText(address);
+}
+
+function generateReferralCode() {
+    const chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+    const values = new Uint32Array(6);
+    crypto.getRandomValues(values);
+    let code = "MTR-";
+    for (let i = 0; i < 6; i++) code += chars[values[i] % chars.length];
+    return code;
+}
+
+function updateReferralCodeUI() {
+    const codeBox = document.getElementById("myReferralCode");
+    const profileCode = document.getElementById("profileReferralCode");
+    const linkBox = document.getElementById("refLinkBox");
+
+    if (codeBox) codeBox.textContent = personalReferralCode || "Generating code...";
+    if (profileCode) profileCode.textContent = personalReferralCode || "Generating...";
+    if (linkBox) linkBox.textContent = personalReferralLink || "Generating referral link...";
+
+    const applied = !!referrerId;
+    const applyBox = document.getElementById("applyReferralBox");
+    const appliedBox = document.getElementById("referralAppliedBox");
+    if (applyBox) applyBox.style.display = applied ? "none" : "block";
+    if (appliedBox) appliedBox.style.display = applied ? "block" : "none";
+
+    document.getElementById("profileReferredById").textContent =
+        referrerId ? String(referrerId).replace(/^UID_/, "") : "Not Referred";
+    document.getElementById("profileReferredByCode").textContent =
+        referrerCode || "Not Referred";
+}
+
+async function ensurePersonalReferralCode() {
+    const userRef = db.collection("users").doc(userId);
+
+    try {
+        const userSnap = await userRef.get();
+        if (!userSnap.exists) return;
+
+        let savedCode = userSnap.data().referralCode || "";
+
+        if (savedCode) {
+            const codeRef = db.collection("referralCodes").doc(savedCode);
+            const codeSnap = await codeRef.get();
+
+            if (!codeSnap.exists) {
+                await codeRef.set({
+                    ownerId: userId,
+                    createdAt: firebase.firestore.FieldValue.serverTimestamp()
+                });
+            } else if (codeSnap.data().ownerId !== userId) {
+                savedCode = "";
+            }
+        }
+
+        if (!savedCode) {
+            let generated = false;
+
+            for (let attempt = 0; attempt < 15; attempt++) {
+                const newCode = generateReferralCode();
+                const codeRef = db.collection("referralCodes").doc(newCode);
+
+                const result = await db.runTransaction(async transaction => {
+                    const latestUser = await transaction.get(userRef);
+                    const existingCode = await transaction.get(codeRef);
+
+                    if (!latestUser.exists) throw new Error("USER_NOT_FOUND");
+
+                    const currentCode = latestUser.data().referralCode;
+                    if (currentCode) return currentCode;
+                    if (existingCode.exists) return null;
+
+                    transaction.set(codeRef, {
+                        ownerId: userId,
+                        createdAt: firebase.firestore.FieldValue.serverTimestamp()
+                    });
+
+                    transaction.set(userRef, { referralCode: newCode }, { merge: true });
+                    return newCode;
+                });
+
+                if (result) {
+                    savedCode = result;
+                    generated = true;
+                    break;
+                }
+            }
+
+            if (!generated && !savedCode) throw new Error("CODE_GENERATION_FAILED");
+        }
+
+        personalReferralCode = savedCode;
+        personalReferralLink = "https://t.me/MTRDex_bot?startapp=" + encodeURIComponent(savedCode);
+
+        const freshUser = await userRef.get();
+        if (freshUser.exists) {
+            const data = freshUser.data();
+            referrerId = data.referredBy || null;
+            referrerCode = data.referredByReferralCode || "";
+
+            if (referrerId && !referrerCode) {
+                const ownerSnap = await db.collection("users").doc(referrerId).get();
+                if (ownerSnap.exists) {
+                    referrerCode = ownerSnap.data().referralCode || "";
+                    await userRef.set({ referredByReferralCode: referrerCode }, { merge: true });
+                }
+            }
+        }
+
+        updateReferralCodeUI();
+
+        const input = document.getElementById("referralInput");
+        if (input && !referrerId && incomingReferral) {
+            const candidate = incomingReferral.trim();
+            if (/^MTR-[A-HJ-NP-Z2-9]{6}$/i.test(candidate) ||
+                /^\d{5,20}$/.test(candidate) ||
+                /^UID_\d{5,20}$/.test(candidate)) {
+                input.value = candidate;
+            }
+        }
+
+    } catch (error) {
+        console.error("Referral code setup error:", error);
+        const codeBox = document.getElementById("myReferralCode");
+        if (codeBox) codeBox.textContent = "Unable to generate code. Check Firestore permissions.";
+    }
+}
+
+async function copyMyReferralCode() {
+    if (!personalReferralCode) return alert("Referral code is not ready yet.");
+    await copyText(personalReferralCode);
+}
+
+function normalizeReferralInput(value) {
+    const text = String(value || "").trim().toUpperCase();
+
+    if (/^MTR-[A-HJ-NP-Z2-9]{6}$/.test(text)) {
+        return { type: "code", value: text };
+    }
+
+    if (/^UID_\d{5,20}$/.test(text)) {
+        return { type: "id", value: text };
+    }
+
+    if (/^\d{5,20}$/.test(text)) {
+        return { type: "id", value: "UID_" + text };
+    }
+
+    return null;
+}
+
+async function applyReferral() {
+    if (isBanned || !userLoaded) return;
+
+    const input = document.getElementById("referralInput");
+    const button = document.getElementById("applyReferralBtn");
+    const normalized = normalizeReferralInput(input.value);
+
+    if (!normalized) {
+        alert("Enter a valid MTR referral code or Telegram ID number.");
         return;
     }
-    await copyText(address);
+
+    if (referrerId) {
+        updateReferralCodeUI();
+        alert("You have already applied a referral.");
+        return;
+    }
+
+    if (normalized.type === "code" && normalized.value === personalReferralCode) {
+        alert("You cannot use your own referral code.");
+        return;
+    }
+
+    if (normalized.type === "id" && normalized.value === userId) {
+        alert("You cannot use your own Telegram ID.");
+        return;
+    }
+
+    button.disabled = true;
+    button.textContent = "APPLYING...";
+
+    try {
+        const userRef = db.collection("users").doc(userId);
+        let ownerId = normalized.value;
+        let appliedCode = "";
+
+        if (normalized.type === "code") {
+            const codeSnap = await db.collection("referralCodes").doc(normalized.value).get();
+            if (!codeSnap.exists) throw new Error("INVALID_CODE");
+            ownerId = codeSnap.data().ownerId;
+            appliedCode = normalized.value;
+        }
+
+        if (!ownerId || ownerId === userId) throw new Error("SELF_REFERRAL");
+
+        const ownerRef = db.collection("users").doc(ownerId);
+
+        await db.runTransaction(async transaction => {
+            const currentUserSnap = await transaction.get(userRef);
+            const ownerSnap = await transaction.get(ownerRef);
+
+            if (!currentUserSnap.exists) throw new Error("USER_NOT_FOUND");
+            if (!ownerSnap.exists) throw new Error("INVALID_OWNER");
+
+            const currentData = currentUserSnap.data();
+            if (currentData.referredBy) throw new Error("ALREADY_USED");
+
+            const ownerData = ownerSnap.data();
+            const ownerCode = ownerData.referralCode || appliedCode;
+
+            if (ownerId === userId) throw new Error("SELF_REFERRAL");
+
+            transaction.set(userRef, {
+                referredBy: ownerId,
+                referredByTelegramId: ownerId.replace(/^UID_/, ""),
+                referredByReferralCode: ownerCode,
+                referralCodeUsed: appliedCode || "",
+                referralAppliedAt: firebase.firestore.FieldValue.serverTimestamp()
+            }, { merge: true });
+        });
+
+        referrerId = ownerId;
+        const ownerData = (await ownerRef.get()).data() || {};
+        referrerCode = ownerData.referralCode || appliedCode;
+
+        input.value = "";
+        updateReferralCodeUI();
+        alert("Referral applied successfully!");
+
+        loadReferralStats();
+
+    } catch (error) {
+        console.error("Referral apply error:", error);
+
+        const messages = {
+            INVALID_CODE: "This referral code does not exist.",
+            USER_NOT_FOUND: "Your user account was not found.",
+            INVALID_OWNER: "This Telegram ID or referral owner does not exist.",
+            ALREADY_USED: "You have already applied a referral.",
+            SELF_REFERRAL: "You cannot refer yourself."
+        };
+
+        alert(messages[error.message] || "Referral could not be applied. Check Firestore permissions.");
+    } finally {
+        button.disabled = false;
+        button.textContent = "APPLY REFERRAL";
+    }
 }
 
 async function verifyAccountWithFee() {
@@ -657,28 +886,14 @@ async function verifyAccountWithFee() {
         await handleWalletClick();
         return;
     }
-
-    if (isVerified) {
-        alert("Your account is already verified!");
-        return;
-    }
-
-    if (!ADMIN_WALLET_ADDRESS) {
-        alert("Admin receiving wallet address is not configured yet. Please check back later.");
-        return;
-    }
+    if (isVerified) return alert("Your account is already verified!");
+    if (!ADMIN_WALLET_ADDRESS) return alert("Admin receiving wallet address is not configured yet.");
 
     try {
         const nanoAmount = Math.round(verifyFeeAmount * 1e9).toString();
-
         const transaction = {
             validUntil: Math.floor(Date.now() / 1000) + 600,
-            messages: [
-                {
-                    address: ADMIN_WALLET_ADDRESS,
-                    amount: nanoAmount
-                }
-            ]
+            messages: [{ address: ADMIN_WALLET_ADDRESS, amount: nanoAmount }]
         };
 
         alert(`Sending ${verifyFeeAmount} TON verification transaction. Please confirm in your wallet app.`);
@@ -688,10 +903,10 @@ async function verifyAccountWithFee() {
             isVerified = true;
             const currentRaw = getLiveWalletRawAddress();
             const currentFriendly = getLiveWalletAddress();
-
             const now = Date.now();
+
             miningStartTime = isSupplyLimitReached() ? 0 : now;
-            miningEndTime = isSupplyLimitReached() ? 0 : (now + MINING_DURATION_MS);
+            miningEndTime = isSupplyLimitReached() ? 0 : now + MINING_DURATION_MS;
 
             await db.collection("users").doc(userId).set({
                 verified: true,
@@ -700,24 +915,23 @@ async function verifyAccountWithFee() {
                 walletConnected: true,
                 walletAddress: currentFriendly,
                 walletRawAddress: currentRaw,
-                miningStartTime: miningStartTime,
-                miningEndTime: miningEndTime,
+                miningStartTime,
+                miningEndTime,
                 verifiedAt: firebase.firestore.FieldValue.serverTimestamp()
             }, { merge: true });
 
             if (referrerId && refCommissionPerUser > 0) {
-                const refDocRef = db.collection("users").doc(referrerId);
-                const refSnap = await refDocRef.get();
-                if (refSnap.exists) {
-                    const currentRefReward = Number(refSnap.data().refReward || 0);
-                    await refDocRef.set({
-                        refReward: currentRefReward + refCommissionPerUser
-                    }, { merge: true });
-                }
+                const refDoc = db.collection("users").doc(referrerId);
+                await db.runTransaction(async transaction => {
+                    const snap = await transaction.get(refDoc);
+                    if (!snap.exists) return;
+                    const currentReward = Number(snap.data().refReward || 0);
+                    transaction.set(refDoc, { refReward: currentReward + refCommissionPerUser }, { merge: true });
+                });
             }
 
             updateUI();
-            alert(`Account verified successfully!`);
+            alert("Account verified successfully!");
         }
     } catch (error) {
         console.error("Verification transaction failed:", error);
@@ -732,12 +946,8 @@ async function recordClaimActivity(category, title, amount) {
     const timestampMs = Date.now();
     const localItem = {
         id: "local_" + timestampMs + "_" + Math.random().toString(36).slice(2, 7),
-        kind: "claim",
-        category: category,
-        title: title,
-        amount: numericAmount,
-        status: "CLAIMED",
-        timestampMs: timestampMs
+        kind: "claim", category, title, amount: numericAmount,
+        status: "CLAIMED", timestampMs
     };
 
     claimActivities = [localItem, ...claimActivities];
@@ -745,13 +955,8 @@ async function recordClaimActivity(category, title, amount) {
 
     try {
         await db.collection("activity_history").add({
-            userId: userId,
-            kind: "claim",
-            category: category,
-            title: title,
-            amount: numericAmount,
-            status: "CLAIMED",
-            timestampMs: timestampMs,
+            userId, kind: "claim", category, title,
+            amount: numericAmount, status: "CLAIMED", timestampMs,
             createdAt: firebase.firestore.FieldValue.serverTimestamp()
         });
     } catch (e) {
@@ -770,12 +975,7 @@ function getTimestampMs(val) {
 function formatHistoryDate(ms) {
     if (!ms) return "Just now";
     try {
-        return new Date(ms).toLocaleString([], {
-            month: "short",
-            day: "numeric",
-            hour: "2-digit",
-            minute: "2-digit"
-        });
+        return new Date(ms).toLocaleString([], { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" });
     } catch (e) {
         return "Recorded";
     }
@@ -791,10 +991,7 @@ function openFullHistoryScreen() {
 }
 
 function closeFullHistoryScreen() {
-    const screen = document.getElementById("fullHistoryScreen");
-    if (screen) {
-        screen.classList.remove("active");
-    }
+    document.getElementById("fullHistoryScreen")?.classList.remove("active");
 }
 
 function setHistoryFilter(filter) {
@@ -804,15 +1001,14 @@ function setHistoryFilter(filter) {
     const titleEl = document.getElementById("fullHistoryTitle");
 
     if (filter === "withdraw") {
-        if (allBtn) allBtn.classList.remove("active");
-        if (withdrawBtn) withdrawBtn.classList.add("active");
-        if (titleEl) titleEl.textContent = "Withdraw History";
+        allBtn.classList.remove("active");
+        withdrawBtn.classList.add("active");
+        titleEl.textContent = "Withdraw History";
     } else {
-        if (withdrawBtn) withdrawBtn.classList.remove("active");
-        if (allBtn) allBtn.classList.add("active");
-        if (titleEl) titleEl.textContent = "All History";
+        withdrawBtn.classList.remove("active");
+        allBtn.classList.add("active");
+        titleEl.textContent = "Full History";
     }
-
     renderHistoryList();
 }
 
@@ -827,7 +1023,7 @@ function renderHistoryList() {
 
     items.sort((a, b) => (b.timestampMs || 0) - (a.timestampMs || 0));
 
-    if (items.length === 0) {
+    if (!items.length) {
         container.innerHTML = activeHistoryFilter === "withdraw"
             ? '<div class="empty-state">No withdrawal history yet.</div>'
             : '<div class="empty-state">No claim or withdrawal history yet.</div>';
@@ -837,54 +1033,41 @@ function renderHistoryList() {
     items.forEach(item => {
         const card = document.createElement("div");
         card.className = "list-card";
-
         const left = document.createElement("div");
         left.className = "list-left";
-
         const icon = document.createElement("div");
         icon.className = "task-icon";
-
         const info = document.createElement("div");
         const title = document.createElement("div");
         title.className = "list-title";
-
         const sub = document.createElement("div");
         sub.className = "list-sub";
-
-        const rightSide = document.createElement("div");
-        rightSide.style.textAlign = "right";
-
-        const statusBadge = document.createElement("div");
+        const right = document.createElement("div");
+        right.style.textAlign = "right";
+        const status = document.createElement("div");
 
         if (item.kind === "withdraw") {
             icon.textContent = "📤";
             title.textContent = "-" + Number(item.amount || 0).toFixed(4) + " MTR (Withdraw)";
-            const walletShort = item.walletAddress
+            const shortWallet = item.walletAddress
                 ? item.walletAddress.slice(0, 6) + "..." + item.walletAddress.slice(-4)
                 : "Wallet";
-            sub.textContent = walletShort + " • " + formatHistoryDate(item.timestampMs);
-
+            sub.textContent = shortWallet + " • " + formatHistoryDate(item.timestampMs);
             const st = (item.status || "pending").toLowerCase();
-            statusBadge.textContent = st.toUpperCase();
-            if (st === "approved") statusBadge.className = "status-approved";
-            else if (st === "rejected") statusBadge.className = "status-rejected";
-            else statusBadge.className = "status-pending";
+            status.textContent = st.toUpperCase();
+            status.className = st === "approved" ? "status-approved" : st === "rejected" ? "status-rejected" : "status-pending";
         } else {
-            if (item.category === "mining") icon.textContent = "⛏️";
-            else if (item.category === "task") icon.textContent = "📋";
-            else icon.textContent = "🎁";
-
+            icon.textContent = item.category === "mining" ? "⛏️" : item.category === "task" ? "📋" : "🎁";
             title.textContent = "+" + Number(item.amount || 0).toFixed(8) + " MTR (" + (item.title || "Claim") + ")";
             sub.textContent = formatHistoryDate(item.timestampMs);
-            statusBadge.textContent = "CLAIMED";
-            statusBadge.className = "status-claim";
+            status.textContent = "CLAIMED";
+            status.className = "status-claim";
         }
 
         info.append(title, sub);
         left.append(icon, info);
-        rightSide.append(statusBadge);
-
-        card.append(left, rightSide);
+        right.append(status);
+        card.append(left, right);
         container.append(card);
     });
 }
@@ -895,41 +1078,29 @@ function startHistoryListeners() {
         snapshot.forEach(doc => {
             const d = doc.data();
             list.push({
-                id: doc.id,
-                kind: "claim",
-                category: d.category || "mining",
-                title: d.title || "Token Claim",
-                amount: Number(d.amount || 0),
+                id: doc.id, kind: "claim", category: d.category || "mining",
+                title: d.title || "Token Claim", amount: Number(d.amount || 0),
                 status: d.status || "CLAIMED",
                 timestampMs: Number(d.timestampMs || getTimestampMs(d.createdAt))
             });
         });
         claimActivities = list;
         renderHistoryList();
-    }, err => {
-        console.error("Claim history listener error:", err);
-        renderHistoryList();
-    });
+    }, err => console.error("Claim history listener error:", err));
 
     db.collection("withdrawals").where("userId", "==", userId).onSnapshot(snapshot => {
         const list = [];
         snapshot.forEach(doc => {
             const d = doc.data();
             list.push({
-                id: doc.id,
-                kind: "withdraw",
-                amount: Number(d.amount || 0),
-                walletAddress: d.walletAddress || "",
-                status: d.status || "pending",
+                id: doc.id, kind: "withdraw", amount: Number(d.amount || 0),
+                walletAddress: d.walletAddress || "", status: d.status || "pending",
                 timestampMs: Number(d.timestampMs || getTimestampMs(d.createdAt))
             });
         });
         withdrawActivities = list;
         renderHistoryList();
-    }, err => {
-        console.error("Withdraw history listener error:", err);
-        renderHistoryList();
-    });
+    }, err => console.error("Withdraw history listener error:", err));
 }
 
 function startRealtimeUserBanListener() {
@@ -937,17 +1108,21 @@ function startRealtimeUserBanListener() {
         if (!doc.exists) return;
         const data = doc.data();
         applyBanState(data.banned === true);
+
         if (!isBanned && !isClaimingMining) {
             if (data.balance !== undefined) totalBalance = Number(data.balance);
             miningStartTime = Number(data.miningStartTime || 0);
             miningEndTime = Number(data.miningEndTime || 0);
+            if (data.refReward !== undefined) refRewardBalance = Number(data.refReward || 0);
+            updateReferralTargetUI();
             updateUI();
         }
-    });
+    }, err => console.error("User listener error:", err));
 }
 
 async function loadUserData() {
     const userRef = db.collection("users").doc(userId);
+
     try {
         const doc = await userRef.get();
         const liveRaw = getLiveWalletRawAddress();
@@ -962,16 +1137,13 @@ async function loadUserData() {
                 miningStartTime = Number(data.miningStartTime || 0);
                 miningEndTime = Number(data.miningEndTime || 0);
             }
+
             refRewardBalance = Number(data.refReward || 0);
             claimedTargets = Array.isArray(data.claimedTargets) ? data.claimedTargets : [];
             completedTasks = data.tasks || {};
             visitedTasks = data.visitedTasks || {};
-
-            let finalReferredBy = data.referredBy || null;
-            if (!finalReferredBy && referrerId && referrerId !== userId) {
-                finalReferredBy = referrerId;
-            }
-            referrerId = finalReferredBy;
+            referrerId = data.referredBy || null;
+            referrerCode = data.referredByReferralCode || "";
 
             if (!isBanned) {
                 if (liveRaw) {
@@ -981,25 +1153,21 @@ async function loadUserData() {
 
                     const savedRaw = data.walletRawAddress || "";
                     const savedFriendly = data.walletAddress || "";
-                    const verifiedWalletRaw = data.verifiedWalletRaw || "";
-                    const verifiedWalletFriendly = data.verifiedWalletAddress || "";
+                    const verifiedRaw = data.verifiedWalletRaw || "";
+                    const verifiedFriendly = data.verifiedWalletAddress || "";
+                    const sameSaved = savedRaw === liveRaw || savedFriendly === liveFriendly;
+                    const sameVerified = verifiedRaw === liveRaw || verifiedFriendly === liveFriendly;
 
-                    const isSameAsSaved = (savedRaw === liveRaw || savedFriendly === liveFriendly);
-                    const isSameAsVerifiedBefore = (verifiedWalletRaw === liveRaw || verifiedWalletFriendly === liveFriendly);
-
-                    isVerified = data.verified === true && (isSameAsSaved || isSameAsVerifiedBefore);
+                    isVerified = data.verified === true && (sameSaved || sameVerified);
 
                     await userRef.set({
                         walletConnected: true,
                         walletAddress: liveFriendly,
                         walletRawAddress: liveRaw,
                         verified: isVerified,
-                        verifiedWalletRaw: verifiedWalletRaw || (isVerified ? liveRaw : ""),
-                        verifiedWalletAddress: verifiedWalletFriendly || (isVerified ? liveFriendly : ""),
-                        userId: userId,
-                        name: userName,
-                        username: userUsername,
-                        referredBy: finalReferredBy,
+                        verifiedWalletRaw: verifiedRaw || (isVerified ? liveRaw : ""),
+                        verifiedWalletAddress: verifiedFriendly || (isVerified ? liveFriendly : ""),
+                        userId, name: userName, username: userUsername,
                         lastSeen: firebase.firestore.FieldValue.serverTimestamp()
                     }, { merge: true });
                 } else {
@@ -1009,10 +1177,7 @@ async function loadUserData() {
                     isVerified = data.verified === true;
 
                     await userRef.set({
-                        userId: userId,
-                        name: userName,
-                        username: userUsername,
-                        referredBy: finalReferredBy,
+                        userId, name: userName, username: userUsername,
                         lastSeen: firebase.firestore.FieldValue.serverTimestamp()
                     }, { merge: true });
                 }
@@ -1025,30 +1190,30 @@ async function loadUserData() {
             applyBanState(false);
 
             await userRef.set({
-                userId: userId,
-                name: userName,
-                username: userUsername,
-                balance: 0.00000001,
-                refReward: 0,
-                claimedTargets: [],
-                verified: false,
-                banned: false,
-                walletConnected: walletConnected,
-                walletAddress: connectedWalletAddress,
+                userId, name: userName, username: userUsername,
+                balance: 0.00000001, refReward: 0, claimedTargets: [],
+                verified: false, banned: false,
+                walletConnected, walletAddress: connectedWalletAddress,
                 walletRawAddress: connectedWalletRawAddress,
-                tasks: {},
-                visitedTasks: {},
-                miningStartTime: 0,
-                miningEndTime: 0,
-                referredBy: referrerId || null,
+                tasks: {}, visitedTasks: {},
+                miningStartTime: 0, miningEndTime: 0,
+                referredBy: null,
                 createdAt: firebase.firestore.FieldValue.serverTimestamp()
             });
             totalBalance = 0.00000001;
             miningStartTime = 0;
             miningEndTime = 0;
+            referrerId = null;
+            referrerCode = "";
         }
 
         userLoaded = true;
+
+        if (!isBanned) {
+            await ensurePersonalReferralCode();
+        }
+
+        updateReferralCodeUI();
         startRealtimeUserBanListener();
         updateUI();
         loadTasks();
@@ -1056,11 +1221,11 @@ async function loadUserData() {
         loadReferralStats();
         startHistoryListeners();
 
-        if (!isBanned && getLiveWalletRawAddress()) {
-            await saveWalletInfo();
-        }
+        if (!isBanned && getLiveWalletRawAddress()) await saveWalletInfo();
+
     } catch (e) {
         console.error("User load error:", e);
+        alert("Unable to load your account. Please check your internet connection and Firestore permissions.");
     }
 }
 
@@ -1069,52 +1234,32 @@ loadUserData();
 db.collection("settings").doc("config").onSnapshot(doc => {
     if (!doc.exists) return;
     const data = doc.data();
+
     isWithdrawOpen = data.withdrawOpen === true;
     minWithdrawLimit = Number(data.minWithdraw || 10);
-    if (data.maxWithdraw !== undefined) {
-        maxWithdrawLimit = Number(data.maxWithdraw);
-    }
+    if (data.maxWithdraw !== undefined) maxWithdrawLimit = Number(data.maxWithdraw);
 
     maxSupplyLimit = Number(data.maxSupplyLimit || 0);
-    if (data.supplyStopNotice) {
-        supplyStopNotice = data.supplyStopNotice;
-    }
+    if (data.supplyStopNotice) supplyStopNotice = data.supplyStopNotice;
 
     if (Array.isArray(data.refTargets) && data.refTargets.length > 0) {
-        refTargetsList = data.refTargets.map(t => ({
-            target: Number(t.target),
-            reward: Number(t.reward)
-        }));
+        refTargetsList = data.refTargets.map(t => ({ target: Number(t.target), reward: Number(t.reward) }));
     } else if (data.refTarget !== undefined && data.refTargetReward !== undefined && Number(data.refTarget) > 0) {
-        refTargetsList = [{
-            target: Number(data.refTarget),
-            reward: Number(data.refTargetReward)
-        }];
+        refTargetsList = [{ target: Number(data.refTarget), reward: Number(data.refTargetReward) }];
     } else {
         refTargetsList = [];
     }
 
-    if (data.refCommission !== undefined) {
-        refCommissionPerUser = Number(data.refCommission);
-    }
-
-    const minLabel = document.getElementById("withdrawMinLabel");
-    if (minLabel) {
-        minLabel.textContent = `Min: ${minWithdrawLimit} MTR • Max: ${maxWithdrawLimit} MTR`;
-    }
-
+    if (data.refCommission !== undefined) refCommissionPerUser = Number(data.refCommission);
     if (data.miningRate !== undefined) {
         miningRatePerHour = Number(data.miningRate);
         miningRatePerSec = miningRatePerHour / 3600;
     }
+    if (data.verifyFee !== undefined) verifyFeeAmount = Number(data.verifyFee);
+    if (data.adminWallet !== undefined) ADMIN_WALLET_ADDRESS = data.adminWallet;
 
-    if (data.verifyFee !== undefined) {
-        verifyFeeAmount = Number(data.verifyFee);
-    }
-
-    if (data.adminWallet !== undefined) {
-        ADMIN_WALLET_ADDRESS = data.adminWallet;
-    }
+    const minLabel = document.getElementById("withdrawMinLabel");
+    if (minLabel) minLabel.textContent = `Min: ${minWithdrawLimit} MTR • Max: ${maxWithdrawLimit} MTR`;
 
     if (data.maintenanceMode === true) {
         document.body.innerHTML = `
@@ -1124,6 +1269,7 @@ db.collection("settings").doc("config").onSnapshot(doc => {
             <p style="color:#8996AA;line-height:1.7">${escapeHTML(data.maintenanceNotice || "We will be back soon.")}</p>
         </div>`;
     }
+
     updateReferralTargetUI();
     updateUI();
 });
@@ -1134,7 +1280,7 @@ function loadTasks() {
     db.collection("tasks").onSnapshot(snapshot => {
         latestTasksSnapshot = snapshot;
         renderTasksList();
-    });
+    }, err => console.error("Tasks listener error:", err));
 }
 
 function renderTasksList() {
@@ -1155,29 +1301,23 @@ function renderTasksList() {
 
         const card = document.createElement("div");
         card.className = "list-card";
-
         const left = document.createElement("div");
         left.className = "list-left";
-
         const icon = document.createElement("div");
         icon.className = "task-icon";
         icon.textContent = task.icon || "📋";
-
         const info = document.createElement("div");
         const title = document.createElement("div");
         title.className = "list-title";
         title.textContent = task.title || "Task";
-
         const reward = document.createElement("div");
         reward.className = "list-sub";
         reward.style.color = "var(--gold)";
         reward.textContent = "+" + Number(task.reward || 0) + " MTR";
-
         info.append(title, reward);
         left.append(icon, info);
 
         const button = document.createElement("button");
-
         if (claimed) {
             button.className = "task-btn claimed";
             button.textContent = "Claimed ✓";
@@ -1185,12 +1325,10 @@ function renderTasksList() {
         } else if (visited) {
             button.className = "task-btn claim-ready";
             button.textContent = "Claim";
-            button.disabled = false;
             button.onclick = () => claimTaskReward(taskId, task);
         } else {
             button.className = "task-btn";
             button.textContent = "Start";
-            button.disabled = false;
             button.onclick = () => openTaskLink(taskId, task);
         }
 
@@ -1201,50 +1339,37 @@ function renderTasksList() {
 
 async function openTaskLink(taskId, task) {
     if (isBanned) return;
-    if (task.link && /^https:\/\//i.test(task.link)) {
-        tg.openLink(task.link);
-    } else if (task.link) {
-        window.open(task.link, "_blank");
-    }
+    if (task.link && /^https:\/\//i.test(task.link)) tg.openLink(task.link);
+    else if (task.link) window.open(task.link, "_blank");
 
     visitedTasks[taskId] = true;
     renderTasksList();
-
     try {
-        await db.collection("users").doc(userId).set({
-            visitedTasks: visitedTasks
-        }, { merge: true });
+        await db.collection("users").doc(userId).set({ visitedTasks }, { merge: true });
     } catch (e) {}
 }
 
 async function claimTaskReward(taskId, task) {
     if (isBanned || completedTasks[taskId] === true) return;
-
-    const taskReward = Number(task.reward || 0);
+    const reward = Number(task.reward || 0);
     completedTasks[taskId] = true;
-    totalBalance += taskReward;
+    totalBalance += reward;
 
     try {
         await db.collection("users").doc(userId).set({
-            balance: totalBalance,
-            tasks: completedTasks,
-            visitedTasks: visitedTasks
+            balance: totalBalance, tasks: completedTasks, visitedTasks
         }, { merge: true });
-
-        await recordClaimActivity("task", task.title || "Task Reward", taskReward);
-
+        await recordClaimActivity("task", task.title || "Task Reward", reward);
         updateUI();
         renderTasksList();
-        alert(`🎉 Task claimed! Earned +${taskReward} MTR.`);
+        alert(`🎉 Task claimed! Earned +${reward} MTR.`);
     } catch (e) {
         alert("Failed to claim task reward.");
     }
 }
 
 document.addEventListener("visibilitychange", () => {
-    if (!document.hidden) {
-        renderTasksList();
-    }
+    if (!document.hidden) renderTasksList();
 });
 
 function loadLeaderboard() {
@@ -1253,9 +1378,7 @@ function loadLeaderboard() {
         container.replaceChildren();
 
         let sumSupply = 0;
-        snapshot.forEach(doc => {
-            sumSupply += Number(doc.data().balance || 0);
-        });
+        snapshot.forEach(doc => sumSupply += Number(doc.data().balance || 0));
         globalTotalSupply = sumSupply;
         updateUI();
 
@@ -1266,11 +1389,8 @@ function loadLeaderboard() {
         snapshot.forEach(doc => {
             const d = doc.data();
             const isMe = doc.id === userId;
-            const userClaimedBalance = Number(d.balance || 0);
-
-            if (userClaimedBalance <= 0.00000001 && !isMe) {
-                return;
-            }
+            const balanceValue = Number(d.balance || 0);
+            if (balanceValue <= 0.00000001 && !isMe) return;
 
             if (isMe) {
                 myRank = "#" + rank;
@@ -1279,42 +1399,35 @@ function loadLeaderboard() {
 
             const card = document.createElement("div");
             card.className = "list-card" + (isMe ? " highlight" : "");
-
             const left = document.createElement("div");
             left.className = "list-left";
-
             const icon = document.createElement("div");
             icon.className = "task-icon";
             icon.textContent = "#" + rank;
-
             const info = document.createElement("div");
             const name = document.createElement("div");
             name.className = "list-title";
             name.textContent = (d.name || "Miner") + (isMe ? " (You)" : "");
-
             const username = document.createElement("div");
             username.className = "list-sub";
             username.textContent = d.username || "@miner";
-
             info.append(name, username);
             left.append(icon, info);
 
             const balance = document.createElement("div");
             balance.className = "list-value";
-            balance.textContent = userClaimedBalance.toFixed(8) + " MTR";
-
+            balance.textContent = balanceValue.toFixed(8) + " MTR";
             card.append(left, balance);
             container.append(card);
-
             rank++;
             renderedCount++;
         });
 
         document.getElementById("myRank").textContent = myRank;
-        if (renderedCount === 0) {
+        if (!renderedCount) {
             container.innerHTML = '<div class="empty-state">No active miners on leaderboard yet. Claim tokens to rank up!</div>';
         }
-    });
+    }, err => console.error("Leaderboard listener error:", err));
 }
 
 function loadReferralStats() {
@@ -1331,60 +1444,46 @@ function loadReferralStats() {
         document.getElementById("verifiedRef").textContent = verified;
         document.getElementById("unverifiedRef").textContent = total - verified;
 
-        db.collection("users").doc(userId).set({
-            referralCount: total
-        }, { merge: true }).catch(() => {});
-
+        db.collection("users").doc(userId).set({ referralCount: total }, { merge: true }).catch(() => {});
         updateReferralTargetUI();
-    }, err => {
-        console.error("Referral listener error:", err);
-    });
+    }, err => console.error("Referral listener error:", err));
 }
 
 function getUnlockedTargetReward() {
-    let unlockedSum = 0;
+    let sum = 0;
     refTargetsList.forEach(item => {
         const key = `${item.target}_${item.reward}`;
-        if (currentVerifiedReferrals >= item.target && !claimedTargets.includes(key)) {
-            unlockedSum += Number(item.reward || 0);
-        }
+        if (currentVerifiedReferrals >= item.target && !claimedTargets.includes(key)) sum += Number(item.reward || 0);
     });
-    return unlockedSum;
+    return sum;
 }
 
 function updateReferralTargetUI() {
     const box = document.getElementById("refTargetBox");
     if (box) {
         if (!refTargetsList.length) {
-            box.innerHTML = `🎯 No referral targets set by admin yet.`;
+            box.innerHTML = "🎯 No referral targets set by admin yet.";
         } else {
             box.innerHTML = refTargetsList.map(item => {
                 const key = `${item.target}_${item.reward}`;
-                const isClaimed = claimedTargets.includes(key);
-                const isUnlocked = currentVerifiedReferrals >= item.target;
-
-                let statusBadge = `<span style="color:var(--muted);">${currentVerifiedReferrals}/${item.target}</span>`;
-                if (isClaimed) statusBadge = `<span style="color:var(--green);font-weight:700;">Claimed ✓</span>`;
-                else if (isUnlocked) statusBadge = `<span style="color:var(--gold);font-weight:700;">Ready 🎁</span>`;
-
-                return `
-                    <div class="target-item">
-                        <div>🎯 <strong>${item.target}</strong> Verified Refs = <strong style="color:var(--gold);">${item.reward} MTR</strong></div>
-                        <div>${statusBadge}</div>
-                    </div>
-                `;
+                const claimed = claimedTargets.includes(key);
+                const unlocked = currentVerifiedReferrals >= item.target;
+                let badge = `<span style="color:var(--muted);">${currentVerifiedReferrals}/${item.target}</span>`;
+                if (claimed) badge = `<span style="color:var(--green);font-weight:700;">Claimed ✓</span>`;
+                else if (unlocked) badge = `<span style="color:var(--gold);font-weight:700;">Ready 🎁</span>`;
+                return `<div class="target-item"><div>🎯 <strong>${item.target}</strong> Verified Refs = <strong style="color:var(--gold);">${item.reward} MTR</strong></div><div>${badge}</div></div>`;
             }).join("");
         }
     }
 
-    const totalClaimable = refRewardBalance + getUnlockedTargetReward();
-    document.getElementById("refRewardBalance").textContent = totalClaimable.toFixed(8);
+    const claimable = refRewardBalance + getUnlockedTargetReward();
+    document.getElementById("refRewardBalance").textContent = claimable.toFixed(8);
 }
 
 async function claimRefReward() {
     if (isBanned) return;
-    const unlockedReward = getUnlockedTargetReward();
-    const totalClaimable = refRewardBalance + unlockedReward;
+    const unlocked = getUnlockedTargetReward();
+    const totalClaimable = refRewardBalance + unlocked;
 
     if (totalClaimable <= 0) {
         alert("Reach a referral target or earn referral commission to claim reward!");
@@ -1394,38 +1493,37 @@ async function claimRefReward() {
     const updatedClaimed = [...claimedTargets];
     refTargetsList.forEach(item => {
         const key = `${item.target}_${item.reward}`;
-        if (currentVerifiedReferrals >= item.target && !updatedClaimed.includes(key)) {
-            updatedClaimed.push(key);
-        }
+        if (currentVerifiedReferrals >= item.target && !updatedClaimed.includes(key)) updatedClaimed.push(key);
     });
 
+    const oldBalance = totalBalance;
     totalBalance += totalClaimable;
     refRewardBalance = 0;
     claimedTargets = updatedClaimed;
 
     try {
         await db.collection("users").doc(userId).set({
-            balance: totalBalance,
-            refReward: 0,
-            claimedTargets: claimedTargets
+            balance: totalBalance, refReward: 0, claimedTargets
         }, { merge: true });
-
         await recordClaimActivity("referral", "Referral Reward", totalClaimable);
-
         updateReferralTargetUI();
         updateUI();
         alert(`Successfully claimed ${totalClaimable.toFixed(8)} MTR referral reward!`);
     } catch (e) {
+        totalBalance = oldBalance;
         alert("Failed to claim referral reward.");
     }
 }
 
 function copyRefLink() {
+    if (!personalReferralLink) return alert("Referral link is not ready yet.");
     copyText(personalReferralLink);
 }
 
 function shareRefLink() {
-    const url = "https://t.me/share/url?url=" + encodeURIComponent(personalReferralLink) + "&text=" + encodeURIComponent("Join MTR Master Mining!");
+    if (!personalReferralLink) return alert("Referral link is not ready yet.");
+    const url = "https://t.me/share/url?url=" + encodeURIComponent(personalReferralLink) +
+        "&text=" + encodeURIComponent("Join MTR Master Mining using my referral link!");
     tg.openTelegramLink(url);
 }
 
@@ -1451,43 +1549,35 @@ async function handleMainAction() {
 
     isClaimingMining = true;
     const now = Date.now();
-    const elapsedSec = miningStartTime > 0 ? Math.max(0, (now - miningStartTime) / 1000) : 0;
-    let currentMined = Math.min(miningRatePerHour * MINING_DURATION_HOURS, elapsedSec * miningRatePerSec);
+    const elapsed = miningStartTime > 0 ? Math.max(0, (now - miningStartTime) / 1000) : 0;
+    let mined = Math.min(miningRatePerHour * MINING_DURATION_HOURS, elapsed * miningRatePerSec);
 
-    if (maxSupplyLimit > 0 && globalTotalSupply + currentMined > maxSupplyLimit) {
-        currentMined = Math.max(0, maxSupplyLimit - globalTotalSupply);
+    if (maxSupplyLimit > 0 && globalTotalSupply + mined > maxSupplyLimit) {
+        mined = Math.max(0, maxSupplyLimit - globalTotalSupply);
     }
 
     const prevBalance = totalBalance;
     const prevStart = miningStartTime;
     const prevEnd = miningEndTime;
-
-    const newBalance = prevBalance + currentMined;
-    const reachedAfterClaim = maxSupplyLimit > 0 && (globalTotalSupply + currentMined) >= maxSupplyLimit;
-    const newStartTime = reachedAfterClaim ? 0 : now;
-    const newEndTime = reachedAfterClaim ? 0 : (now + MINING_DURATION_MS);
+    const newBalance = prevBalance + mined;
+    const reached = maxSupplyLimit > 0 && (globalTotalSupply + mined) >= maxSupplyLimit;
+    const newStart = reached ? 0 : now;
+    const newEnd = reached ? 0 : now + MINING_DURATION_MS;
 
     totalBalance = newBalance;
-    miningStartTime = newStartTime;
-    miningEndTime = newEndTime;
+    miningStartTime = newStart;
+    miningEndTime = newEnd;
     updateUI();
 
     try {
         await db.collection("users").doc(userId).set({
-            balance: newBalance,
-            miningStartTime: newStartTime,
-            miningEndTime: newEndTime
+            balance: newBalance, miningStartTime: newStart, miningEndTime: newEnd
         }, { merge: true });
 
-        if (currentMined > 0) {
-            await recordClaimActivity("mining", "Mining Claim", currentMined);
-        }
+        if (mined > 0) await recordClaimActivity("mining", "Mining Claim", mined);
 
-        if (reachedAfterClaim) {
-            alert(`🎉 Claimed ${currentMined.toFixed(8)} MTR! ${supplyStopNotice}`);
-        } else {
-            alert(`🎉 Successfully claimed ${currentMined.toFixed(8)} MTR! New 8-hour mining session started.`);
-        }
+        if (reached) alert(`🎉 Claimed ${mined.toFixed(8)} MTR! ${supplyStopNotice}`);
+        else alert(`🎉 Successfully claimed ${mined.toFixed(8)} MTR! New 8-hour mining session started.`);
     } catch (e) {
         console.error("Claim error:", e);
         totalBalance = prevBalance;
@@ -1502,79 +1592,49 @@ async function handleMainAction() {
 
 async function handleWithdraw() {
     if (isBanned) return;
-    if (!isWithdrawOpen) {
-        alert("Withdrawal system is currently closed by admin.");
-        return;
-    }
+    if (!isWithdrawOpen) return alert("Withdrawal system is currently closed by admin.");
 
-    const withdrawInput = document.getElementById("withdrawAmountInput");
-    const withdrawAmount = Number(withdrawInput.value);
+    const input = document.getElementById("withdrawAmountInput");
+    const amount = Number(input.value);
 
-    if (!withdrawInput.value || isNaN(withdrawAmount) || withdrawAmount <= 0) {
-        alert("Please enter a valid withdraw amount!");
-        return;
-    }
+    if (!input.value || isNaN(amount) || amount <= 0) return alert("Please enter a valid withdraw amount!");
+    if (amount < minWithdrawLimit) return alert("Minimum withdrawal limit is " + minWithdrawLimit + " MTR");
+    if (amount > maxWithdrawLimit) return alert("Maximum withdrawal limit is " + maxWithdrawLimit + " MTR");
+    if (amount > totalBalance) return alert("You do not have enough balance to withdraw this amount!");
 
-    if (withdrawAmount < minWithdrawLimit) {
-        alert("Minimum withdrawal limit is " + minWithdrawLimit + " MTR");
-        return;
-    }
-
-    if (withdrawAmount > maxWithdrawLimit) {
-        alert("Maximum withdrawal limit is " + maxWithdrawLimit + " MTR");
-        return;
-    }
-
-    if (withdrawAmount > totalBalance) {
-        alert("You do not have enough balance to withdraw this amount!");
-        return;
-    }
-
-    const liveAddress = getLiveWalletAddress();
-    if (!liveAddress) {
+    const address = getLiveWalletAddress();
+    if (!address) {
         await handleWalletClick();
         return;
     }
 
-    totalBalance -= withdrawAmount;
-    const nowMs = Date.now();
-    const localWithdrawId = "local_wd_" + nowMs + "_" + Math.random().toString(36).slice(2, 7);
+    const previousBalance = totalBalance;
+    totalBalance -= amount;
+    const now = Date.now();
+    const localId = "local_wd_" + now + "_" + Math.random().toString(36).slice(2, 7);
 
     withdrawActivities = [{
-        id: localWithdrawId,
-        kind: "withdraw",
-        amount: withdrawAmount,
-        walletAddress: liveAddress,
-        status: "pending",
-        timestampMs: nowMs
+        id: localId, kind: "withdraw", amount, walletAddress: address,
+        status: "pending", timestampMs: now
     }, ...withdrawActivities];
     renderHistoryList();
 
     try {
-        await db.collection("users").doc(userId).set({
-            balance: totalBalance
-        }, { merge: true });
-
+        await db.collection("users").doc(userId).set({ balance: totalBalance }, { merge: true });
         const docRef = await db.collection("withdrawals").add({
-            userId: userId,
-            userName: userName,
-            userUsername: userUsername,
-            walletAddress: liveAddress,
-            amount: withdrawAmount,
-            status: "pending",
-            timestampMs: nowMs,
+            userId, userName, userUsername, walletAddress: address,
+            amount, status: "pending", timestampMs: now,
             createdAt: firebase.firestore.FieldValue.serverTimestamp()
         });
 
-        withdrawActivities = withdrawActivities.map(item =>
-            item.id === localWithdrawId ? { ...item, id: docRef.id } : item
-        );
+        withdrawActivities = withdrawActivities.map(item => item.id === localId ? { ...item, id: docRef.id } : item);
         renderHistoryList();
-
-        withdrawInput.value = "";
+        input.value = "";
         updateUI();
-        alert(`Withdrawal request of ${withdrawAmount} MTR submitted successfully!`);
+        alert(`Withdrawal request of ${amount} MTR submitted successfully!`);
     } catch (e) {
+        totalBalance = previousBalance;
+        updateUI();
         alert("Failed to submit withdrawal request.");
     }
 }
@@ -1600,25 +1660,16 @@ function updateUI() {
 
     const now = Date.now();
     const supplyReached = isSupplyLimitReached();
+    const banner = document.getElementById("supplyStopBanner");
+    const notice = document.getElementById("supplyStopNoticeText");
 
-    const bannerEl = document.getElementById("supplyStopBanner");
-    const noticeTextEl = document.getElementById("supplyStopNoticeText");
-    if (bannerEl && noticeTextEl) {
+    if (banner && notice) {
         if (supplyReached) {
-            noticeTextEl.textContent = supplyStopNotice;
-            bannerEl.style.display = "block";
+            notice.textContent = supplyStopNotice;
+            banner.style.display = "block";
         } else {
-            bannerEl.style.display = "none";
+            banner.style.display = "none";
         }
-    }
-
-    if (isVerified && walletConnected && !supplyReached && miningEndTime === 0) {
-        miningStartTime = now;
-        miningEndTime = now + MINING_DURATION_MS;
-        db.collection("users").doc(userId).set({
-            miningStartTime: miningStartTime,
-            miningEndTime: miningEndTime
-        }, { merge: true }).catch(() => {});
     }
 
     document.getElementById("totalBalance").textContent = totalBalance.toFixed(8);
@@ -1644,9 +1695,9 @@ function updateUI() {
         badge.className = "status-badge verified";
 
         if (supplyReached) {
-            document.getElementById("miningRateText").textContent = `🛑 Mining Stopped (Supply Limit Reached)`;
+            document.getElementById("miningRateText").textContent = "🛑 Mining Stopped (Supply Limit Reached)";
             sessionText.innerHTML = `<strong>${escapeHTML(supplyStopNotice)}</strong>`;
-            document.getElementById("miningStatus").innerHTML = `<span style="color:var(--red);">Stopped</span>`;
+            document.getElementById("miningStatus").innerHTML = '<span style="color:var(--red);">Stopped</span>';
             button.className = "main-btn btn-danger";
             button.textContent = "MINING STOPPED";
             button.disabled = true;
@@ -1655,23 +1706,22 @@ function updateUI() {
 
         document.getElementById("miningRateText").textContent = `⚡ Mining Speed: +${miningRatePerHour} MTR/hour`;
 
-        const elapsedSec = miningStartTime > 0 ? Math.max(0, (now - miningStartTime) / 1000) : 0;
-        const liveSessionMined = Math.min(miningRatePerHour * MINING_DURATION_HOURS, elapsedSec * miningRatePerSec);
+        const elapsed = miningStartTime > 0 ? Math.max(0, (now - miningStartTime) / 1000) : 0;
+        const liveMined = Math.min(miningRatePerHour * MINING_DURATION_HOURS, elapsed * miningRatePerSec);
 
         if (miningEndTime > 0 && now < miningEndTime) {
-            const timeLeft = miningEndTime - now;
-            const hours = Math.floor(timeLeft / (1000 * 60 * 60));
-            const minutes = Math.floor((timeLeft % (1000 * 60 * 60)) / (1000 * 60));
-
-            sessionText.innerHTML = `Mined in session: <strong><span id="sessionMined">${liveSessionMined.toFixed(8)}</span> MTR</strong>`;
-            document.getElementById("miningStatus").innerHTML = `Active (${hours}h ${minutes}m left)`;
+            const left = miningEndTime - now;
+            const hours = Math.floor(left / 3600000);
+            const minutes = Math.floor((left % 3600000) / 60000);
+            sessionText.innerHTML = `Mined in session: <strong><span id="sessionMined">${liveMined.toFixed(8)}</span> MTR</strong>`;
+            document.getElementById("miningStatus").textContent = `Active (${hours}h ${minutes}m left)`;
         } else {
-            sessionText.innerHTML = `Mined in session: <strong><span id="sessionMined">${liveSessionMined.toFixed(8)}</span> MTR (Ready to Claim)</strong>`;
-            document.getElementById("miningStatus").textContent = "Session Complete";
+            sessionText.innerHTML = `Mined in session: <strong><span id="sessionMined">${liveMined.toFixed(8)}</span> MTR (Ready to Claim)</strong>`;
+            document.getElementById("miningStatus").textContent = miningStartTime > 0 ? "Session Complete" : "Not Started";
         }
 
         button.className = "main-btn btn-gold";
-        button.textContent = "CLAIM";
+        button.textContent = miningStartTime > 0 ? "CLAIM" : "START MINING";
         button.disabled = false;
 
     } else if (walletConnected) {
@@ -1679,7 +1729,7 @@ function updateUI() {
         badge.className = "status-badge";
         document.getElementById("miningStatus").textContent = "Pending Verification";
         document.getElementById("miningRateText").textContent = `Wallet connected • Pay ${verifyFeeAmount} TON to verify`;
-        sessionText.innerHTML = `Verification required to mine`;
+        sessionText.innerHTML = "Verification required to mine";
         button.className = "main-btn btn-gold";
         button.textContent = `VERIFY ACCOUNT (${verifyFeeAmount} TON)`;
         button.disabled = false;
@@ -1688,26 +1738,347 @@ function updateUI() {
         badge.className = "status-badge";
         document.getElementById("miningStatus").textContent = "Inactive";
         document.getElementById("miningRateText").textContent = "Connect TON Wallet to begin";
-        sessionText.innerHTML = `Wallet not connected`;
+        sessionText.innerHTML = "Wallet not connected";
         button.className = "main-btn btn-connect";
         button.textContent = "CONNECT WALLET";
         button.disabled = false;
     }
 }
 
+/* ==========================================
+   MULTI LEVEL TEAM SYSTEM
+========================================== */
+
+function getTelegramIdFromUID(uid) {
+    return String(uid || "").replace(/^UID_/, "");
+}
+
+function openTeamScreen() {
+    if (isBanned) return;
+    const screen = document.getElementById("teamScreen");
+    screen.classList.add("active");
+    screen.scrollTop = 0;
+
+    if (!teamLoaded) {
+        loadMyTeam();
+    } else {
+        renderTeamMembers(allTeamMembers);
+    }
+}
+
+function closeTeamScreen() {
+    document.getElementById("teamScreen").classList.remove("active");
+}
+
+async function loadMyTeam(forceRefresh = false) {
+    if (teamLoading) return;
+
+    if (teamLoaded && !forceRefresh) {
+        renderTeamMembers(allTeamMembers);
+        return;
+    }
+
+    teamLoading = true;
+    teamLoaded = false;
+
+    const container = document.getElementById("teamMembersContainer");
+    const searchInput = document.getElementById("teamSearchInput");
+
+    container.innerHTML = '<div class="empty-state">Loading your complete team...</div>';
+    searchInput.value = "";
+    document.getElementById("teamSearchInfo").textContent = "Loading team members...";
+
+    try {
+        let currentLevel = [userId];
+        const visited = new Set([userId]);
+        const allMembers = [];
+        let levelNumber = 0;
+
+        while (currentLevel.length > 0) {
+            levelNumber++;
+
+            if (levelNumber > 100) {
+                throw new Error("TEAM_LEVEL_LIMIT");
+            }
+
+            const queryResults = await Promise.all(
+                currentLevel.map(parentId =>
+                    db.collection("users")
+                        .where("referredBy", "==", parentId)
+                        .get()
+                )
+            );
+
+            const nextLevel = [];
+
+            queryResults.forEach((snapshot, index) => {
+                const parentId = currentLevel[index];
+
+                snapshot.forEach(doc => {
+                    if (visited.has(doc.id)) return;
+
+                    visited.add(doc.id);
+
+                    const data = doc.data();
+
+                    const member = {
+                        uid: doc.id,
+                        telegramId: data.telegramId
+                            ? String(data.telegramId)
+                            : getTelegramIdFromUID(doc.id),
+                        username: data.username || "",
+                        name: data.name || data.firstName || "Miner",
+                        verified: data.verified === true,
+                        referredBy: data.referredBy || parentId,
+                        level: levelNumber,
+                        directTeam: 0,
+                        totalTeam: 0
+                    };
+
+                    allMembers.push(member);
+                    nextLevel.push(doc.id);
+                });
+            });
+
+            currentLevel = nextLevel;
+        }
+
+        /* Calculate each member's direct team count */
+        const directCounts = {};
+
+        allMembers.forEach(member => {
+            directCounts[member.referredBy] =
+                (directCounts[member.referredBy] || 0) + 1;
+        });
+
+        allMembers.forEach(member => {
+            member.directTeam = directCounts[member.uid] || 0;
+        });
+
+        /* Calculate all descendants for every member */
+        const memberMap = new Map();
+        allMembers.forEach(member => memberMap.set(member.uid, member));
+
+        const descendants = {};
+
+        allMembers.forEach(member => {
+            let parent = member.referredBy;
+            let safety = 0;
+
+            while (parent && parent !== userId && safety < 100) {
+                descendants[parent] = (descendants[parent] || 0) + 1;
+
+                const parentMember = memberMap.get(parent);
+                if (!parentMember) break;
+
+                parent = parentMember.referredBy;
+                safety++;
+            }
+        });
+
+        allMembers.forEach(member => {
+            member.totalTeam = descendants[member.uid] || 0;
+        });
+
+        allTeamMembers = allMembers;
+        teamLoaded = true;
+
+        document.getElementById("teamSearchInfo").textContent =
+            allMembers.length + " total team members";
+
+        renderTeamMembers(allTeamMembers);
+
+    } catch (error) {
+        console.error("Team loading error:", error);
+
+        let message = "Unable to load team. Check Firestore read permissions.";
+
+        if (error.message === "TEAM_LEVEL_LIMIT") {
+            message = "Team level limit reached.";
+        }
+
+        container.innerHTML =
+            '<div class="empty-state">' + escapeHTML(message) + '</div>';
+
+        document.getElementById("teamSearchInfo").textContent =
+            "Team loading failed.";
+
+    } finally {
+        teamLoading = false;
+    }
+}
+
+function renderTeamMembers(members) {
+    const container = document.getElementById("teamMembersContainer");
+    container.replaceChildren();
+
+    const total = allTeamMembers.length;
+    const levels = [...new Set(allTeamMembers.map(member => member.level))];
+    const verified = allTeamMembers.filter(member => member.verified).length;
+
+    document.getElementById("teamTotal").textContent = total;
+    document.getElementById("teamLevels").textContent = levels.length;
+    document.getElementById("teamVerified").textContent = verified;
+
+    if (!members.length) {
+        container.innerHTML = '<div class="empty-state">No team members found.</div>';
+        return;
+    }
+
+    const grouped = {};
+
+    members.forEach(member => {
+        if (!grouped[member.level]) grouped[member.level] = [];
+        grouped[member.level].push(member);
+    });
+
+    Object.keys(grouped)
+        .sort((a, b) => Number(a) - Number(b))
+        .forEach(level => {
+
+            const heading = document.createElement("div");
+            heading.className = "team-level-title";
+            heading.textContent =
+                "LEVEL " + level + " — " + grouped[level].length + " MEMBERS";
+
+            container.append(heading);
+
+            grouped[level].forEach(member => {
+                const card = document.createElement("div");
+                card.className = "team-member";
+
+                const top = document.createElement("div");
+                top.className = "team-member-top";
+
+                const name = document.createElement("div");
+                name.className = "team-member-name";
+                name.textContent = member.name;
+
+                const status = document.createElement("span");
+                status.className = member.verified
+                    ? "status-badge verified"
+                    : "status-badge";
+
+                status.textContent = member.verified
+                    ? "Verified ✓"
+                    : "Unverified";
+
+                top.append(name, status);
+
+                const idInfo = document.createElement("div");
+                idInfo.className = "team-member-info";
+                idInfo.textContent = "Telegram ID: " + member.telegramId;
+
+                const usernameInfo = document.createElement("div");
+                usernameInfo.className = "team-member-info";
+                usernameInfo.textContent =
+                    "Username: " + (member.username || "Not Available");
+
+                const referrerInfo = document.createElement("div");
+                referrerInfo.className = "team-member-info";
+                referrerInfo.textContent =
+                    "Referred By Telegram ID: " +
+                    getTelegramIdFromUID(member.referredBy);
+
+                const teamInfo = document.createElement("div");
+                teamInfo.className = "team-member-info";
+                teamInfo.textContent =
+                    "Level: " + member.level +
+                    " • Direct Team: " + member.directTeam +
+                    " • Total Team: " + member.totalTeam;
+
+                const idRow = document.createElement("div");
+                idRow.className = "team-copy-row";
+
+                const copyId = document.createElement("button");
+                copyId.className = "team-copy-btn";
+                copyId.textContent = "COPY USER ID";
+                copyId.onclick = () => copyText(member.telegramId);
+
+                const copyUsername = document.createElement("button");
+                copyUsername.className = "team-copy-btn";
+                copyUsername.textContent = "COPY USERNAME";
+                copyUsername.onclick = () => {
+                    if (!member.username) {
+                        alert("Username is not available.");
+                        return;
+                    }
+                    copyText(member.username);
+                };
+
+                idRow.append(copyId, copyUsername);
+
+                const refRow = document.createElement("div");
+                refRow.className = "team-copy-row";
+
+                const copyRef = document.createElement("button");
+                copyRef.className = "team-copy-btn";
+                copyRef.textContent = "COPY REFERRER ID";
+                copyRef.onclick = () =>
+                    copyText(getTelegramIdFromUID(member.referredBy));
+
+                refRow.append(copyRef);
+
+                card.append(
+                    top,
+                    idInfo,
+                    usernameInfo,
+                    referrerInfo,
+                    teamInfo,
+                    idRow,
+                    refRow
+                );
+
+                container.append(card);
+            });
+        });
+}
+
+function searchTeamMembers() {
+    const input = document.getElementById("teamSearchInput");
+    const query = String(input.value || "")
+        .trim()
+        .toLowerCase()
+        .replace(/^@/, "");
+
+    const info = document.getElementById("teamSearchInfo");
+
+    if (!query) {
+        info.textContent = "Showing your complete team";
+        renderTeamMembers(allTeamMembers);
+        return;
+    }
+
+    const results = allTeamMembers.filter(member => {
+        const id = String(member.telegramId).toLowerCase();
+        const username = String(member.username).toLowerCase().replace(/^@/, "");
+        const name = String(member.name).toLowerCase();
+
+        return id.includes(query) ||
+            username.includes(query) ||
+            name.includes(query);
+    });
+
+    info.textContent = results.length + " member(s) found";
+    renderTeamMembers(results);
+}
+
+/* ==========================================
+   END MULTI LEVEL TEAM SYSTEM
+========================================== */
+
 function switchTab(tab, element) {
     closeFullHistoryScreen();
+    closeTeamScreen();
+
     document.querySelectorAll(".container").forEach(item => item.classList.remove("active"));
     document.querySelectorAll(".nav-item").forEach(item => item.classList.remove("active"));
-
     const target = document.getElementById("tab-" + tab);
     if (target) {
         target.classList.add("active");
         if (element) element.classList.add("active");
-        window.scrollTo({top: 0, behavior: "smooth"});
-        if (tab === "tasks") {
-            renderTasksList();
-        }
+        window.scrollTo({ top: 0, behavior: "smooth" });
+        if (tab === "tasks") renderTasksList();
     }
 }
 
@@ -1734,37 +2105,31 @@ async function copyText(value) {
 }
 
 function escapeHTML(str) {
-    return String(str).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'})[c]);
+    return String(str).replace(/[&<>"']/g, c => ({
+        '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;'
+    })[c]);
 }
 
 setInterval(() => {
     if (!isBanned && isVerified && walletConnected && !isSupplyLimitReached() && miningStartTime > 0) {
         const now = Date.now();
-        const elapsedSec = Math.max(0, (now - miningStartTime) / 1000);
-        const liveSessionMined = Math.min(miningRatePerHour * MINING_DURATION_HOURS, elapsedSec * miningRatePerSec);
+        const elapsed = Math.max(0, (now - miningStartTime) / 1000);
+        const mined = Math.min(miningRatePerHour * MINING_DURATION_HOURS, elapsed * miningRatePerSec);
 
-        const sessionMinedEl = document.getElementById("sessionMined");
-        if (sessionMinedEl) {
-            sessionMinedEl.textContent = liveSessionMined.toFixed(8);
-        }
+        const sessionEl = document.getElementById("sessionMined");
+        if (sessionEl) sessionEl.textContent = mined.toFixed(8);
 
+        const statusEl = document.getElementById("miningStatus");
         if (miningEndTime > 0 && now < miningEndTime) {
-            const timeLeft = miningEndTime - now;
-            const hours = Math.floor(timeLeft / (1000 * 60 * 60));
-            const minutes = Math.floor((timeLeft % (1000 * 60 * 60)) / (1000 * 60));
-
-            const miningStatusEl = document.getElementById("miningStatus");
-            if (miningStatusEl) {
-                miningStatusEl.innerHTML = `Active (${hours}h ${minutes}m left)`;
-            }
-        } else {
-            const miningStatusEl = document.getElementById("miningStatus");
-            if (miningStatusEl) {
-                miningStatusEl.textContent = "Session Complete";
-            }
+            const left = miningEndTime - now;
+            const hours = Math.floor(left / 3600000);
+            const minutes = Math.floor((left % 3600000) / 60000);
+            if (statusEl) statusEl.textContent = `Active (${hours}h ${minutes}m left)`;
+        } else if (statusEl) {
+            statusEl.textContent = "Session Complete";
         }
     }
 }, 1000);
 </script>
 </body>
-</html>
+            </html>
