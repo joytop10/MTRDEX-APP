@@ -1,0 +1,2135 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="theme-color" content="#080D18">
+<title>MTR Master Mining</title>
+
+<script src="https://telegram.org/js/telegram-web-app.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore-compat.js"></script>
+<script src="https://unpkg.com/@tonconnect/ui@latest/dist/tonconnect-ui.min.js"></script>
+
+<style>
+:root{--bg:#080D18;--card:#111B2C;--card2:#17243A;--gold:#F5C542;--gold2:#FFE28A;--blue:#1677FF;--text:#FFF;--muted:#8996AA;--green:#22C58B;--red:#EF4444;--border:rgba(255,255,255,.07)}
+*{box-sizing:border-box;margin:0;padding:0;font-family:'Segoe UI',Roboto,sans-serif;-webkit-tap-highlight-color:transparent}
+html{background:var(--bg);scroll-behavior:smooth}
+body{background:radial-gradient(ellipse at 50% 10%,rgba(22,119,255,.13),transparent 48%),var(--bg);color:var(--text);min-height:100vh;padding-bottom:90px}
+button{font-family:inherit;cursor:pointer}
+.header{position:sticky;top:0;z-index:50;display:flex;justify-content:space-between;align-items:center;padding:14px 18px;background:rgba(17,27,44,.96);backdrop-filter:blur(15px);border-bottom:1px solid var(--border)}
+.user-info{display:flex;align-items:center;gap:12px;min-width:0}
+.avatar{width:44px;height:44px;flex-shrink:0;border-radius:15px;background:linear-gradient(135deg,var(--gold2),#D99B12);display:flex;align-items:center;justify-content:center;color:#111827;font-size:19px;font-weight:800;overflow:hidden}
+.avatar img{width:100%;height:100%;object-fit:cover}
+.user-details h4{font-size:14px;font-weight:700;margin-bottom:5px}
+.status-badge{display:inline-block;font-size:10px;font-weight:700;padding:4px 9px;border-radius:20px;background:rgba(239,68,68,.12);color:#FF7777;border:1px solid rgba(239,68,68,.2)}
+.status-badge.verified{background:rgba(34,197,139,.12);color:var(--green);border-color:rgba(34,197,139,.2)}
+.wallet-display{background:rgba(22,119,255,.12);border:1px solid rgba(22,119,255,.4);color:#54B9FF;padding:10px 13px;border-radius:12px;font-size:12px;font-weight:700}
+.container{display:none;width:100%;max-width:600px;margin:auto;padding:20px 16px 30px;flex-direction:column;gap:16px}
+.container.active{display:flex}
+.section-heading{width:100%;font-size:17px;font-weight:800;display:flex;align-items:center;gap:9px;margin-bottom:2px}
+.section-heading span{color:var(--gold)}
+.supply-stop-banner{display:none;width:100%;padding:14px 16px;border-radius:14px;background:rgba(239,68,68,.14);border:1px solid rgba(239,68,68,.45);color:#FFB4B4;font-size:13px;line-height:1.5;text-align:center}
+.supply-stop-banner strong{display:block;color:#FF6B6B;font-size:14px;margin-bottom:4px}
+.balance-card{width:100%;padding:23px 18px;border-radius:20px;text-align:center;background:linear-gradient(145deg,#17243A,#101827);border:1px solid rgba(245,197,66,.25);box-shadow:0 12px 35px rgba(0,0,0,.2);position:relative;overflow:hidden}
+.balance-card:before{content:"";position:absolute;width:180px;height:180px;border-radius:50%;background:rgba(245,197,66,.045);top:-110px;right:-50px}
+.balance-label{color:var(--muted);font-size:11px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase}
+.balance-amount{font-size:26px;font-weight:800;color:var(--gold);margin:10px 0 7px;letter-spacing:-1px;overflow-wrap:anywhere}
+.balance-amount small{font-size:14px;letter-spacing:0}
+.mining-rate{color:#45C7FF;font-size:13px;font-weight:600}
+.coin-area{display:flex;flex-direction:column;align-items:center;padding:15px 0 5px}
+.coin-wrapper{width:210px;height:210px;display:flex;align-items:center;justify-content:center;border-radius:50%;background:radial-gradient(circle,rgba(22,119,255,.16),transparent 70%);position:relative}
+.coin-wrapper:before{content:"";position:absolute;inset:5px;border:2px solid rgba(22,119,255,.8);border-radius:50%;box-shadow:0 0 30px rgba(22,119,255,.35);animation:glow 3s infinite ease-in-out}
+.coin-wrapper:after{content:"";position:absolute;inset:17px;border:4px solid var(--gold);border-radius:50%;box-shadow:0 0 18px rgba(245,197,66,.25)}
+.coin-circle{width:172px;height:172px;border-radius:50%;background:linear-gradient(145deg,#17243A,#080D18);display:flex;flex-direction:column;align-items:center;justify-content:center;border:1px solid rgba(245,197,66,.5);z-index:2;box-shadow:inset 0 0 30px rgba(0,0,0,.6)}
+.coin-crown{font-size:28px;margin-bottom:3px}
+.coin-text{font-size:42px;font-weight:900;color:var(--gold);letter-spacing:2px;text-shadow:0 0 15px rgba(245,197,66,.3)}
+.coin-sub{font-size:10px;letter-spacing:4px;color:var(--gold2);font-weight:700}
+@keyframes glow{0%,100%{box-shadow:0 0 15px rgba(22,119,255,.25)}50%{box-shadow:0 0 32px rgba(22,119,255,.55)}}
+.session-text{color:var(--muted);font-size:13px;font-weight:500;margin:14px 0 18px;text-align:center}
+.session-text strong{color:white}
+.main-btn{width:100%;padding:16px;border:0;border-radius:14px;font-size:14px;font-weight:800;transition:.2s}
+.main-btn:active{transform:scale(.98);opacity:.85}
+.main-btn:disabled{opacity:.65;cursor:not-allowed}
+.btn-connect{background:linear-gradient(110deg,#0878FF,#0754C8);color:white;box-shadow:0 7px 20px rgba(22,119,255,.2)}
+.btn-gold{background:linear-gradient(110deg,#FFE28A,#E5AC27);color:#111827;box-shadow:0 7px 20px rgba(245,197,66,.12)}
+.btn-danger{background:linear-gradient(110deg,#EF4444,#B91C1C);color:white}
+.btn-small{padding:11px 14px;font-size:12px}
+.info-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;width:100%}
+.info-box{background:var(--card);border:1px solid var(--border);border-radius:15px;padding:16px}
+.info-icon{font-size:21px;margin-bottom:10px}
+.info-label{color:var(--muted);font-size:11px;margin-bottom:7px}
+.info-value{font-size:17px;font-weight:800;color:var(--gold)}
+.list-card{width:100%;padding:15px;background:linear-gradient(145deg,var(--card2),var(--card));border:1px solid var(--border);border-radius:15px;display:flex;justify-content:space-between;align-items:center;gap:10px}
+.list-card.highlight{border-color:rgba(245,197,66,.4)}
+.list-left{display:flex;align-items:center;gap:12px;min-width:0}
+.task-icon{width:42px;height:42px;flex-shrink:0;display:flex;align-items:center;justify-content:center;border-radius:12px;background:rgba(22,119,255,.12);font-size:19px}
+.list-title{font-size:13px;font-weight:700;margin-bottom:5px;overflow-wrap:anywhere}
+.list-sub{color:var(--muted);font-size:11px}
+.list-value{color:var(--gold);font-size:12px;font-weight:800;white-space:nowrap}
+.task-btn{border:0;border-radius:9px;padding:9px 13px;background:var(--gold);color:#111827;font-weight:800;font-size:11px;white-space:nowrap}
+.task-btn.claim-ready{background:linear-gradient(110deg,#22C58B,#159A69);color:#FFF}
+.task-btn.claimed{background:rgba(34,197,139,.13);color:var(--green)}
+.copy-box{width:100%;padding:14px;border-radius:12px;background:#080D18;border:1px solid var(--border);color:#53B9FF;font-size:12px;overflow-wrap:anywhere;text-align:center;margin:12px 0}
+.button-row{display:flex;gap:10px}
+.button-row>*{flex:1}
+.profile-card{display:flex;align-items:center;gap:14px;padding:18px;background:linear-gradient(145deg,#17243A,#101827);border:1px solid var(--border);border-radius:17px}
+.profile-avatar{width:55px;height:55px;border-radius:16px}
+.profile-name{font-size:16px;font-weight:800;color:var(--gold);margin-bottom:5px}
+.profile-username{color:#55B8FF;font-size:12px}
+.withdraw-box{background:linear-gradient(145deg,#17243A,#101827);border:1px solid rgba(245,197,66,.25);border-radius:17px;padding:18px;display:flex;flex-direction:column;gap:12px;width:100%}
+.withdraw-input{width:100%;padding:13px;background:#080D18;border:1px solid var(--border);border-radius:10px;color:white;font-size:14px;outline:none}
+.withdraw-input:focus{border-color:var(--gold)}
+.history-switch{display:flex;gap:8px;width:100%;background:#080D18;padding:6px;border-radius:13px;border:1px solid var(--border)}
+.history-tab-btn{flex:1;padding:10px 12px;border:0;border-radius:9px;background:transparent;color:var(--muted);font-size:12px;font-weight:800;transition:.2s}
+.history-tab-btn.active{background:linear-gradient(110deg,#FFE28A,#E5AC27);color:#111827}
+.status-pending{color:#F5C542;font-size:11px;font-weight:700}
+.status-approved{color:#22C58B;font-size:11px;font-weight:700}
+.status-rejected{color:#EF4444;font-size:11px;font-weight:700}
+.status-claim{color:#45C7FF;font-size:11px;font-weight:700}
+.target-progress{background:rgba(22,119,255,.1);border:1px solid rgba(22,119,255,.25);border-radius:12px;padding:12px;margin-top:12px;font-size:12px;color:#54B9FF;text-align:left}
+.target-item{padding:8px 0;border-bottom:1px solid rgba(255,255,255,.08);display:flex;justify-content:space-between;align-items:center;gap:8px}
+.target-item:last-child{border-bottom:none}
+.fullscreen-screen{position:fixed;inset:0;z-index:500;display:none;flex-direction:column;background:var(--bg);overflow-y:auto;padding-bottom:36px}
+.fullscreen-screen.active{display:flex}
+.fullscreen-header{position:sticky;top:0;z-index:20;display:flex;align-items:center;justify-content:space-between;gap:12px;padding:14px 16px;background:rgba(17,27,44,.97);backdrop-filter:blur(15px);border-bottom:1px solid var(--border)}
+.back-btn{border:1px solid var(--border);background:#17243A;color:#FFF;padding:9px 14px;border-radius:11px;font-size:12px;font-weight:800;white-space:nowrap}
+.fullscreen-body{width:100%;max-width:640px;margin:0 auto;padding:18px 16px;display:flex;flex-direction:column;gap:14px}
+.bottom-nav{position:fixed;bottom:0;left:0;width:100%;display:flex;justify-content:space-around;align-items:center;padding:10px 0 calc(10px + env(safe-area-inset-bottom));background:rgba(11,17,29,.97);border-top:1px solid var(--border);backdrop-filter:blur(15px);z-index:100}
+.nav-item{width:20%;display:flex;flex-direction:column;align-items:center;gap:5px;color:var(--muted);font-size:11px;font-weight:600;cursor:pointer}
+.nav-icon{font-size:21px;filter:grayscale(1);opacity:.7}
+.nav-item.active{color:var(--gold)}
+.nav-item.active .nav-icon{filter:none;opacity:1}
+.modal{position:fixed;inset:0;z-index:1000;display:none;align-items:center;justify-content:center;padding:20px;background:rgba(0,0,0,.8);backdrop-filter:blur(7px)}
+.modal-content{width:100%;max-width:370px;padding:24px;background:#142035;border:1px solid rgba(245,197,66,.25);border-radius:20px;box-shadow:0 20px 60px rgba(0,0,0,.5)}
+.modal-title{text-align:center;font-size:19px;font-weight:800;color:var(--gold);margin-bottom:10px}
+.modal-sub{text-align:center;font-size:12px;color:var(--muted);margin-bottom:16px}
+.modal-close{width:100%;padding:12px;border:1px solid var(--border);border-radius:11px;background:#202E44;color:white;margin-top:10px}
+.empty-state{text-align:center;padding:30px 15px;color:var(--muted);font-size:13px;background:var(--card);border-radius:15px}
+.ban-screen{position:fixed;inset:0;z-index:9999;display:none;flex-direction:column;align-items:center;justify-content:center;padding:25px;text-align:center;background:#080D18}
+.ban-screen.active{display:flex}
+
+/* MULTI LEVEL TEAM DESIGN */
+.team-screen{position:fixed;inset:0;z-index:600;display:none;flex-direction:column;background:var(--bg);overflow-y:auto;padding-bottom:30px}
+.team-screen.active{display:flex}
+.team-header{position:sticky;top:0;z-index:10;display:flex;align-items:center;justify-content:space-between;padding:14px 16px;background:rgba(17,27,44,.97);border-bottom:1px solid var(--border)}
+.team-body{width:100%;max-width:640px;margin:auto;padding:18px 16px;display:flex;flex-direction:column;gap:14px}
+.team-stats{display:grid;grid-template-columns:repeat(3,1fr);gap:9px}
+.team-stat{background:var(--card);border:1px solid var(--border);border-radius:13px;padding:13px 8px;text-align:center}
+.team-stat strong{display:block;color:var(--gold);font-size:20px;margin-top:6px}
+.team-stat span{color:var(--muted);font-size:10px}
+.team-search{width:100%;padding:14px;background:#080D18;border:1px solid var(--border);border-radius:12px;color:white;outline:none;font-size:13px}
+.team-search:focus{border-color:var(--gold)}
+.team-search-results{color:var(--muted);font-size:11px}
+.team-level-title{padding:13px;background:var(--card2);border:1px solid var(--border);border-radius:12px;font-size:14px;font-weight:800;color:var(--gold);margin-top:5px}
+.team-member{background:linear-gradient(145deg,var(--card2),var(--card));border:1px solid var(--border);border-radius:14px;padding:14px;display:flex;flex-direction:column;gap:10px;margin-bottom:10px}
+.team-member-top{display:flex;justify-content:space-between;align-items:center;gap:8px}
+.team-member-name{font-size:14px;font-weight:800;overflow-wrap:anywhere}
+.team-member-info{color:var(--muted);font-size:11px;overflow-wrap:anywhere;line-height:1.5}
+.team-copy-row{display:flex;gap:7px;align-items:center;flex-wrap:wrap}
+.team-copy-btn{background:rgba(22,119,255,.14);color:#55B8FF;border:1px solid rgba(22,119,255,.25);padding:9px 10px;border-radius:9px;font-size:10px;font-weight:800}
+.team-copy-btn:active{opacity:.7}
+@media(max-width:360px){.balance-amount{font-size:22px}.coin-wrapper{width:185px;height:185px}.coin-circle{width:150px;height:150px}.coin-text{font-size:36px}.wallet-display{font-size:10px;padding:8px}}
+</style>
+</head>
+
+<body>
+
+<div class="ban-screen" id="bannedScreen">
+    <div style="font-size:56px">🚫</div>
+    <h2 style="color:#EF4444;margin:18px 0 10px">Account Suspended</h2>
+    <p style="color:#8996AA;line-height:1.7;max-width:360px;font-size:14px">Your account has been banned by the admin. Mining and all rewards are suspended.</p>
+</div>
+
+<header class="header">
+    <div class="user-info">
+        <div class="avatar" id="headerAvatar">M</div>
+        <div class="user-details">
+            <h4 id="headerUserName">Master Miner</h4>
+            <span class="status-badge" id="verifyStatus">Unverified</span>
+        </div>
+    </div>
+    <button class="wallet-display" id="walletDisplay" onclick="handleWalletClick()">Connect Wallet</button>
+</header>
+
+<section class="container active" id="tab-mine">
+    <div class="supply-stop-banner" id="supplyStopBanner">
+        <strong>🛑 Mining Stopped — Supply Limit Reached</strong>
+        <span id="supplyStopNoticeText">Total MTR supply limit has been reached! Mining is now stopped.</span>
+    </div>
+    <div class="balance-card">
+        <div class="balance-label">Total MTR Assets</div>
+        <div class="balance-amount"><span id="totalBalance">0.00000001</span> <small>MTR</small></div>
+        <div class="mining-rate" id="miningRateText">Connect wallet to begin</div>
+    </div>
+    <div class="coin-area">
+        <div class="coin-wrapper">
+            <div class="coin-circle">
+                <div class="coin-crown">👑</div>
+                <div class="coin-text">MTR</div>
+                <div class="coin-sub">MASTER</div>
+            </div>
+        </div>
+        <p class="session-text" id="sessionStatusText">Mined in session: <strong><span id="sessionMined">0.00000000</span> MTR</strong></p>
+        <button class="main-btn btn-connect" id="actionBtn" onclick="handleMainAction()">CONNECT WALLET</button>
+    </div>
+    <div class="info-grid">
+        <div class="info-box"><div class="info-icon">⚡</div><div class="info-label">Mining Status</div><div class="info-value" id="miningStatus">Inactive</div></div>
+        <div class="info-box"><div class="info-icon">👥</div><div class="info-label">Total Referrals</div><div class="info-value" id="miniRefCount">0</div></div>
+    </div>
+    <div class="list-card">
+        <div class="list-left"><div class="task-icon">🏆</div><div><div class="list-title">MTR Mining Program</div><div class="list-sub">Your mining dashboard</div></div></div>
+        <div class="list-value">MASTER</div>
+    </div>
+</section>
+
+<section class="container" id="tab-leaderboard">
+    <div class="section-heading"><span>🏆</span> Global Leaderboard</div>
+    <div class="balance-card">
+        <div class="balance-label">Your Global Position</div>
+        <div class="balance-amount" id="myRank">#--</div>
+        <div class="mining-rate" id="myRankBalance">0.00000001 MTR</div>
+    </div>
+    <div id="liveLeaderboardList"><div class="empty-state">Loading leaderboard...</div></div>
+</section>
+
+<section class="container" id="tab-tasks">
+    <div class="section-heading"><span>📋</span> Earn Extra MTR</div>
+    <div class="balance-card">
+        <div class="balance-label">Complete Tasks</div>
+        <div class="balance-amount">Earn MTR</div>
+        <div class="mining-rate">Open link → return to bot → tap Claim</div>
+    </div>
+    <div id="dynamicTasksList"><div class="empty-state">Loading tasks...</div></div>
+</section>
+
+<section class="container" id="tab-friends">
+    <div class="section-heading"><span>👥</span> Referral Program</div>
+    <div class="balance-card">
+        <div class="balance-label">Total Referrals</div>
+        <div class="balance-amount" id="referralCount">0</div>
+        <div class="info-grid">
+            <div class="info-box"><div class="info-label">Verified</div><div class="info-value" id="verifiedRef">0</div></div>
+            <div class="info-box"><div class="info-label">Unverified</div><div class="info-value" id="unverifiedRef">0</div></div>
+        </div>
+        <div class="target-progress" id="refTargetBox">🎯 Loading referral targets...</div>
+        <div style="margin-top:16px">
+            <div class="balance-label">Claimable Referral Reward</div>
+            <div class="balance-amount" style="font-size:24px"><span id="refRewardBalance">0.00000000</span> <small>MTR</small></div>
+        </div>
+        <button class="main-btn btn-gold" id="claimRefBtn" onclick="claimRefReward()">CLAIM REWARD</button>
+    </div>
+
+    <div class="list-card" style="display:block">
+        <div class="list-title">🎟️ Your Unique Referral Code</div>
+        <p class="list-sub" style="line-height:1.7;margin-top:8px">Share your personal referral code with your friends.</p>
+        <div class="copy-box" id="myReferralCode">Generating code...</div>
+        <button class="main-btn btn-gold btn-small" onclick="copyMyReferralCode()">COPY REFERRAL CODE</button>
+    </div>
+
+    <div class="list-card" id="applyReferralBox" style="display:block">
+        <div class="list-title">🎁 Apply Referral Code / Telegram ID</div>
+        <p class="list-sub" style="line-height:1.7;margin-top:8px">Enter your friend's MTR referral code or Telegram ID number. You can apply only once.</p>
+        <input type="text" id="referralInput" class="withdraw-input" placeholder="MTR-A7K9P2 or Telegram ID" maxlength="40" style="margin-top:12px">
+        <button class="main-btn btn-connect btn-small" id="applyReferralBtn" onclick="applyReferral()">APPLY REFERRAL</button>
+    </div>
+    <div id="referralAppliedBox" class="target-progress" style="display:none">✅ Referral successfully applied. You cannot change it.</div>
+
+    <div class="list-card" style="display:block">
+        <div class="list-title">🎁 Invite Friends & Earn</div>
+        <p class="list-sub" style="line-height:1.7;margin-top:8px">Invite new members to the MTR Master community using your personal referral link and reach referral targets set by admin.</p>
+        <div class="copy-box" id="refLinkBox">Loading referral link...</div>
+        <div class="button-row">
+            <button class="main-btn btn-gold btn-small" onclick="copyRefLink()">COPY LINK</button>
+            <button class="main-btn btn-connect btn-small" onclick="shareRefLink()">SHARE LINK</button>
+        </div>
+    </div>
+</section>
+
+<section class="container" id="tab-profile">
+    <div class="section-heading"><span>👤</span> My Profile</div>
+    <div class="profile-card">
+        <div class="avatar profile-avatar" id="profileAvatar">M</div>
+        <div><div class="profile-name" id="profileName">Master Miner</div><div class="profile-username" id="profileUsername">@username</div></div>
+    </div>
+
+    <!-- NEW TEAM BUTTON -->
+    <button class="main-btn btn-gold" onclick="openTeamScreen()">👥 MY TEAM — MULTI LEVEL</button>
+
+    <div class="list-card">
+        <div class="list-left"><div class="task-icon">🆔</div><div><div class="list-sub">Telegram ID</div><div class="list-title" id="profileTelegramId">-</div></div></div>
+    </div>
+    <div class="list-card">
+        <div class="list-left"><div class="task-icon">🎟️</div><div><div class="list-sub">Your Referral Code</div><div class="list-title" id="profileReferralCode">Generating...</div></div></div>
+    </div>
+    <div class="list-card">
+        <div class="list-left"><div class="task-icon">👥</div><div><div class="list-sub">Referred By Telegram ID</div><div class="list-title" id="profileReferredById">Not Referred</div></div></div>
+    </div>
+    <div class="list-card">
+        <div class="list-left"><div class="task-icon">🎟️</div><div><div class="list-sub">Referred By Referral Code</div><div class="list-title" id="profileReferredByCode">Not Referred</div></div></div>
+    </div>
+    <div class="list-card">
+        <div class="list-left"><div class="task-icon">💰</div><div><div class="list-sub">Total Mined Balance</div><div class="list-title" id="profileBalance">0.00000001 MTR</div></div></div>
+    </div>
+    <div class="list-card" onclick="handleWalletClick()">
+        <div class="list-left"><div class="task-icon">💎</div><div><div class="list-sub">Connected Wallet</div><div class="list-title" id="profileWalletAddr">Not Connected</div></div></div>
+        <div class="list-value">VIEW</div>
+    </div>
+    <div class="withdraw-box">
+        <div class="list-title" style="color:var(--gold);margin-bottom:0">📤 Withdraw MTR</div>
+        <div class="list-sub" id="withdrawMinLabel">Minimum withdraw: 10 MTR</div>
+        <input type="number" id="withdrawAmountInput" class="withdraw-input" placeholder="Enter amount to withdraw" step="any">
+        <button class="main-btn btn-gold" onclick="handleWithdraw()">SUBMIT WITHDRAWAL</button>
+    </div>
+    <div class="list-card highlight" onclick="openFullHistoryScreen()">
+        <div class="list-left"><div class="task-icon">📜</div><div><div class="list-title">History</div><div class="list-sub">View full-screen All History & Withdraw History</div></div></div>
+        <div class="list-value">OPEN FULL SCREEN →</div>
+    </div>
+    <button class="main-btn btn-connect" onclick="openTokenomicsModal()">📊 VIEW TOKENOMICS</button>
+</section>
+
+<!-- NEW MULTI LEVEL TEAM SCREEN -->
+<div class="team-screen" id="teamScreen">
+    <div class="team-header">
+        <button class="back-btn" onclick="closeTeamScreen()">← Back</button>
+        <strong style="color:var(--gold)">👥 MY TEAM</strong>
+        <button class="back-btn" onclick="loadMyTeam(true)">↻ Refresh</button>
+    </div>
+    <div class="team-body">
+        <div class="team-stats">
+            <div class="team-stat"><span>Total Team</span><strong id="teamTotal">0</strong></div>
+            <div class="team-stat"><span>Total Levels</span><strong id="teamLevels">0</strong></div>
+            <div class="team-stat"><span>Verified</span><strong id="teamVerified">0</strong></div>
+        </div>
+        <input type="search" id="teamSearchInput" class="team-search"
+            placeholder="Search by Telegram ID or Username..."
+            oninput="searchTeamMembers()">
+        <div class="team-search-results" id="teamSearchInfo">Search your complete team</div>
+        <div id="teamMembersContainer">
+            <div class="empty-state">Open Team to load members.</div>
+        </div>
+    </div>
+</div>
+
+<div class="fullscreen-screen" id="fullHistoryScreen">
+    <div class="fullscreen-header">
+        <button type="button" class="back-btn" onclick="closeFullHistoryScreen()">← Back</button>
+        <div style="font-size:15px;font-weight:800;color:var(--gold)">📜 <span id="fullHistoryTitle">Full History</span></div>
+        <div style="width:64px"></div>
+    </div>
+    <div class="fullscreen-body">
+        <div class="history-switch">
+            <button type="button" class="history-tab-btn active" id="btnAllHistory" onclick="setHistoryFilter('all')">All History</button>
+            <button type="button" class="history-tab-btn" id="btnWithdrawHistory" onclick="setHistoryFilter('withdraw')">Withdraw History</button>
+        </div>
+        <div id="historyListContainer"><div class="empty-state">No history yet.</div></div>
+    </div>
+</div>
+
+<div class="modal" id="walletModal">
+    <div class="modal-content">
+        <div class="modal-title">💎 Connected Wallet</div>
+        <div class="modal-sub">Your TON wallet information</div>
+        <div class="copy-box" id="modalWalletAddr">-</div>
+        <button class="main-btn btn-gold btn-small" onclick="copyWalletAddress()">COPY ADDRESS</button>
+        <button class="main-btn btn-connect btn-small" style="margin-top:10px" onclick="disconnectWallet()">DISCONNECT WALLET</button>
+        <button class="modal-close" onclick="closeWalletModal()">CLOSE</button>
+    </div>
+</div>
+
+<div class="modal" id="tokenomicsModal">
+    <div class="modal-content">
+        <div class="modal-title">📊 MTR Tokenomics</div>
+        <div class="modal-sub">Token allocation overview</div>
+        <div class="list-card"><span class="list-title">👥 Community & Mining</span><span class="list-value">60%</span></div>
+        <div class="list-card"><span class="list-title">🛠️ Team & Management</span><span class="list-value">15%</span></div>
+        <div class="list-card"><span class="list-title">💧 Liquidity Pool</span><span class="list-value">15%</span></div>
+        <div class="list-card"><span class="list-title">🌐 Ecosystem</span><span class="list-value">10%</span></div>
+        <button class="modal-close" onclick="closeTokenomicsModal()">CLOSE</button>
+    </div>
+</div>
+
+<nav class="bottom-nav">
+    <div class="nav-item active" onclick="switchTab('mine',this)"><span class="nav-icon">⛏️</span><span>Mine</span></div>
+    <div class="nav-item" onclick="switchTab('leaderboard',this)"><span class="nav-icon">🏆</span><span>Rank</span></div>
+    <div class="nav-item" onclick="switchTab('tasks',this)"><span class="nav-icon">📋</span><span>Tasks</span></div>
+    <div class="nav-item" onclick="switchTab('friends',this)"><span class="nav-icon">👥</span><span>Friends</span></div>
+    <div class="nav-item" onclick="switchTab('profile',this)"><span class="nav-icon">👤</span><span>Profile</span></div>
+</nav>
+
+<script>
+const firebaseConfig = {
+    apiKey: "AIzaSyA74QlASZn_mz9c4XjdpJAJQHyJqX9xdk4",
+    authDomain: "mtrdex.firebaseapp.com",
+    projectId: "mtrdex",
+    storageBucket: "mtrdex.firebasestorage.app",
+    messagingSenderId: "1086565020372",
+    appId: "1:1086565020372:web:908ecf8369e83c4d6dc141",
+    measurementId: "G-YP1ZKWZPL6"
+};
+
+if (!firebase.apps.length) firebase.initializeApp(firebaseConfig);
+const db = firebase.firestore();
+const tg = window.Telegram.WebApp;
+tg.ready();
+tg.expand();
+
+let ADMIN_WALLET_ADDRESS = "";
+let verifyFeeAmount = 0.1;
+let miningRatePerHour = 0.1;
+let miningRatePerSec = miningRatePerHour / 3600;
+let maxSupplyLimit = 0;
+let supplyStopNotice = "Total MTR supply limit has been reached! Mining is now stopped.";
+let globalTotalSupply = 0;
+let refTargetsList = [];
+let refCommissionPerUser = 0;
+
+const MINING_DURATION_HOURS = 8;
+const MINING_DURATION_MS = MINING_DURATION_HOURS * 60 * 60 * 1000;
+const telegramUser = tg.initDataUnsafe?.user || null;
+
+let userId = telegramUser ? "UID_" + telegramUser.id : localStorage.getItem("mtr_local_uid");
+if (!userId) {
+    userId = "UID_local_" + Date.now();
+    localStorage.setItem("mtr_local_uid", userId);
+}
+
+const telegramIdNumber = telegramUser ? String(telegramUser.id) : userId.replace(/^UID_/, "");
+let userName = telegramUser ? [telegramUser.first_name, telegramUser.last_name].filter(Boolean).join(" ") : "Master Miner";
+let userUsername = telegramUser?.username ? "@" + telegramUser.username : "@master_miner";
+let userPhotoUrl = telegramUser?.photo_url || "";
+
+let personalReferralCode = "";
+let personalReferralLink = "";
+let referrerId = null;
+let referrerCode = "";
+let incomingReferral = "";
+
+try {
+    const params = new URLSearchParams(location.search);
+    incomingReferral = String(
+        tg.initDataUnsafe?.start_param ||
+        params.get("startapp") ||
+        params.get("tgWebAppStartParam") ||
+        params.get("start") || ""
+    ).trim();
+    incomingReferral = decodeURIComponent(incomingReferral);
+} catch (e) {
+    incomingReferral = "";
+}
+
+let walletConnected = false;
+let connectedWalletAddress = "";
+let connectedWalletRawAddress = "";
+let isVerified = false;
+let isBanned = false;
+let totalBalance = 0.00000001;
+let refRewardBalance = 0;
+let claimedTargets = [];
+let currentVerifiedReferrals = 0;
+let completedTasks = {};
+let visitedTasks = {};
+let isWithdrawOpen = false;
+let minWithdrawLimit = 10;
+let maxWithdrawLimit = 1000000;
+let userLoaded = false;
+let walletStatusSequence = 0;
+let isClaimingMining = false;
+let activeHistoryFilter = "all";
+let claimActivities = [];
+let withdrawActivities = [];
+let miningStartTime = 0;
+let miningEndTime = 0;
+
+/* TEAM VARIABLES */
+let allTeamMembers = [];
+let teamLoading = false;
+let teamLoaded = false;
+
+document.getElementById("headerUserName").textContent = userName;
+document.getElementById("profileName").textContent = userName;
+document.getElementById("profileUsername").textContent = userUsername;
+document.getElementById("profileTelegramId").textContent = telegramIdNumber;
+
+function applyBanState(status) {
+    isBanned = status === true;
+    document.getElementById("bannedScreen").classList.toggle("active", isBanned);
+}
+
+function isSupplyLimitReached() {
+    return maxSupplyLimit > 0 && globalTotalSupply >= maxSupplyLimit;
+}
+
+function setAvatar(element) {
+    if (userPhotoUrl) {
+        const img = document.createElement("img");
+        img.src = userPhotoUrl;
+        img.alt = "Profile";
+        element.replaceChildren(img);
+    } else {
+        element.textContent = userName.charAt(0).toUpperCase() || "M";
+    }
+}
+setAvatar(document.getElementById("headerAvatar"));
+setAvatar(document.getElementById("profileAvatar"));
+
+function rawToFriendlyAddress(rawAddress, bounceable = false) {
+    if (!rawAddress) return "";
+    const match = rawAddress.match(/^(-?\d+):([0-9a-fA-F]{64})$/);
+    if (!match) return rawAddress;
+    const workchain = Number(match[1]);
+    const hashBytes = match[2].match(/.{2}/g).map(byte => parseInt(byte, 16));
+    const addressBytes = [bounceable ? 0x11 : 0x51, workchain & 0xff, ...hashBytes];
+    let crc = 0x0000;
+    for (const byte of addressBytes) {
+        crc ^= byte << 8;
+        for (let i = 0; i < 8; i++) {
+            crc = (crc & 0x8000) ? ((crc << 1) ^ 0x1021) : (crc << 1);
+            crc &= 0xffff;
+        }
+    }
+    addressBytes.push((crc >> 8) & 0xff, crc & 0xff);
+    return btoa(String.fromCharCode(...addressBytes)).replace(/\+/g, "-").replace(/\//g, "_").replace(/=/g, "");
+}
+
+let tonConnectUI = null;
+function getLiveWalletRawAddress() {
+    return tonConnectUI?.wallet?.account?.address || "";
+}
+function getLiveWalletAddress() {
+    const raw = getLiveWalletRawAddress();
+    return raw ? rawToFriendlyAddress(raw, false) : "";
+}
+
+try {
+    tonConnectUI = new TON_CONNECT_UI.TonConnectUI({
+        manifestUrl: "https://mtrdex-app.vercel.app/tonconnect-manifest.json"
+    });
+
+    tonConnectUI.onStatusChange(async wallet => {
+        if (isBanned) return;
+        const sequence = ++walletStatusSequence;
+
+        if (wallet?.account?.address) {
+            const newRaw = wallet.account.address;
+            let newFriendly;
+            try {
+                newFriendly = rawToFriendlyAddress(newRaw, false);
+            } catch (e) {
+                walletConnected = false;
+                connectedWalletAddress = "";
+                connectedWalletRawAddress = "";
+                updateUI();
+                return;
+            }
+
+            walletConnected = true;
+            connectedWalletRawAddress = newRaw;
+            connectedWalletAddress = newFriendly;
+
+            if (userLoaded) {
+                try {
+                    const doc = await db.collection("users").doc(userId).get();
+                    if (sequence !== walletStatusSequence) return;
+                    const data = doc.exists ? doc.data() : {};
+                    applyBanState(data.banned === true);
+                    if (isBanned) return;
+
+                    const savedRaw = data.walletRawAddress || "";
+                    const savedFriendly = data.walletAddress || "";
+                    const verifiedRaw = data.verifiedWalletRaw || "";
+                    const verifiedFriendly = data.verifiedWalletAddress || "";
+                    const sameSaved = savedRaw === newRaw || savedFriendly === newFriendly;
+                    const sameVerified = verifiedRaw === newRaw || verifiedFriendly === newFriendly;
+
+                    isVerified = data.verified === true && (sameSaved || sameVerified);
+                    await saveWalletInfo();
+                    updateUI();
+                } catch (e) {
+                    console.error("Wallet restore error:", e);
+                }
+            }
+        } else {
+            walletConnected = false;
+            connectedWalletAddress = "";
+            connectedWalletRawAddress = "";
+            updateUI();
+        }
+
+        const modal = document.getElementById("walletModal");
+        if (walletConnected && modal.style.display === "flex") {
+            document.getElementById("modalWalletAddr").textContent = connectedWalletAddress;
+        }
+    });
+} catch (e) {
+    console.error("TonConnect init error:", e);
+}
+
+async function handleWalletClick() {
+    if (isBanned) return;
+    if (!tonConnectUI) {
+        alert("TON Connect is not available.");
+        return;
+    }
+
+    const liveAddress = getLiveWalletAddress();
+    if (liveAddress) {
+        walletConnected = true;
+        connectedWalletRawAddress = getLiveWalletRawAddress();
+        connectedWalletAddress = liveAddress;
+        document.getElementById("modalWalletAddr").textContent = liveAddress;
+        document.getElementById("walletModal").style.display = "flex";
+        updateUI();
+        return;
+    }
+
+    try {
+        await tonConnectUI.openModal();
+    } catch (e) {
+        alert("Unable to open wallet connection.");
+    }
+}
+
+function closeWalletModal() {
+    document.getElementById("walletModal").style.display = "none";
+}
+
+async function saveWalletInfo() {
+    if (!userLoaded || isBanned || !walletConnected || !connectedWalletRawAddress) return;
+    try {
+        await db.collection("users").doc(userId).set({
+            walletConnected: true,
+            walletAddress: connectedWalletAddress,
+            walletRawAddress: connectedWalletRawAddress
+        }, { merge: true });
+    } catch (e) {}
+}
+
+async function disconnectWallet() {
+    if (!tonConnectUI) return;
+    try {
+        await tonConnectUI.disconnect();
+        walletConnected = false;
+        connectedWalletAddress = "";
+        connectedWalletRawAddress = "";
+        await db.collection("users").doc(userId).set({
+            walletConnected: false,
+            walletAddress: "",
+            walletRawAddress: ""
+        }, { merge: true });
+        closeWalletModal();
+        updateUI();
+        alert("Wallet disconnected successfully!");
+    } catch (e) {
+        alert("Unable to disconnect wallet.");
+    }
+}
+
+async function copyWalletAddress() {
+    const address = getLiveWalletAddress();
+    if (!address) return alert("No wallet connected!");
+    await copyText(address);
+}
+
+function generateReferralCode() {
+    const chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+    const values = new Uint32Array(6);
+    crypto.getRandomValues(values);
+    let code = "MTR-";
+    for (let i = 0; i < 6; i++) code += chars[values[i] % chars.length];
+    return code;
+}
+
+function updateReferralCodeUI() {
+    const codeBox = document.getElementById("myReferralCode");
+    const profileCode = document.getElementById("profileReferralCode");
+    const linkBox = document.getElementById("refLinkBox");
+
+    if (codeBox) codeBox.textContent = personalReferralCode || "Generating code...";
+    if (profileCode) profileCode.textContent = personalReferralCode || "Generating...";
+    if (linkBox) linkBox.textContent = personalReferralLink || "Generating referral link...";
+
+    const applied = !!referrerId;
+    const applyBox = document.getElementById("applyReferralBox");
+    const appliedBox = document.getElementById("referralAppliedBox");
+    if (applyBox) applyBox.style.display = applied ? "none" : "block";
+    if (appliedBox) appliedBox.style.display = applied ? "block" : "none";
+
+    document.getElementById("profileReferredById").textContent =
+        referrerId ? String(referrerId).replace(/^UID_/, "") : "Not Referred";
+    document.getElementById("profileReferredByCode").textContent =
+        referrerCode || "Not Referred";
+}
+
+async function ensurePersonalReferralCode() {
+    const userRef = db.collection("users").doc(userId);
+
+    try {
+        const userSnap = await userRef.get();
+        if (!userSnap.exists) return;
+
+        let savedCode = userSnap.data().referralCode || "";
+
+        if (savedCode) {
+            const codeRef = db.collection("referralCodes").doc(savedCode);
+            const codeSnap = await codeRef.get();
+
+            if (!codeSnap.exists) {
+                await codeRef.set({
+                    ownerId: userId,
+                    createdAt: firebase.firestore.FieldValue.serverTimestamp()
+                });
+            } else if (codeSnap.data().ownerId !== userId) {
+                savedCode = "";
+            }
+        }
+
+        if (!savedCode) {
+            let generated = false;
+
+            for (let attempt = 0; attempt < 15; attempt++) {
+                const newCode = generateReferralCode();
+                const codeRef = db.collection("referralCodes").doc(newCode);
+
+                const result = await db.runTransaction(async transaction => {
+                    const latestUser = await transaction.get(userRef);
+                    const existingCode = await transaction.get(codeRef);
+
+                    if (!latestUser.exists) throw new Error("USER_NOT_FOUND");
+
+                    const currentCode = latestUser.data().referralCode;
+                    if (currentCode) return currentCode;
+                    if (existingCode.exists) return null;
+
+                    transaction.set(codeRef, {
+                        ownerId: userId,
+                        createdAt: firebase.firestore.FieldValue.serverTimestamp()
+                    });
+
+                    transaction.set(userRef, { referralCode: newCode }, { merge: true });
+                    return newCode;
+                });
+
+                if (result) {
+                    savedCode = result;
+                    generated = true;
+                    break;
+                }
+            }
+
+            if (!generated && !savedCode) throw new Error("CODE_GENERATION_FAILED");
+        }
+
+        personalReferralCode = savedCode;
+        personalReferralLink = "https://t.me/MTRDex_bot?startapp=" + encodeURIComponent(savedCode);
+
+        const freshUser = await userRef.get();
+        if (freshUser.exists) {
+            const data = freshUser.data();
+            referrerId = data.referredBy || null;
+            referrerCode = data.referredByReferralCode || "";
+
+            if (referrerId && !referrerCode) {
+                const ownerSnap = await db.collection("users").doc(referrerId).get();
+                if (ownerSnap.exists) {
+                    referrerCode = ownerSnap.data().referralCode || "";
+                    await userRef.set({ referredByReferralCode: referrerCode }, { merge: true });
+                }
+            }
+        }
+
+        updateReferralCodeUI();
+
+        const input = document.getElementById("referralInput");
+        if (input && !referrerId && incomingReferral) {
+            const candidate = incomingReferral.trim();
+            if (/^MTR-[A-HJ-NP-Z2-9]{6}$/i.test(candidate) ||
+                /^\d{5,20}$/.test(candidate) ||
+                /^UID_\d{5,20}$/.test(candidate)) {
+                input.value = candidate;
+            }
+        }
+
+    } catch (error) {
+        console.error("Referral code setup error:", error);
+        const codeBox = document.getElementById("myReferralCode");
+        if (codeBox) codeBox.textContent = "Unable to generate code. Check Firestore permissions.";
+    }
+}
+
+async function copyMyReferralCode() {
+    if (!personalReferralCode) return alert("Referral code is not ready yet.");
+    await copyText(personalReferralCode);
+}
+
+function normalizeReferralInput(value) {
+    const text = String(value || "").trim().toUpperCase();
+
+    if (/^MTR-[A-HJ-NP-Z2-9]{6}$/.test(text)) {
+        return { type: "code", value: text };
+    }
+
+    if (/^UID_\d{5,20}$/.test(text)) {
+        return { type: "id", value: text };
+    }
+
+    if (/^\d{5,20}$/.test(text)) {
+        return { type: "id", value: "UID_" + text };
+    }
+
+    return null;
+}
+
+async function applyReferral() {
+    if (isBanned || !userLoaded) return;
+
+    const input = document.getElementById("referralInput");
+    const button = document.getElementById("applyReferralBtn");
+    const normalized = normalizeReferralInput(input.value);
+
+    if (!normalized) {
+        alert("Enter a valid MTR referral code or Telegram ID number.");
+        return;
+    }
+
+    if (referrerId) {
+        updateReferralCodeUI();
+        alert("You have already applied a referral.");
+        return;
+    }
+
+    if (normalized.type === "code" && normalized.value === personalReferralCode) {
+        alert("You cannot use your own referral code.");
+        return;
+    }
+
+    if (normalized.type === "id" && normalized.value === userId) {
+        alert("You cannot use your own Telegram ID.");
+        return;
+    }
+
+    button.disabled = true;
+    button.textContent = "APPLYING...";
+
+    try {
+        const userRef = db.collection("users").doc(userId);
+        let ownerId = normalized.value;
+        let appliedCode = "";
+
+        if (normalized.type === "code") {
+            const codeSnap = await db.collection("referralCodes").doc(normalized.value).get();
+            if (!codeSnap.exists) throw new Error("INVALID_CODE");
+            ownerId = codeSnap.data().ownerId;
+            appliedCode = normalized.value;
+        }
+
+        if (!ownerId || ownerId === userId) throw new Error("SELF_REFERRAL");
+
+        const ownerRef = db.collection("users").doc(ownerId);
+
+        await db.runTransaction(async transaction => {
+            const currentUserSnap = await transaction.get(userRef);
+            const ownerSnap = await transaction.get(ownerRef);
+
+            if (!currentUserSnap.exists) throw new Error("USER_NOT_FOUND");
+            if (!ownerSnap.exists) throw new Error("INVALID_OWNER");
+
+            const currentData = currentUserSnap.data();
+            if (currentData.referredBy) throw new Error("ALREADY_USED");
+
+            const ownerData = ownerSnap.data();
+            const ownerCode = ownerData.referralCode || appliedCode;
+
+            if (ownerId === userId) throw new Error("SELF_REFERRAL");
+
+            transaction.set(userRef, {
+                referredBy: ownerId,
+                referredByTelegramId: ownerId.replace(/^UID_/, ""),
+                referredByReferralCode: ownerCode,
+                referralCodeUsed: appliedCode || "",
+                referralAppliedAt: firebase.firestore.FieldValue.serverTimestamp()
+            }, { merge: true });
+        });
+
+        referrerId = ownerId;
+        const ownerData = (await ownerRef.get()).data() || {};
+        referrerCode = ownerData.referralCode || appliedCode;
+
+        input.value = "";
+        updateReferralCodeUI();
+        alert("Referral applied successfully!");
+
+        loadReferralStats();
+
+    } catch (error) {
+        console.error("Referral apply error:", error);
+
+        const messages = {
+            INVALID_CODE: "This referral code does not exist.",
+            USER_NOT_FOUND: "Your user account was not found.",
+            INVALID_OWNER: "This Telegram ID or referral owner does not exist.",
+            ALREADY_USED: "You have already applied a referral.",
+            SELF_REFERRAL: "You cannot refer yourself."
+        };
+
+        alert(messages[error.message] || "Referral could not be applied. Check Firestore permissions.");
+    } finally {
+        button.disabled = false;
+        button.textContent = "APPLY REFERRAL";
+    }
+}
+
+async function verifyAccountWithFee() {
+    if (isBanned) return;
+    if (!walletConnected || !tonConnectUI) {
+        alert("Please connect your wallet first!");
+        await handleWalletClick();
+        return;
+    }
+    if (isVerified) return alert("Your account is already verified!");
+    if (!ADMIN_WALLET_ADDRESS) return alert("Admin receiving wallet address is not configured yet.");
+
+    try {
+        const nanoAmount = Math.round(verifyFeeAmount * 1e9).toString();
+        const transaction = {
+            validUntil: Math.floor(Date.now() / 1000) + 600,
+            messages: [{ address: ADMIN_WALLET_ADDRESS, amount: nanoAmount }]
+        };
+
+        alert(`Sending ${verifyFeeAmount} TON verification transaction. Please confirm in your wallet app.`);
+        const result = await tonConnectUI.sendTransaction(transaction);
+
+        if (result && result.boc) {
+            isVerified = true;
+            const currentRaw = getLiveWalletRawAddress();
+            const currentFriendly = getLiveWalletAddress();
+            const now = Date.now();
+
+            miningStartTime = isSupplyLimitReached() ? 0 : now;
+            miningEndTime = isSupplyLimitReached() ? 0 : now + MINING_DURATION_MS;
+
+            await db.collection("users").doc(userId).set({
+                verified: true,
+                verifiedWalletRaw: currentRaw,
+                verifiedWalletAddress: currentFriendly,
+                walletConnected: true,
+                walletAddress: currentFriendly,
+                walletRawAddress: currentRaw,
+                miningStartTime,
+                miningEndTime,
+                verifiedAt: firebase.firestore.FieldValue.serverTimestamp()
+            }, { merge: true });
+
+            if (referrerId && refCommissionPerUser > 0) {
+                const refDoc = db.collection("users").doc(referrerId);
+                await db.runTransaction(async transaction => {
+                    const snap = await transaction.get(refDoc);
+                    if (!snap.exists) return;
+                    const currentReward = Number(snap.data().refReward || 0);
+                    transaction.set(refDoc, { refReward: currentReward + refCommissionPerUser }, { merge: true });
+                });
+            }
+
+            updateUI();
+            alert("Account verified successfully!");
+        }
+    } catch (error) {
+        console.error("Verification transaction failed:", error);
+        alert("Transaction cancelled or failed. Please ensure you have sufficient TON balance.");
+    }
+}
+
+async function recordClaimActivity(category, title, amount) {
+    const numericAmount = Number(amount || 0);
+    if (numericAmount <= 0) return;
+
+    const timestampMs = Date.now();
+    const localItem = {
+        id: "local_" + timestampMs + "_" + Math.random().toString(36).slice(2, 7),
+        kind: "claim", category, title, amount: numericAmount,
+        status: "CLAIMED", timestampMs
+    };
+
+    claimActivities = [localItem, ...claimActivities];
+    renderHistoryList();
+
+    try {
+        await db.collection("activity_history").add({
+            userId, kind: "claim", category, title,
+            amount: numericAmount, status: "CLAIMED", timestampMs,
+            createdAt: firebase.firestore.FieldValue.serverTimestamp()
+        });
+    } catch (e) {
+        console.error("Failed to save claim history:", e);
+    }
+}
+
+function getTimestampMs(val) {
+    if (!val) return 0;
+    if (typeof val === "number") return val;
+    if (typeof val.toMillis === "function") return val.toMillis();
+    if (val.seconds) return val.seconds * 1000;
+    return 0;
+}
+
+function formatHistoryDate(ms) {
+    if (!ms) return "Just now";
+    try {
+        return new Date(ms).toLocaleString([], { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" });
+    } catch (e) {
+        return "Recorded";
+    }
+}
+
+function openFullHistoryScreen() {
+    const screen = document.getElementById("fullHistoryScreen");
+    if (screen) {
+        screen.classList.add("active");
+        screen.scrollTo({ top: 0, behavior: "smooth" });
+    }
+    renderHistoryList();
+}
+
+function closeFullHistoryScreen() {
+    document.getElementById("fullHistoryScreen")?.classList.remove("active");
+}
+
+function setHistoryFilter(filter) {
+    activeHistoryFilter = filter;
+    const allBtn = document.getElementById("btnAllHistory");
+    const withdrawBtn = document.getElementById("btnWithdrawHistory");
+    const titleEl = document.getElementById("fullHistoryTitle");
+
+    if (filter === "withdraw") {
+        allBtn.classList.remove("active");
+        withdrawBtn.classList.add("active");
+        titleEl.textContent = "Withdraw History";
+    } else {
+        withdrawBtn.classList.remove("active");
+        allBtn.classList.add("active");
+        titleEl.textContent = "Full History";
+    }
+    renderHistoryList();
+}
+
+function renderHistoryList() {
+    const container = document.getElementById("historyListContainer");
+    if (!container) return;
+    container.replaceChildren();
+
+    const items = activeHistoryFilter === "withdraw"
+        ? [...withdrawActivities]
+        : [...claimActivities, ...withdrawActivities];
+
+    items.sort((a, b) => (b.timestampMs || 0) - (a.timestampMs || 0));
+
+    if (!items.length) {
+        container.innerHTML = activeHistoryFilter === "withdraw"
+            ? '<div class="empty-state">No withdrawal history yet.</div>'
+            : '<div class="empty-state">No claim or withdrawal history yet.</div>';
+        return;
+    }
+
+    items.forEach(item => {
+        const card = document.createElement("div");
+        card.className = "list-card";
+        const left = document.createElement("div");
+        left.className = "list-left";
+        const icon = document.createElement("div");
+        icon.className = "task-icon";
+        const info = document.createElement("div");
+        const title = document.createElement("div");
+        title.className = "list-title";
+        const sub = document.createElement("div");
+        sub.className = "list-sub";
+        const right = document.createElement("div");
+        right.style.textAlign = "right";
+        const status = document.createElement("div");
+
+        if (item.kind === "withdraw") {
+            icon.textContent = "📤";
+            title.textContent = "-" + Number(item.amount || 0).toFixed(4) + " MTR (Withdraw)";
+            const shortWallet = item.walletAddress
+                ? item.walletAddress.slice(0, 6) + "..." + item.walletAddress.slice(-4)
+                : "Wallet";
+            sub.textContent = shortWallet + " • " + formatHistoryDate(item.timestampMs);
+            const st = (item.status || "pending").toLowerCase();
+            status.textContent = st.toUpperCase();
+            status.className = st === "approved" ? "status-approved" : st === "rejected" ? "status-rejected" : "status-pending";
+        } else {
+            icon.textContent = item.category === "mining" ? "⛏️" : item.category === "task" ? "📋" : "🎁";
+            title.textContent = "+" + Number(item.amount || 0).toFixed(8) + " MTR (" + (item.title || "Claim") + ")";
+            sub.textContent = formatHistoryDate(item.timestampMs);
+            status.textContent = "CLAIMED";
+            status.className = "status-claim";
+        }
+
+        info.append(title, sub);
+        left.append(icon, info);
+        right.append(status);
+        card.append(left, right);
+        container.append(card);
+    });
+}
+
+function startHistoryListeners() {
+    db.collection("activity_history").where("userId", "==", userId).onSnapshot(snapshot => {
+        const list = [];
+        snapshot.forEach(doc => {
+            const d = doc.data();
+            list.push({
+                id: doc.id, kind: "claim", category: d.category || "mining",
+                title: d.title || "Token Claim", amount: Number(d.amount || 0),
+                status: d.status || "CLAIMED",
+                timestampMs: Number(d.timestampMs || getTimestampMs(d.createdAt))
+            });
+        });
+        claimActivities = list;
+        renderHistoryList();
+    }, err => console.error("Claim history listener error:", err));
+
+    db.collection("withdrawals").where("userId", "==", userId).onSnapshot(snapshot => {
+        const list = [];
+        snapshot.forEach(doc => {
+            const d = doc.data();
+            list.push({
+                id: doc.id, kind: "withdraw", amount: Number(d.amount || 0),
+                walletAddress: d.walletAddress || "", status: d.status || "pending",
+                timestampMs: Number(d.timestampMs || getTimestampMs(d.createdAt))
+            });
+        });
+        withdrawActivities = list;
+        renderHistoryList();
+    }, err => console.error("Withdraw history listener error:", err));
+}
+
+function startRealtimeUserBanListener() {
+    db.collection("users").doc(userId).onSnapshot(doc => {
+        if (!doc.exists) return;
+        const data = doc.data();
+        applyBanState(data.banned === true);
+
+        if (!isBanned && !isClaimingMining) {
+            if (data.balance !== undefined) totalBalance = Number(data.balance);
+            miningStartTime = Number(data.miningStartTime || 0);
+            miningEndTime = Number(data.miningEndTime || 0);
+            if (data.refReward !== undefined) refRewardBalance = Number(data.refReward || 0);
+            updateReferralTargetUI();
+            updateUI();
+        }
+    }, err => console.error("User listener error:", err));
+}
+
+async function loadUserData() {
+    const userRef = db.collection("users").doc(userId);
+
+    try {
+        const doc = await userRef.get();
+        const liveRaw = getLiveWalletRawAddress();
+        const liveFriendly = liveRaw ? rawToFriendlyAddress(liveRaw, false) : "";
+
+        if (doc.exists) {
+            const data = doc.data();
+            applyBanState(data.banned === true);
+
+            if (!isClaimingMining) {
+                totalBalance = data.balance !== undefined ? Number(data.balance) : 0.00000001;
+                miningStartTime = Number(data.miningStartTime || 0);
+                miningEndTime = Number(data.miningEndTime || 0);
+            }
+
+            refRewardBalance = Number(data.refReward || 0);
+            claimedTargets = Array.isArray(data.claimedTargets) ? data.claimedTargets : [];
+            completedTasks = data.tasks || {};
+            visitedTasks = data.visitedTasks || {};
+            referrerId = data.referredBy || null;
+            referrerCode = data.referredByReferralCode || "";
+
+            if (!isBanned) {
+                if (liveRaw) {
+                    connectedWalletRawAddress = liveRaw;
+                    connectedWalletAddress = liveFriendly;
+                    walletConnected = true;
+
+                    const savedRaw = data.walletRawAddress || "";
+                    const savedFriendly = data.walletAddress || "";
+                    const verifiedRaw = data.verifiedWalletRaw || "";
+                    const verifiedFriendly = data.verifiedWalletAddress || "";
+                    const sameSaved = savedRaw === liveRaw || savedFriendly === liveFriendly;
+                    const sameVerified = verifiedRaw === liveRaw || verifiedFriendly === liveFriendly;
+
+                    isVerified = data.verified === true && (sameSaved || sameVerified);
+
+                    await userRef.set({
+                        walletConnected: true,
+                        walletAddress: liveFriendly,
+                        walletRawAddress: liveRaw,
+                        verified: isVerified,
+                        verifiedWalletRaw: verifiedRaw || (isVerified ? liveRaw : ""),
+                        verifiedWalletAddress: verifiedFriendly || (isVerified ? liveFriendly : ""),
+                        userId, name: userName, username: userUsername,
+                        lastSeen: firebase.firestore.FieldValue.serverTimestamp()
+                    }, { merge: true });
+                } else {
+                    walletConnected = false;
+                    connectedWalletAddress = "";
+                    connectedWalletRawAddress = "";
+                    isVerified = data.verified === true;
+
+                    await userRef.set({
+                        userId, name: userName, username: userUsername,
+                        lastSeen: firebase.firestore.FieldValue.serverTimestamp()
+                    }, { merge: true });
+                }
+            }
+        } else {
+            walletConnected = !!liveRaw;
+            connectedWalletRawAddress = liveRaw || "";
+            connectedWalletAddress = liveFriendly;
+            isVerified = false;
+            applyBanState(false);
+
+            await userRef.set({
+                userId, name: userName, username: userUsername,
+                balance: 0.00000001, refReward: 0, claimedTargets: [],
+                verified: false, banned: false,
+                walletConnected, walletAddress: connectedWalletAddress,
+                walletRawAddress: connectedWalletRawAddress,
+                tasks: {}, visitedTasks: {},
+                miningStartTime: 0, miningEndTime: 0,
+                referredBy: null,
+                createdAt: firebase.firestore.FieldValue.serverTimestamp()
+            });
+            totalBalance = 0.00000001;
+            miningStartTime = 0;
+            miningEndTime = 0;
+            referrerId = null;
+            referrerCode = "";
+        }
+
+        userLoaded = true;
+
+        if (!isBanned) {
+            await ensurePersonalReferralCode();
+        }
+
+        updateReferralCodeUI();
+        startRealtimeUserBanListener();
+        updateUI();
+        loadTasks();
+        loadLeaderboard();
+        loadReferralStats();
+        startHistoryListeners();
+
+        if (!isBanned && getLiveWalletRawAddress()) await saveWalletInfo();
+
+    } catch (e) {
+        console.error("User load error:", e);
+        alert("Unable to load your account. Please check your internet connection and Firestore permissions.");
+    }
+}
+
+loadUserData();
+
+db.collection("settings").doc("config").onSnapshot(doc => {
+    if (!doc.exists) return;
+    const data = doc.data();
+
+    isWithdrawOpen = data.withdrawOpen === true;
+    minWithdrawLimit = Number(data.minWithdraw || 10);
+    if (data.maxWithdraw !== undefined) maxWithdrawLimit = Number(data.maxWithdraw);
+
+    maxSupplyLimit = Number(data.maxSupplyLimit || 0);
+    if (data.supplyStopNotice) supplyStopNotice = data.supplyStopNotice;
+
+    if (Array.isArray(data.refTargets) && data.refTargets.length > 0) {
+        refTargetsList = data.refTargets.map(t => ({ target: Number(t.target), reward: Number(t.reward) }));
+    } else if (data.refTarget !== undefined && data.refTargetReward !== undefined && Number(data.refTarget) > 0) {
+        refTargetsList = [{ target: Number(data.refTarget), reward: Number(data.refTargetReward) }];
+    } else {
+        refTargetsList = [];
+    }
+
+    if (data.refCommission !== undefined) refCommissionPerUser = Number(data.refCommission);
+    if (data.miningRate !== undefined) {
+        miningRatePerHour = Number(data.miningRate);
+        miningRatePerSec = miningRatePerHour / 3600;
+    }
+    if (data.verifyFee !== undefined) verifyFeeAmount = Number(data.verifyFee);
+    if (data.adminWallet !== undefined) ADMIN_WALLET_ADDRESS = data.adminWallet;
+
+    const minLabel = document.getElementById("withdrawMinLabel");
+    if (minLabel) minLabel.textContent = `Min: ${minWithdrawLimit} MTR • Max: ${maxWithdrawLimit} MTR`;
+
+    if (data.maintenanceMode === true) {
+        document.body.innerHTML = `
+        <div style="min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:25px;text-align:center;background:#080D18">
+            <div style="font-size:55px">🛠️</div>
+            <h2 style="color:#F5C542;margin:20px">Under Maintenance</h2>
+            <p style="color:#8996AA;line-height:1.7">${escapeHTML(data.maintenanceNotice || "We will be back soon.")}</p>
+        </div>`;
+    }
+
+    updateReferralTargetUI();
+    updateUI();
+});
+
+let latestTasksSnapshot = null;
+
+function loadTasks() {
+    db.collection("tasks").onSnapshot(snapshot => {
+        latestTasksSnapshot = snapshot;
+        renderTasksList();
+    }, err => console.error("Tasks listener error:", err));
+}
+
+function renderTasksList() {
+    const container = document.getElementById("dynamicTasksList");
+    if (!container) return;
+    container.replaceChildren();
+
+    if (!latestTasksSnapshot || latestTasksSnapshot.empty) {
+        container.innerHTML = '<div class="empty-state">No tasks available right now.</div>';
+        return;
+    }
+
+    latestTasksSnapshot.forEach(docSnap => {
+        const task = docSnap.data();
+        const taskId = docSnap.id;
+        const claimed = completedTasks[taskId] === true;
+        const visited = visitedTasks[taskId] === true;
+
+        const card = document.createElement("div");
+        card.className = "list-card";
+        const left = document.createElement("div");
+        left.className = "list-left";
+        const icon = document.createElement("div");
+        icon.className = "task-icon";
+        icon.textContent = task.icon || "📋";
+        const info = document.createElement("div");
+        const title = document.createElement("div");
+        title.className = "list-title";
+        title.textContent = task.title || "Task";
+        const reward = document.createElement("div");
+        reward.className = "list-sub";
+        reward.style.color = "var(--gold)";
+        reward.textContent = "+" + Number(task.reward || 0) + " MTR";
+        info.append(title, reward);
+        left.append(icon, info);
+
+        const button = document.createElement("button");
+        if (claimed) {
+            button.className = "task-btn claimed";
+            button.textContent = "Claimed ✓";
+            button.disabled = true;
+        } else if (visited) {
+            button.className = "task-btn claim-ready";
+            button.textContent = "Claim";
+            button.onclick = () => claimTaskReward(taskId, task);
+        } else {
+            button.className = "task-btn";
+            button.textContent = "Start";
+            button.onclick = () => openTaskLink(taskId, task);
+        }
+
+        card.append(left, button);
+        container.append(card);
+    });
+}
+
+async function openTaskLink(taskId, task) {
+    if (isBanned) return;
+    if (task.link && /^https:\/\//i.test(task.link)) tg.openLink(task.link);
+    else if (task.link) window.open(task.link, "_blank");
+
+    visitedTasks[taskId] = true;
+    renderTasksList();
+    try {
+        await db.collection("users").doc(userId).set({ visitedTasks }, { merge: true });
+    } catch (e) {}
+}
+
+async function claimTaskReward(taskId, task) {
+    if (isBanned || completedTasks[taskId] === true) return;
+    const reward = Number(task.reward || 0);
+    completedTasks[taskId] = true;
+    totalBalance += reward;
+
+    try {
+        await db.collection("users").doc(userId).set({
+            balance: totalBalance, tasks: completedTasks, visitedTasks
+        }, { merge: true });
+        await recordClaimActivity("task", task.title || "Task Reward", reward);
+        updateUI();
+        renderTasksList();
+        alert(`🎉 Task claimed! Earned +${reward} MTR.`);
+    } catch (e) {
+        alert("Failed to claim task reward.");
+    }
+}
+
+document.addEventListener("visibilitychange", () => {
+    if (!document.hidden) renderTasksList();
+});
+
+function loadLeaderboard() {
+    db.collection("users").orderBy("balance", "desc").limit(100).onSnapshot(snapshot => {
+        const container = document.getElementById("liveLeaderboardList");
+        container.replaceChildren();
+
+        let sumSupply = 0;
+        snapshot.forEach(doc => sumSupply += Number(doc.data().balance || 0));
+        globalTotalSupply = sumSupply;
+        updateUI();
+
+        let rank = 1;
+        let myRank = "--";
+        let renderedCount = 0;
+
+        snapshot.forEach(doc => {
+            const d = doc.data();
+            const isMe = doc.id === userId;
+            const balanceValue = Number(d.balance || 0);
+            if (balanceValue <= 0.00000001 && !isMe) return;
+
+            if (isMe) {
+                myRank = "#" + rank;
+                document.getElementById("myRankBalance").textContent = totalBalance.toFixed(8) + " MTR";
+            }
+
+            const card = document.createElement("div");
+            card.className = "list-card" + (isMe ? " highlight" : "");
+            const left = document.createElement("div");
+            left.className = "list-left";
+            const icon = document.createElement("div");
+            icon.className = "task-icon";
+            icon.textContent = "#" + rank;
+            const info = document.createElement("div");
+            const name = document.createElement("div");
+            name.className = "list-title";
+            name.textContent = (d.name || "Miner") + (isMe ? " (You)" : "");
+            const username = document.createElement("div");
+            username.className = "list-sub";
+            username.textContent = d.username || "@miner";
+            info.append(name, username);
+            left.append(icon, info);
+
+            const balance = document.createElement("div");
+            balance.className = "list-value";
+            balance.textContent = balanceValue.toFixed(8) + " MTR";
+            card.append(left, balance);
+            container.append(card);
+            rank++;
+            renderedCount++;
+        });
+
+        document.getElementById("myRank").textContent = myRank;
+        if (!renderedCount) {
+            container.innerHTML = '<div class="empty-state">No active miners on leaderboard yet. Claim tokens to rank up!</div>';
+        }
+    }, err => console.error("Leaderboard listener error:", err));
+}
+
+function loadReferralStats() {
+    db.collection("users").where("referredBy", "==", userId).onSnapshot(snapshot => {
+        let verified = 0;
+        snapshot.forEach(doc => {
+            if (doc.data().verified === true) verified++;
+        });
+
+        currentVerifiedReferrals = verified;
+        const total = snapshot.size;
+        document.getElementById("referralCount").textContent = total;
+        document.getElementById("miniRefCount").textContent = total;
+        document.getElementById("verifiedRef").textContent = verified;
+        document.getElementById("unverifiedRef").textContent = total - verified;
+
+        db.collection("users").doc(userId).set({ referralCount: total }, { merge: true }).catch(() => {});
+        updateReferralTargetUI();
+    }, err => console.error("Referral listener error:", err));
+}
+
+function getUnlockedTargetReward() {
+    let sum = 0;
+    refTargetsList.forEach(item => {
+        const key = `${item.target}_${item.reward}`;
+        if (currentVerifiedReferrals >= item.target && !claimedTargets.includes(key)) sum += Number(item.reward || 0);
+    });
+    return sum;
+}
+
+function updateReferralTargetUI() {
+    const box = document.getElementById("refTargetBox");
+    if (box) {
+        if (!refTargetsList.length) {
+            box.innerHTML = "🎯 No referral targets set by admin yet.";
+        } else {
+            box.innerHTML = refTargetsList.map(item => {
+                const key = `${item.target}_${item.reward}`;
+                const claimed = claimedTargets.includes(key);
+                const unlocked = currentVerifiedReferrals >= item.target;
+                let badge = `<span style="color:var(--muted);">${currentVerifiedReferrals}/${item.target}</span>`;
+                if (claimed) badge = `<span style="color:var(--green);font-weight:700;">Claimed ✓</span>`;
+                else if (unlocked) badge = `<span style="color:var(--gold);font-weight:700;">Ready 🎁</span>`;
+                return `<div class="target-item"><div>🎯 <strong>${item.target}</strong> Verified Refs = <strong style="color:var(--gold);">${item.reward} MTR</strong></div><div>${badge}</div></div>`;
+            }).join("");
+        }
+    }
+
+    const claimable = refRewardBalance + getUnlockedTargetReward();
+    document.getElementById("refRewardBalance").textContent = claimable.toFixed(8);
+}
+
+async function claimRefReward() {
+    if (isBanned) return;
+    const unlocked = getUnlockedTargetReward();
+    const totalClaimable = refRewardBalance + unlocked;
+
+    if (totalClaimable <= 0) {
+        alert("Reach a referral target or earn referral commission to claim reward!");
+        return;
+    }
+
+    const updatedClaimed = [...claimedTargets];
+    refTargetsList.forEach(item => {
+        const key = `${item.target}_${item.reward}`;
+        if (currentVerifiedReferrals >= item.target && !updatedClaimed.includes(key)) updatedClaimed.push(key);
+    });
+
+    const oldBalance = totalBalance;
+    totalBalance += totalClaimable;
+    refRewardBalance = 0;
+    claimedTargets = updatedClaimed;
+
+    try {
+        await db.collection("users").doc(userId).set({
+            balance: totalBalance, refReward: 0, claimedTargets
+        }, { merge: true });
+        await recordClaimActivity("referral", "Referral Reward", totalClaimable);
+        updateReferralTargetUI();
+        updateUI();
+        alert(`Successfully claimed ${totalClaimable.toFixed(8)} MTR referral reward!`);
+    } catch (e) {
+        totalBalance = oldBalance;
+        alert("Failed to claim referral reward.");
+    }
+}
+
+function copyRefLink() {
+    if (!personalReferralLink) return alert("Referral link is not ready yet.");
+    copyText(personalReferralLink);
+}
+
+function shareRefLink() {
+    if (!personalReferralLink) return alert("Referral link is not ready yet.");
+    const url = "https://t.me/share/url?url=" + encodeURIComponent(personalReferralLink) +
+        "&text=" + encodeURIComponent("Join MTR Master Mining using my referral link!");
+    tg.openTelegramLink(url);
+}
+
+async function handleMainAction() {
+    if (isBanned || isClaimingMining) return;
+
+    const liveAddress = getLiveWalletAddress();
+    if (!liveAddress) {
+        await handleWalletClick();
+        return;
+    }
+
+    if (!isVerified) {
+        await verifyAccountWithFee();
+        return;
+    }
+
+    if (isSupplyLimitReached()) {
+        alert(supplyStopNotice);
+        updateUI();
+        return;
+    }
+
+    isClaimingMining = true;
+    const now = Date.now();
+    const elapsed = miningStartTime > 0 ? Math.max(0, (now - miningStartTime) / 1000) : 0;
+    let mined = Math.min(miningRatePerHour * MINING_DURATION_HOURS, elapsed * miningRatePerSec);
+
+    if (maxSupplyLimit > 0 && globalTotalSupply + mined > maxSupplyLimit) {
+        mined = Math.max(0, maxSupplyLimit - globalTotalSupply);
+    }
+
+    const prevBalance = totalBalance;
+    const prevStart = miningStartTime;
+    const prevEnd = miningEndTime;
+    const newBalance = prevBalance + mined;
+    const reached = maxSupplyLimit > 0 && (globalTotalSupply + mined) >= maxSupplyLimit;
+    const newStart = reached ? 0 : now;
+    const newEnd = reached ? 0 : now + MINING_DURATION_MS;
+
+    totalBalance = newBalance;
+    miningStartTime = newStart;
+    miningEndTime = newEnd;
+    updateUI();
+
+    try {
+        await db.collection("users").doc(userId).set({
+            balance: newBalance, miningStartTime: newStart, miningEndTime: newEnd
+        }, { merge: true });
+
+        if (mined > 0) await recordClaimActivity("mining", "Mining Claim", mined);
+
+        if (reached) alert(`🎉 Claimed ${mined.toFixed(8)} MTR! ${supplyStopNotice}`);
+        else alert(`🎉 Successfully claimed ${mined.toFixed(8)} MTR! New 8-hour mining session started.`);
+    } catch (e) {
+        console.error("Claim error:", e);
+        totalBalance = prevBalance;
+        miningStartTime = prevStart;
+        miningEndTime = prevEnd;
+        updateUI();
+        alert("Failed to claim tokens.");
+    } finally {
+        isClaimingMining = false;
+    }
+}
+
+async function handleWithdraw() {
+    if (isBanned) return;
+    if (!isWithdrawOpen) return alert("Withdrawal system is currently closed by admin.");
+
+    const input = document.getElementById("withdrawAmountInput");
+    const amount = Number(input.value);
+
+    if (!input.value || isNaN(amount) || amount <= 0) return alert("Please enter a valid withdraw amount!");
+    if (amount < minWithdrawLimit) return alert("Minimum withdrawal limit is " + minWithdrawLimit + " MTR");
+    if (amount > maxWithdrawLimit) return alert("Maximum withdrawal limit is " + maxWithdrawLimit + " MTR");
+    if (amount > totalBalance) return alert("You do not have enough balance to withdraw this amount!");
+
+    const address = getLiveWalletAddress();
+    if (!address) {
+        await handleWalletClick();
+        return;
+    }
+
+    const previousBalance = totalBalance;
+    totalBalance -= amount;
+    const now = Date.now();
+    const localId = "local_wd_" + now + "_" + Math.random().toString(36).slice(2, 7);
+
+    withdrawActivities = [{
+        id: localId, kind: "withdraw", amount, walletAddress: address,
+        status: "pending", timestampMs: now
+    }, ...withdrawActivities];
+    renderHistoryList();
+
+    try {
+        await db.collection("users").doc(userId).set({ balance: totalBalance }, { merge: true });
+        const docRef = await db.collection("withdrawals").add({
+            userId, userName, userUsername, walletAddress: address,
+            amount, status: "pending", timestampMs: now,
+            createdAt: firebase.firestore.FieldValue.serverTimestamp()
+        });
+
+        withdrawActivities = withdrawActivities.map(item => item.id === localId ? { ...item, id: docRef.id } : item);
+        renderHistoryList();
+        input.value = "";
+        updateUI();
+        alert(`Withdrawal request of ${amount} MTR submitted successfully!`);
+    } catch (e) {
+        totalBalance = previousBalance;
+        updateUI();
+        alert("Failed to submit withdrawal request.");
+    }
+}
+
+function updateUI() {
+    applyBanState(isBanned);
+    if (isBanned) return;
+
+    const liveRaw = getLiveWalletRawAddress();
+    if (liveRaw) {
+        walletConnected = true;
+        connectedWalletRawAddress = liveRaw;
+        try {
+            connectedWalletAddress = rawToFriendlyAddress(liveRaw, false);
+        } catch (e) {
+            walletConnected = false;
+        }
+    } else {
+        walletConnected = false;
+        connectedWalletRawAddress = "";
+        connectedWalletAddress = "";
+    }
+
+    const now = Date.now();
+    const supplyReached = isSupplyLimitReached();
+    const banner = document.getElementById("supplyStopBanner");
+    const notice = document.getElementById("supplyStopNoticeText");
+
+    if (banner && notice) {
+        if (supplyReached) {
+            notice.textContent = supplyStopNotice;
+            banner.style.display = "block";
+        } else {
+            banner.style.display = "none";
+        }
+    }
+
+    document.getElementById("totalBalance").textContent = totalBalance.toFixed(8);
+    document.getElementById("profileBalance").textContent = totalBalance.toFixed(8) + " MTR";
+
+    const walletDisplay = document.getElementById("walletDisplay");
+    const profileWallet = document.getElementById("profileWalletAddr");
+
+    if (walletConnected && connectedWalletAddress) {
+        walletDisplay.textContent = connectedWalletAddress.slice(0, 6) + "..." + connectedWalletAddress.slice(-4);
+        profileWallet.textContent = connectedWalletAddress.slice(0, 6) + "..." + connectedWalletAddress.slice(-6);
+    } else {
+        walletDisplay.textContent = "Connect Wallet";
+        profileWallet.textContent = "Not Connected";
+    }
+
+    const badge = document.getElementById("verifyStatus");
+    const button = document.getElementById("actionBtn");
+    const sessionText = document.getElementById("sessionStatusText");
+
+    if (isVerified && walletConnected) {
+        badge.textContent = "Verified ✓";
+        badge.className = "status-badge verified";
+
+        if (supplyReached) {
+            document.getElementById("miningRateText").textContent = "🛑 Mining Stopped (Supply Limit Reached)";
+            sessionText.innerHTML = `<strong>${escapeHTML(supplyStopNotice)}</strong>`;
+            document.getElementById("miningStatus").innerHTML = '<span style="color:var(--red);">Stopped</span>';
+            button.className = "main-btn btn-danger";
+            button.textContent = "MINING STOPPED";
+            button.disabled = true;
+            return;
+        }
+
+        document.getElementById("miningRateText").textContent = `⚡ Mining Speed: +${miningRatePerHour} MTR/hour`;
+
+        const elapsed = miningStartTime > 0 ? Math.max(0, (now - miningStartTime) / 1000) : 0;
+        const liveMined = Math.min(miningRatePerHour * MINING_DURATION_HOURS, elapsed * miningRatePerSec);
+
+        if (miningEndTime > 0 && now < miningEndTime) {
+            const left = miningEndTime - now;
+            const hours = Math.floor(left / 3600000);
+            const minutes = Math.floor((left % 3600000) / 60000);
+            sessionText.innerHTML = `Mined in session: <strong><span id="sessionMined">${liveMined.toFixed(8)}</span> MTR</strong>`;
+            document.getElementById("miningStatus").textContent = `Active (${hours}h ${minutes}m left)`;
+        } else {
+            sessionText.innerHTML = `Mined in session: <strong><span id="sessionMined">${liveMined.toFixed(8)}</span> MTR (Ready to Claim)</strong>`;
+            document.getElementById("miningStatus").textContent = miningStartTime > 0 ? "Session Complete" : "Not Started";
+        }
+
+        button.className = "main-btn btn-gold";
+        button.textContent = miningStartTime > 0 ? "CLAIM" : "START MINING";
+        button.disabled = false;
+
+    } else if (walletConnected) {
+        badge.textContent = "Unverified";
+        badge.className = "status-badge";
+        document.getElementById("miningStatus").textContent = "Pending Verification";
+        document.getElementById("miningRateText").textContent = `Wallet connected • Pay ${verifyFeeAmount} TON to verify`;
+        sessionText.innerHTML = "Verification required to mine";
+        button.className = "main-btn btn-gold";
+        button.textContent = `VERIFY ACCOUNT (${verifyFeeAmount} TON)`;
+        button.disabled = false;
+    } else {
+        badge.textContent = "Unverified";
+        badge.className = "status-badge";
+        document.getElementById("miningStatus").textContent = "Inactive";
+        document.getElementById("miningRateText").textContent = "Connect TON Wallet to begin";
+        sessionText.innerHTML = "Wallet not connected";
+        button.className = "main-btn btn-connect";
+        button.textContent = "CONNECT WALLET";
+        button.disabled = false;
+    }
+}
+
+/* ==========================================
+   MULTI LEVEL TEAM SYSTEM
+========================================== */
+
+function getTelegramIdFromUID(uid) {
+    return String(uid || "").replace(/^UID_/, "");
+}
+
+function openTeamScreen() {
+    if (isBanned) return;
+    const screen = document.getElementById("teamScreen");
+    screen.classList.add("active");
+    screen.scrollTop = 0;
+
+    if (!teamLoaded) {
+        loadMyTeam();
+    } else {
+        renderTeamMembers(allTeamMembers);
+    }
+}
+
+function closeTeamScreen() {
+    document.getElementById("teamScreen").classList.remove("active");
+}
+
+async function loadMyTeam(forceRefresh = false) {
+    if (teamLoading) return;
+
+    if (teamLoaded && !forceRefresh) {
+        renderTeamMembers(allTeamMembers);
+        return;
+    }
+
+    teamLoading = true;
+    teamLoaded = false;
+
+    const container = document.getElementById("teamMembersContainer");
+    const searchInput = document.getElementById("teamSearchInput");
+
+    container.innerHTML = '<div class="empty-state">Loading your complete team...</div>';
+    searchInput.value = "";
+    document.getElementById("teamSearchInfo").textContent = "Loading team members...";
+
+    try {
+        let currentLevel = [userId];
+        const visited = new Set([userId]);
+        const allMembers = [];
+        let levelNumber = 0;
+
+        while (currentLevel.length > 0) {
+            levelNumber++;
+
+            if (levelNumber > 100) {
+                throw new Error("TEAM_LEVEL_LIMIT");
+            }
+
+            const queryResults = await Promise.all(
+                currentLevel.map(parentId =>
+                    db.collection("users")
+                        .where("referredBy", "==", parentId)
+                        .get()
+                )
+            );
+
+            const nextLevel = [];
+
+            queryResults.forEach((snapshot, index) => {
+                const parentId = currentLevel[index];
+
+                snapshot.forEach(doc => {
+                    if (visited.has(doc.id)) return;
+
+                    visited.add(doc.id);
+
+                    const data = doc.data();
+
+                    const member = {
+                        uid: doc.id,
+                        telegramId: data.telegramId
+                            ? String(data.telegramId)
+                            : getTelegramIdFromUID(doc.id),
+                        username: data.username || "",
+                        name: data.name || data.firstName || "Miner",
+                        verified: data.verified === true,
+                        referredBy: data.referredBy || parentId,
+                        level: levelNumber,
+                        directTeam: 0,
+                        totalTeam: 0
+                    };
+
+                    allMembers.push(member);
+                    nextLevel.push(doc.id);
+                });
+            });
+
+            currentLevel = nextLevel;
+        }
+
+        /* Calculate each member's direct team count */
+        const directCounts = {};
+
+        allMembers.forEach(member => {
+            directCounts[member.referredBy] =
+                (directCounts[member.referredBy] || 0) + 1;
+        });
+
+        allMembers.forEach(member => {
+            member.directTeam = directCounts[member.uid] || 0;
+        });
+
+        /* Calculate all descendants for every member */
+        const memberMap = new Map();
+        allMembers.forEach(member => memberMap.set(member.uid, member));
+
+        const descendants = {};
+
+        allMembers.forEach(member => {
+            let parent = member.referredBy;
+            let safety = 0;
+
+            while (parent && parent !== userId && safety < 100) {
+                descendants[parent] = (descendants[parent] || 0) + 1;
+
+                const parentMember = memberMap.get(parent);
+                if (!parentMember) break;
+
+                parent = parentMember.referredBy;
+                safety++;
+            }
+        });
+
+        allMembers.forEach(member => {
+            member.totalTeam = descendants[member.uid] || 0;
+        });
+
+        allTeamMembers = allMembers;
+        teamLoaded = true;
+
+        document.getElementById("teamSearchInfo").textContent =
+            allMembers.length + " total team members";
+
+        renderTeamMembers(allTeamMembers);
+
+    } catch (error) {
+        console.error("Team loading error:", error);
+
+        let message = "Unable to load team. Check Firestore read permissions.";
+
+        if (error.message === "TEAM_LEVEL_LIMIT") {
+            message = "Team level limit reached.";
+        }
+
+        container.innerHTML =
+            '<div class="empty-state">' + escapeHTML(message) + '</div>';
+
+        document.getElementById("teamSearchInfo").textContent =
+            "Team loading failed.";
+
+    } finally {
+        teamLoading = false;
+    }
+}
+
+function renderTeamMembers(members) {
+    const container = document.getElementById("teamMembersContainer");
+    container.replaceChildren();
+
+    const total = allTeamMembers.length;
+    const levels = [...new Set(allTeamMembers.map(member => member.level))];
+    const verified = allTeamMembers.filter(member => member.verified).length;
+
+    document.getElementById("teamTotal").textContent = total;
+    document.getElementById("teamLevels").textContent = levels.length;
+    document.getElementById("teamVerified").textContent = verified;
+
+    if (!members.length) {
+        container.innerHTML = '<div class="empty-state">No team members found.</div>';
+        return;
+    }
+
+    const grouped = {};
+
+    members.forEach(member => {
+        if (!grouped[member.level]) grouped[member.level] = [];
+        grouped[member.level].push(member);
+    });
+
+    Object.keys(grouped)
+        .sort((a, b) => Number(a) - Number(b))
+        .forEach(level => {
+
+            const heading = document.createElement("div");
+            heading.className = "team-level-title";
+            heading.textContent =
+                "LEVEL " + level + " — " + grouped[level].length + " MEMBERS";
+
+            container.append(heading);
+
+            grouped[level].forEach(member => {
+                const card = document.createElement("div");
+                card.className = "team-member";
+
+                const top = document.createElement("div");
+                top.className = "team-member-top";
+
+                const name = document.createElement("div");
+                name.className = "team-member-name";
+                name.textContent = member.name;
+
+                const status = document.createElement("span");
+                status.className = member.verified
+                    ? "status-badge verified"
+                    : "status-badge";
+
+                status.textContent = member.verified
+                    ? "Verified ✓"
+                    : "Unverified";
+
+                top.append(name, status);
+
+                const idInfo = document.createElement("div");
+                idInfo.className = "team-member-info";
+                idInfo.textContent = "Telegram ID: " + member.telegramId;
+
+                const usernameInfo = document.createElement("div");
+                usernameInfo.className = "team-member-info";
+                usernameInfo.textContent =
+                    "Username: " + (member.username || "Not Available");
+
+                const referrerInfo = document.createElement("div");
+                referrerInfo.className = "team-member-info";
+                referrerInfo.textContent =
+                    "Referred By Telegram ID: " +
+                    getTelegramIdFromUID(member.referredBy);
+
+                const teamInfo = document.createElement("div");
+                teamInfo.className = "team-member-info";
+                teamInfo.textContent =
+                    "Level: " + member.level +
+                    " • Direct Team: " + member.directTeam +
+                    " • Total Team: " + member.totalTeam;
+
+                const idRow = document.createElement("div");
+                idRow.className = "team-copy-row";
+
+                const copyId = document.createElement("button");
+                copyId.className = "team-copy-btn";
+                copyId.textContent = "COPY USER ID";
+                copyId.onclick = () => copyText(member.telegramId);
+
+                const copyUsername = document.createElement("button");
+                copyUsername.className = "team-copy-btn";
+                copyUsername.textContent = "COPY USERNAME";
+                copyUsername.onclick = () => {
+                    if (!member.username) {
+                        alert("Username is not available.");
+                        return;
+                    }
+                    copyText(member.username);
+                };
+
+                idRow.append(copyId, copyUsername);
+
+                const refRow = document.createElement("div");
+                refRow.className = "team-copy-row";
+
+                const copyRef = document.createElement("button");
+                copyRef.className = "team-copy-btn";
+                copyRef.textContent = "COPY REFERRER ID";
+                copyRef.onclick = () =>
+                    copyText(getTelegramIdFromUID(member.referredBy));
+
+                refRow.append(copyRef);
+
+                card.append(
+                    top,
+                    idInfo,
+                    usernameInfo,
+                    referrerInfo,
+                    teamInfo,
+                    idRow,
+                    refRow
+                );
+
+                container.append(card);
+            });
+        });
+}
+
+function searchTeamMembers() {
+    const input = document.getElementById("teamSearchInput");
+    const query = String(input.value || "")
+        .trim()
+        .toLowerCase()
+        .replace(/^@/, "");
+
+    const info = document.getElementById("teamSearchInfo");
+
+    if (!query) {
+        info.textContent = "Showing your complete team";
+        renderTeamMembers(allTeamMembers);
+        return;
+    }
+
+    const results = allTeamMembers.filter(member => {
+        const id = String(member.telegramId).toLowerCase();
+        const username = String(member.username).toLowerCase().replace(/^@/, "");
+        const name = String(member.name).toLowerCase();
+
+        return id.includes(query) ||
+            username.includes(query) ||
+            name.includes(query);
+    });
+
+    info.textContent = results.length + " member(s) found";
+    renderTeamMembers(results);
+}
+
+/* ==========================================
+   END MULTI LEVEL TEAM SYSTEM
+========================================== */
+
+function switchTab(tab, element) {
+    closeFullHistoryScreen();
+    closeTeamScreen();
+
+    document.querySelectorAll(".container").forEach(item => item.classList.remove("active"));
+    document.querySelectorAll(".nav-item").forEach(item => item.classList.remove("active"));
+    const target = document.getElementById("tab-" + tab);
+    if (target) {
+        target.classList.add("active");
+        if (element) element.classList.add("active");
+        window.scrollTo({ top: 0, behavior: "smooth" });
+        if (tab === "tasks") renderTasksList();
+    }
+}
+
+function openTokenomicsModal() {
+    document.getElementById("tokenomicsModal").style.display = "flex";
+}
+function closeTokenomicsModal() {
+    document.getElementById("tokenomicsModal").style.display = "none";
+}
+
+async function copyText(value) {
+    try {
+        await navigator.clipboard.writeText(value);
+        alert("Copied successfully!");
+    } catch (e) {
+        const input = document.createElement("textarea");
+        input.value = value;
+        document.body.append(input);
+        input.select();
+        document.execCommand("copy");
+        input.remove();
+        alert("Copied!");
+    }
+}
+
+function escapeHTML(str) {
+    return String(str).replace(/[&<>"']/g, c => ({
+        '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;'
+    })[c]);
+}
+
+setInterval(() => {
+    if (!isBanned && isVerified && walletConnected && !isSupplyLimitReached() && miningStartTime > 0) {
+        const now = Date.now();
+        const elapsed = Math.max(0, (now - miningStartTime) / 1000);
+        const mined = Math.min(miningRatePerHour * MINING_DURATION_HOURS, elapsed * miningRatePerSec);
+
+        const sessionEl = document.getElementById("sessionMined");
+        if (sessionEl) sessionEl.textContent = mined.toFixed(8);
+
+        const statusEl = document.getElementById("miningStatus");
+        if (miningEndTime > 0 && now < miningEndTime) {
+            const left = miningEndTime - now;
+            const hours = Math.floor(left / 3600000);
+            const minutes = Math.floor((left % 3600000) / 60000);
+            if (statusEl) statusEl.textContent = `Active (${hours}h ${minutes}m left)`;
+        } else if (statusEl) {
+            statusEl.textContent = "Session Complete";
+        }
+    }
+}, 1000);
+</script>
+</body>
+</html>
