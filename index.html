@@ -156,13 +156,13 @@ button{font-family:inherit;cursor:pointer}
 
 <section class="container active" id="tab-mine">
     <div class="supply-stop-banner" id="supplyStopBanner">
-        <strong>🛑 Mining Stopped — Supply Limit Reached</strong>
-        <span id="supplyStopNoticeText">Total MTR supply limit has been reached! Mining is now stopped.</span>
+        <strong>🛑 Mining Stopped</strong>
+        <span id="supplyStopNoticeText">Mining is currently stopped. Any previously mined balance can still be claimed.</span>
     </div>
     <div class="balance-card">
         <div class="balance-label">Total MTR Assets</div>
         <div class="balance-amount"><span id="totalBalance">0.00000001</span> <small>MTR</small></div>
-        <div class="mining-rate" id="miningRateText">Connect wallet to begin</div>
+        <div class="mining-rate" id="miningRateText">🛑 Mining is currently stopped</div>
     </div>
     <div class="coin-area">
         <div class="coin-wrapper">
@@ -176,11 +176,11 @@ button{font-family:inherit;cursor:pointer}
         <button class="main-btn btn-connect" id="actionBtn" onclick="handleMainAction()">CONNECT WALLET</button>
     </div>
     <div class="info-grid">
-        <div class="info-box"><div class="info-icon">⚡</div><div class="info-label">Mining Status</div><div class="info-value" id="miningStatus">Inactive</div></div>
-        <div class="info-box"><div class="info-icon">👥</div><div class="info-label">Total Referrals</div><div class="info-value" id="miniRefCount">0</div></div>
+        <div class="info-box"><div class="info-icon">⚡</div><div class="info-label">Mining Status</div><div class="info-value" id="miningStatus">Stopped</div></div>
+        <div class="info-box"><div class="info-icon">👥</div><div class="info-label">Direct Referrals</div><div class="info-value" id="miniRefCount">0</div></div>
     </div>
     <div class="list-card">
-        <div class="list-left"><div class="task-icon">🏆</div><div><div class="list-title">MTR Mining Program</div><div class="list-sub">Your mining dashboard</div></div></div>
+        <div class="list-left"><div class="task-icon">🏆</div><div><div class="list-title">MTR Mining Program</div><div class="list-sub">Mining paused • Claim available rewards</div></div></div>
         <div class="list-value">MASTER</div>
     </div>
 </section>
@@ -208,7 +208,7 @@ button{font-family:inherit;cursor:pointer}
 <section class="container" id="tab-friends">
     <div class="section-heading"><span>👥</span> Referral Program</div>
     <div class="balance-card">
-        <div class="balance-label">Total Referrals</div>
+        <div class="balance-label">Direct Referrals (Level 1 Only)</div>
         <div class="balance-amount" id="referralCount">0</div>
         <div class="info-grid">
             <div class="info-box"><div class="info-label">Verified</div><div class="info-value" id="verifiedRef">0</div></div>
@@ -254,7 +254,7 @@ button{font-family:inherit;cursor:pointer}
         <div class="avatar profile-avatar" id="profileAvatar">M</div>
         <div><div class="profile-name" id="profileName">Master Miner</div><div class="profile-username" id="profileUsername">@username</div></div>
     </div>
-    <button class="main-btn btn-gold" onclick="openTeamScreen()">👥 MY TEAM — MULTI LEVEL</button>
+    <button class="main-btn btn-gold" onclick="openTeamScreen()">👥 MY DIRECT REFERRALS (LEVEL 1)</button>
 
     <div class="id-pair-card">
         <div class="task-icon">🆔</div>
@@ -293,18 +293,18 @@ button{font-family:inherit;cursor:pointer}
 <div class="team-screen" id="teamScreen">
     <div class="team-header">
         <button class="back-btn" onclick="closeTeamScreen()">← Back</button>
-        <strong style="color:var(--gold)">👥 MY TEAM</strong>
+        <strong style="color:var(--gold)">👥 DIRECT REFERRALS (LEVEL 1)</strong>
         <button class="back-btn" onclick="loadMyTeam(true)">↻ Refresh</button>
     </div>
     <div class="team-body">
         <div class="team-stats">
-            <div class="team-stat"><span>Total Team</span><strong id="teamTotal">0</strong></div>
-            <div class="team-stat"><span>Total Levels</span><strong id="teamLevels">0</strong></div>
+            <div class="team-stat"><span>Direct Referrals</span><strong id="teamTotal">0</strong></div>
+            <div class="team-stat"><span>Active Level</span><strong id="teamLevels">1</strong></div>
             <div class="team-stat"><span>Verified</span><strong id="teamVerified">0</strong></div>
         </div>
         <input type="search" id="teamSearchInput" class="team-search" placeholder="Search by Telegram ID or Username..." oninput="searchTeamMembers()">
-        <div class="team-search-results" id="teamSearchInfo">Search your complete team</div>
-        <div id="teamMembersContainer"><div class="empty-state">Open Team to load members.</div></div>
+        <div class="team-search-results" id="teamSearchInfo">Search your direct referrals</div>
+        <div id="teamMembersContainer"><div class="empty-state">Open to load direct referrals.</div></div>
     </div>
 </div>
 
@@ -379,8 +379,8 @@ tg.expand();
 
 /* ================= SETTINGS ================= */
 
-/* Mining rate is loaded from Admin Panel settings/config.
-   Do not hardcode the mining rate here. */
+/* Mining is currently stopped. New mining sessions are not started automatically. */
+const MINING_IS_STOPPED = true;
 
 let ADMIN_WALLET_ADDRESS = "";
 let verifyFeeAmount = 0.1;
@@ -389,7 +389,7 @@ let miningRatePerSec = 0;
 
 let maxSupplyLimit = 0;
 let globalTotalSupply = 0;
-let supplyStopNotice = "Total MTR supply limit has been reached! Mining is now stopped.";
+let supplyStopNotice = "Mining is currently stopped. Any previously mined balance can still be claimed.";
 
 let refTargetsList = [];
 let refCommissionPerUser = 0;
@@ -506,6 +506,27 @@ function applyBanState(status) {
 
 function isSupplyLimitReached() {
     return maxSupplyLimit > 0 && globalTotalSupply >= maxSupplyLimit;
+}
+
+function getPendingClaimableMiningAmount(nowMs = Date.now()) {
+    if (!miningStartTime || miningStartTime <= 0 || miningRatePerSec <= 0) {
+        return 0;
+    }
+
+    const effectiveEndMs = miningEndTime > 0
+        ? Math.min(nowMs, miningEndTime)
+        : nowMs;
+
+    const elapsedSec = Math.max(0, (effectiveEndMs - miningStartTime) / 1000);
+    const maxSessionReward = miningRatePerHour * MINING_DURATION_HOURS;
+
+    let mined = Math.min(maxSessionReward, elapsedSec * miningRatePerSec);
+
+    if (maxSupplyLimit > 0) {
+        mined = Math.min(mined, Math.max(0, maxSupplyLimit - globalTotalSupply));
+    }
+
+    return mined > 0 ? mined : 0;
 }
 
 function setAvatar(element) {
@@ -943,6 +964,42 @@ function normalizeReferralInput(value) {
     return null;
 }
 
+/* Blocks any downline member (any depth) from becoming the upline */
+async function isUserInDownline(candidateDownlineUid, currentUserUid) {
+    if (!candidateDownlineUid || !currentUserUid) return false;
+    if (candidateDownlineUid === currentUserUid) return true;
+
+    let frontier = [currentUserUid];
+    const visited = new Set([currentUserUid]);
+    let depth = 0;
+
+    while (frontier.length > 0 && depth < 30) {
+        depth++;
+        const nextFrontier = [];
+
+        for (let i = 0; i < frontier.length; i += 30) {
+            const batch = frontier.slice(i, i + 30);
+            const snap = await db.collection("users")
+                .where("referredBy", "in", batch)
+                .get();
+
+            for (const docSnap of snap.docs) {
+                if (docSnap.id === candidateDownlineUid) {
+                    return true;
+                }
+                if (!visited.has(docSnap.id)) {
+                    visited.add(docSnap.id);
+                    nextFrontier.push(docSnap.id);
+                }
+            }
+        }
+
+        frontier = nextFrontier;
+    }
+
+    return false;
+}
+
 async function applyReferral() {
     if (isBanned || !userLoaded) return;
 
@@ -993,6 +1050,16 @@ async function applyReferral() {
             throw new Error("SELF_REFERRAL");
         }
 
+        const ownerSnapCheck = await db.collection("users").doc(ownerId).get();
+        if (!ownerSnapCheck.exists) {
+            throw new Error("INVALID_OWNER");
+        }
+
+        const isDownline = await isUserInDownline(ownerId, userId);
+        if (isDownline) {
+            throw new Error("DOWNLINE_NOT_ALLOWED");
+        }
+
         const ownerRef = db.collection("users").doc(ownerId);
 
         await db.runTransaction(async transaction => {
@@ -1035,7 +1102,8 @@ async function applyReferral() {
             USER_NOT_FOUND: "Your user account was not found.",
             INVALID_OWNER: "This Telegram ID or referral owner does not exist.",
             ALREADY_USED: "You have already applied a referral.",
-            SELF_REFERRAL: "You cannot refer yourself."
+            SELF_REFERRAL: "You cannot refer yourself.",
+            DOWNLINE_NOT_ALLOWED: "Your downline member cannot be set as your upline."
         };
 
         alert(messages[error.message] ||
@@ -1047,15 +1115,6 @@ async function applyReferral() {
 }
 
 /* ================= VERIFICATION ================= */
-
-/*
-IMPORTANT:
-A successful TonConnect sendTransaction() response containing a BOC
-does NOT independently prove that the transaction was confirmed on-chain.
-
-This code records a verification request as pending. The Admin Panel
-or a trusted backend must verify the transaction and set verified=true.
-*/
 
 async function verifyAccountWithFee() {
     if (isBanned) return;
@@ -1561,11 +1620,6 @@ db.collection("settings").doc("config").onSnapshot(doc => {
 
     maxSupplyLimit = Number(data.maxSupplyLimit || 0);
 
-    /*
-       Important:
-       Do not calculate total supply from the top 100 leaderboard users.
-       Admin Panel should maintain totalSupply in settings/config.
-    */
     globalTotalSupply = Number(
         data.totalSupply ??
         data.circulatingSupply ??
@@ -1896,7 +1950,7 @@ function loadLeaderboard() {
         });
 }
 
-/* ================= REFERRAL STATS ================= */
+/* ================= DIRECT REFERRAL STATS (LEVEL 1 ONLY) ================= */
 
 function loadReferralStats() {
     db.collection("users")
@@ -1910,15 +1964,15 @@ function loadReferralStats() {
 
             currentVerifiedReferrals = verified;
 
-            const total = snapshot.size;
+            const directTotal = snapshot.size;
 
-            document.getElementById("referralCount").textContent = total;
-            document.getElementById("miniRefCount").textContent = total;
+            document.getElementById("referralCount").textContent = directTotal;
+            document.getElementById("miniRefCount").textContent = directTotal;
             document.getElementById("verifiedRef").textContent = verified;
-            document.getElementById("unverifiedRef").textContent = total - verified;
+            document.getElementById("unverifiedRef").textContent = directTotal - verified;
 
             db.collection("users").doc(userId).set({
-                referralCount: total
+                referralCount: directTotal
             }, { merge: true }).catch(() => {});
 
             updateReferralTargetUI();
@@ -1962,7 +2016,7 @@ function updateReferralTargetUI() {
                 row.className = "target-item";
 
                 const label = document.createElement("div");
-                label.textContent = `🎯 ${item.target} Verified Refs = `;
+                label.textContent = `🎯 ${item.target} Direct Verified Refs = `;
 
                 const reward = document.createElement("strong");
                 reward.style.color = "var(--gold)";
@@ -2093,7 +2147,7 @@ function shareRefLink() {
     tg.openTelegramLink(url);
 }
 
-/* ================= MINING ================= */
+/* ================= MINING (STOPPED - CLAIM ONLY WHEN AVAILABLE) ================= */
 
 async function handleMainAction() {
     if (isBanned || isClaimingMining) return;
@@ -2115,53 +2169,17 @@ async function handleMainAction() {
         return;
     }
 
-    if (isSupplyLimitReached()) {
-        alert(supplyStopNotice);
-        updateUI();
-        return;
-    }
-
-    if (miningRatePerHour <= 0) {
-        alert("Mining rate is not configured by admin yet.");
-        return;
-    }
-
     const now = Date.now();
+    const claimableMined = getPendingClaimableMiningAmount(now);
 
-    if (miningStartTime > 0 && miningEndTime > now) {
-        const remaining = Math.ceil((miningEndTime - now) / 60000);
-        alert(`Mining session is still active. Please wait approximately ${remaining} minutes.`);
+    if (claimableMined <= 0) {
+        updateUI();
         return;
     }
 
     isClaimingMining = true;
 
-    const elapsed = miningStartTime > 0
-        ? Math.max(0, (now - miningStartTime) / 1000)
-        : 0;
-
-    let mined = Math.min(
-        miningRatePerHour * MINING_DURATION_HOURS,
-        elapsed * miningRatePerSec
-    );
-
-    if (maxSupplyLimit > 0) {
-        mined = Math.min(
-            mined,
-            Math.max(0, maxSupplyLimit - globalTotalSupply)
-        );
-    }
-
-    if (mined <= 0 && miningStartTime > 0) {
-        isClaimingMining = false;
-        alert("No mining reward is available yet.");
-        return;
-    }
-
     const userRef = db.collection("users").doc(userId);
-
-    const newStart = now;
-    const newEnd = now + MINING_DURATION_MS;
 
     try {
         await db.runTransaction(async transaction => {
@@ -2174,34 +2192,47 @@ async function handleMainAction() {
             if (data.banned === true) throw new Error("BANNED");
             if (data.verified !== true) throw new Error("NOT_VERIFIED");
 
-            const currentBalance = Number(data.balance || 0);
-            const newBalance = currentBalance + mined;
+            const txStart = Number(data.miningStartTime || 0);
+            const txEnd = Number(data.miningEndTime || 0);
+            const ratePerHr = Math.max(0, Number(miningRatePerHour) || 0);
+            const ratePerS = ratePerHr / 3600;
 
+            if (!txStart || ratePerS <= 0) {
+                throw new Error("NOTHING_TO_CLAIM");
+            }
+
+            const effectiveEnd = txEnd > 0 ? Math.min(now, txEnd) : now;
+            const elapsedSec = Math.max(0, (effectiveEnd - txStart) / 1000);
+            let amountToClaim = Math.min(ratePerHr * MINING_DURATION_HOURS, elapsedSec * ratePerS);
+
+            if (maxSupplyLimit > 0) {
+                amountToClaim = Math.min(amountToClaim, Math.max(0, maxSupplyLimit - globalTotalSupply));
+            }
+
+            if (amountToClaim <= 0) {
+                throw new Error("NOTHING_TO_CLAIM");
+            }
+
+            const currentBalance = Number(data.balance || 0);
+            const newBalance = currentBalance + amountToClaim;
+
+            /* Mining remains stopped: reset session timers without starting a new session */
             transaction.set(userRef, {
                 balance: newBalance,
-                miningStartTime: newStart,
-                miningEndTime: newEnd,
+                miningStartTime: 0,
+                miningEndTime: 0,
                 updatedAt: firebase.firestore.FieldValue.serverTimestamp()
             }, { merge: true });
 
             totalBalance = newBalance;
-            miningStartTime = newStart;
-            miningEndTime = newEnd;
+            miningStartTime = 0;
+            miningEndTime = 0;
         });
 
-        if (mined > 0) {
-            await recordClaimActivity("mining", "Mining Claim", mined);
-        }
+        await recordClaimActivity("mining", "Mining Claim", claimableMined);
 
         updateUI();
-
-        if (maxSupplyLimit > 0 && globalTotalSupply + mined >= maxSupplyLimit) {
-            alert(`🎉 Claimed ${mined.toFixed(8)} MTR! ${supplyStopNotice}`);
-        } else {
-            alert(
-                `🎉 Successfully claimed ${mined.toFixed(8)} MTR! New 8-hour mining session started.`
-            );
-        }
+        alert(`🎉 Successfully claimed ${claimableMined.toFixed(8)} MTR! Mining remains stopped.`);
     } catch (e) {
         console.error("Mining claim error:", e);
 
@@ -2209,6 +2240,8 @@ async function handleMainAction() {
             applyBanState(true);
         } else if (e.message === "NOT_VERIFIED") {
             alert("Your account is not verified.");
+        } else if (e.message === "NOTHING_TO_CLAIM") {
+            updateUI();
         } else {
             alert("Failed to claim tokens.");
         }
@@ -2355,13 +2388,13 @@ function updateUI() {
     }
 
     const now = Date.now();
-    const supplyReached = isSupplyLimitReached();
+    const claimableMined = getPendingClaimableMiningAmount(now);
 
     const banner = document.getElementById("supplyStopBanner");
     const notice = document.getElementById("supplyStopNoticeText");
 
     if (banner && notice) {
-        if (supplyReached) {
+        if (MINING_IS_STOPPED || isSupplyLimitReached()) {
             notice.textContent = supplyStopNotice;
             banner.style.display = "block";
         } else {
@@ -2399,65 +2432,35 @@ function updateUI() {
         badge.textContent = "Verified ✓";
         badge.className = "status-badge verified";
 
-        if (supplyReached) {
-            document.getElementById("miningRateText").textContent =
-                "🛑 Mining Stopped (Supply Limit Reached)";
+        document.getElementById("miningRateText").textContent =
+            "🛑 Mining Stopped";
 
-            sessionText.textContent = supplyStopNotice;
+        document.getElementById("miningStatus").textContent = "Stopped";
 
-            document.getElementById("miningStatus").textContent = "Stopped";
-
+        if (claimableMined > 0) {
+            sessionText.innerHTML =
+                `Claimable mined balance: <strong>${claimableMined.toFixed(8)} MTR</strong>`;
+            button.className = "main-btn btn-gold";
+            button.textContent = "CLAIM";
+            button.disabled = false;
+        } else {
+            sessionText.innerHTML =
+                `Mined in session: <strong>0.00000000 MTR</strong> (Mining Stopped)`;
             button.className = "main-btn btn-danger";
             button.textContent = "MINING STOPPED";
             button.disabled = true;
-            return;
         }
+        return;
+    }
 
-        document.getElementById("miningRateText").textContent =
-            miningRatePerHour > 0
-                ? `⚡ Mining Speed: +${miningRatePerHour} MTR/hour`
-                : "Mining rate not configured by admin";
-
-        const elapsed = miningStartTime > 0
-            ? Math.max(0, (now - miningStartTime) / 1000)
-            : 0;
-
-        const liveMined = Math.min(
-            miningRatePerHour * MINING_DURATION_HOURS,
-            elapsed * miningRatePerSec
-        );
-
-        if (miningEndTime > 0 && now < miningEndTime) {
-            const left = miningEndTime - now;
-            const hours = Math.floor(left / 3600000);
-            const minutes = Math.floor((left % 3600000) / 60000);
-
-            sessionText.innerHTML =
-                `Mined in session: <strong>${liveMined.toFixed(8)} MTR</strong>`;
-
-            document.getElementById("miningStatus").textContent =
-                `Active (${hours}h ${minutes}m left)`;
-        } else {
-            sessionText.innerHTML =
-                `Mined in session: <strong>${liveMined.toFixed(8)} MTR (Ready to Claim)</strong>`;
-
-            document.getElementById("miningStatus").textContent =
-                miningStartTime > 0 ? "Session Complete" : "Not Started";
-        }
-
-        button.className = "main-btn btn-gold";
-        button.textContent = miningStartTime > 0 ? "CLAIM" : "START MINING";
-        button.disabled = miningRatePerHour <= 0;
-
-    } else if (walletConnected) {
+    if (walletConnected) {
         badge.textContent = isVerificationPending
             ? "Verification Pending"
             : "Unverified";
 
         badge.className = "status-badge";
 
-        document.getElementById("miningStatus").textContent =
-            isVerificationPending ? "Verification Pending" : "Pending Verification";
+        document.getElementById("miningStatus").textContent = "Stopped";
 
         document.getElementById("miningRateText").textContent =
             isVerificationPending
@@ -2466,7 +2469,7 @@ function updateUI() {
 
         sessionText.textContent = isVerificationPending
             ? "Your payment request is awaiting verification."
-            : "Verification required to mine";
+            : "Verification required";
 
         button.className = "main-btn btn-gold";
         button.textContent = isVerificationPending
@@ -2474,14 +2477,13 @@ function updateUI() {
             : `VERIFY ACCOUNT (${verifyFeeAmount} TON)`;
 
         button.disabled = isVerificationPending;
-
     } else {
         badge.textContent = "Unverified";
         badge.className = "status-badge";
 
-        document.getElementById("miningStatus").textContent = "Inactive";
+        document.getElementById("miningStatus").textContent = "Stopped";
         document.getElementById("miningRateText").textContent =
-            "Connect TON Wallet to begin";
+            "🛑 Mining Stopped • Connect TON Wallet";
 
         sessionText.textContent = "Wallet not connected";
 
@@ -2491,7 +2493,7 @@ function updateUI() {
     }
 }
 
-/* ================= MULTI LEVEL TEAM ================= */
+/* ================= DIRECT REFERRALS ONLY (LEVEL 1) ================= */
 
 function getTelegramIdFromUID(uid) {
     return String(uid || "").replace(/^UID_/, "");
@@ -2530,138 +2532,53 @@ async function loadMyTeam(forceRefresh = false) {
     const searchInput = document.getElementById("teamSearchInput");
 
     container.innerHTML =
-        '<div class="empty-state">Loading your complete team...</div>';
+        '<div class="empty-state">Loading your direct referrals...</div>';
 
     searchInput.value = "";
 
     document.getElementById("teamSearchInfo").textContent =
-        "Loading team members...";
+        "Loading direct referrals...";
 
     try {
-        let currentLevel = [userId];
-        const visited = new Set([userId]);
-        const allMembers = [];
+        /* Only direct referrals where referredBy == userId (Level 1 only; no Level 2+) */
+        const snapshot = await db.collection("users")
+            .where("referredBy", "==", userId)
+            .get();
 
-        let levelNumber = 0;
+        const directMembers = [];
 
-        /*
-          Firestore "in" queries support groups of up to 30 values.
-          This reduces the number of individual queries compared with
-          one query for every parent in the team.
-        */
+        snapshot.forEach(doc => {
+            const data = doc.data();
 
-        while (currentLevel.length > 0) {
-            levelNumber++;
-
-            if (levelNumber > 30) {
-                throw new Error("TEAM_LEVEL_LIMIT");
-            }
-
-            const nextLevel = [];
-
-            for (let i = 0; i < currentLevel.length; i += 30) {
-                const parentBatch = currentLevel.slice(i, i + 30);
-
-                const snapshot = await db.collection("users")
-                    .where("referredBy", "in", parentBatch)
-                    .get();
-
-                snapshot.forEach(doc => {
-                    if (visited.has(doc.id)) return;
-
-                    visited.add(doc.id);
-
-                    const data = doc.data();
-
-                    const member = {
-                        uid: doc.id,
-                        telegramId: data.telegramId
-                            ? String(data.telegramId)
-                            : getTelegramIdFromUID(doc.id),
-                        username: data.username || "",
-                        name: data.name || data.firstName || "Miner",
-                        verified: data.verified === true,
-                        referredBy: data.referredBy || "",
-                        level: levelNumber,
-                        directTeam: 0,
-                        totalTeam: 0
-                    };
-
-                    allMembers.push(member);
-                    nextLevel.push(doc.id);
-
-                    if (allMembers.length >= 3000) {
-                        throw new Error("TEAM_MEMBER_LIMIT");
-                    }
-                });
-            }
-
-            currentLevel = nextLevel;
-        }
-
-        const directCounts = {};
-
-        allMembers.forEach(member => {
-            directCounts[member.referredBy] =
-                (directCounts[member.referredBy] || 0) + 1;
+            directMembers.push({
+                uid: doc.id,
+                telegramId: data.telegramId
+                    ? String(data.telegramId)
+                    : getTelegramIdFromUID(doc.id),
+                username: data.username || "",
+                name: data.name || data.firstName || "Miner",
+                verified: data.verified === true,
+                referredBy: data.referredBy || userId,
+                level: 1
+            });
         });
 
-        allMembers.forEach(member => {
-            member.directTeam = directCounts[member.uid] || 0;
-        });
-
-        const memberMap = new Map();
-
-        allMembers.forEach(member => {
-            memberMap.set(member.uid, member);
-        });
-
-        const descendants = {};
-
-        allMembers.forEach(member => {
-            let parent = member.referredBy;
-            let safety = 0;
-
-            while (parent && parent !== userId && safety < 30) {
-                descendants[parent] = (descendants[parent] || 0) + 1;
-
-                const parentMember = memberMap.get(parent);
-
-                if (!parentMember) break;
-
-                parent = parentMember.referredBy;
-                safety++;
-            }
-        });
-
-        allMembers.forEach(member => {
-            member.totalTeam = descendants[member.uid] || 0;
-        });
-
-        allTeamMembers = allMembers;
+        allTeamMembers = directMembers;
         teamLoaded = true;
 
         document.getElementById("teamSearchInfo").textContent =
-            allMembers.length + " total team members";
+            directMembers.length + " direct referral(s)";
 
         renderTeamMembers(allTeamMembers);
 
     } catch (error) {
-        console.error("Team loading error:", error);
-
-        let message = "Unable to load team. Check Firestore read permissions.";
-
-        if (error.message === "TEAM_LEVEL_LIMIT") {
-            message = "Team level limit reached.";
-        } else if (error.message === "TEAM_MEMBER_LIMIT") {
-            message = "Team member display limit reached.";
-        }
+        console.error("Direct referral loading error:", error);
 
         container.innerHTML =
-            '<div class="empty-state">' + escapeHTML(message) + '</div>';
+            '<div class="empty-state">Unable to load direct referrals. Check Firestore read permissions.</div>';
 
         document.getElementById("teamSearchInfo").textContent =
-            "Team loading failed.";
+            "Loading failed.";
 
     } finally {
         teamLoading = false;
@@ -2673,132 +2590,95 @@ function renderTeamMembers(members) {
     container.replaceChildren();
 
     const total = allTeamMembers.length;
-
-    const levels = [
-        ...new Set(allTeamMembers.map(member => member.level))
-    ];
-
     const verified = allTeamMembers.filter(member => member.verified).length;
 
     document.getElementById("teamTotal").textContent = total;
-    document.getElementById("teamLevels").textContent = levels.length;
+    document.getElementById("teamLevels").textContent = total > 0 ? "1" : "0";
     document.getElementById("teamVerified").textContent = verified;
 
     if (!members.length) {
         const empty = document.createElement("div");
         empty.className = "empty-state";
-        empty.textContent = "No team members found.";
+        empty.textContent = "No direct referrals found.";
         container.append(empty);
         return;
     }
 
-    const grouped = {};
+    const heading = document.createElement("div");
+    heading.className = "team-level-title";
+    heading.textContent = "DIRECT REFERRALS (LEVEL 1) — " + members.length + " MEMBERS";
+    container.append(heading);
 
     members.forEach(member => {
-        if (!grouped[member.level]) grouped[member.level] = [];
-        grouped[member.level].push(member);
+        const card = document.createElement("div");
+        card.className = "team-member";
+
+        const top = document.createElement("div");
+        top.className = "team-member-top";
+
+        const name = document.createElement("div");
+        name.className = "team-member-name";
+        name.textContent = member.name;
+
+        const status = document.createElement("span");
+        status.className = member.verified
+            ? "status-badge verified"
+            : "status-badge";
+
+        status.textContent = member.verified
+            ? "Verified ✓"
+            : "Unverified";
+
+        top.append(name, status);
+
+        const idInfo = document.createElement("div");
+        idInfo.className = "team-member-info";
+        idInfo.textContent = "Telegram ID: " + member.telegramId;
+
+        const usernameInfo = document.createElement("div");
+        usernameInfo.className = "team-member-info";
+        usernameInfo.textContent =
+            "Username: " + (member.username || "Not Available");
+
+        const referrerInfo = document.createElement("div");
+        referrerInfo.className = "team-member-info";
+        referrerInfo.textContent =
+            "Upline Telegram ID: " +
+            getTelegramIdFromUID(member.referredBy) +
+            " • Level: 1 (Direct)";
+
+        const idRow = document.createElement("div");
+        idRow.className = "team-copy-row";
+
+        const copyId = document.createElement("button");
+        copyId.className = "team-copy-btn";
+        copyId.textContent = "COPY USER ID";
+        copyId.onclick = () => copyText(member.telegramId);
+
+        const copyUsername = document.createElement("button");
+        copyUsername.className = "team-copy-btn";
+        copyUsername.textContent = "COPY USERNAME";
+        copyUsername.onclick = () => {
+            if (!member.username) {
+                alert("Username is not available.");
+                return;
+            }
+
+            copyText(member.username);
+        };
+
+        idRow.append(copyId, copyUsername);
+
+        card.append(
+            top,
+            idInfo,
+            usernameInfo,
+            referrerInfo,
+            idRow
+        );
+
+        container.append(card);
     });
-
-    Object.keys(grouped)
-        .sort((a, b) => Number(a) - Number(b))
-        .forEach(level => {
-            const heading = document.createElement("div");
-            heading.className = "team-level-title";
-            heading.textContent =
-                "LEVEL " + level + " — " + grouped[level].length + " MEMBERS";
-
-            container.append(heading);
-
-            grouped[level].forEach(member => {
-                const card = document.createElement("div");
-                card.className = "team-member";
-
-                const top = document.createElement("div");
-                top.className = "team-member-top";
-
-                const name = document.createElement("div");
-                name.className = "team-member-name";
-                name.textContent = member.name;
-
-                const status = document.createElement("span");
-                status.className = member.verified
-                    ? "status-badge verified"
-                    : "status-badge";
-
-                status.textContent = member.verified
-                    ? "Verified ✓"
-                    : "Unverified";
-
-                top.append(name, status);
-
-                const idInfo = document.createElement("div");
-                idInfo.className = "team-member-info";
-                idInfo.textContent = "Telegram ID: " + member.telegramId;
-
-                const usernameInfo = document.createElement("div");
-                usernameInfo.className = "team-member-info";
-                usernameInfo.textContent =
-                    "Username: " + (member.username || "Not Available");
-
-                const referrerInfo = document.createElement("div");
-                referrerInfo.className = "team-member-info";
-                referrerInfo.textContent =
-                    "Upline Telegram ID: " +
-                    getTelegramIdFromUID(member.referredBy);
-
-                const teamInfo = document.createElement("div");
-                teamInfo.className = "team-member-info";
-                teamInfo.textContent =
-                    "Level: " + member.level +
-                    " • Direct Team: " + member.directTeam +
-                    " • Total Team: " + member.totalTeam;
-
-                const idRow = document.createElement("div");
-                idRow.className = "team-copy-row";
-
-                const copyId = document.createElement("button");
-                copyId.className = "team-copy-btn";
-                copyId.textContent = "COPY USER ID";
-                copyId.onclick = () => copyText(member.telegramId);
-
-                const copyUsername = document.createElement("button");
-                copyUsername.className = "team-copy-btn";
-                copyUsername.textContent = "COPY USERNAME";
-                copyUsername.onclick = () => {
-                    if (!member.username) {
-                        alert("Username is not available.");
-                        return;
-                    }
-
-                    copyText(member.username);
-                };
-
-                idRow.append(copyId, copyUsername);
-
-                const refRow = document.createElement("div");
-                refRow.className = "team-copy-row";
-
-                const copyRef = document.createElement("button");
-                copyRef.className = "team-copy-btn";
-                copyRef.textContent = "COPY UPLINE ID";
-                copyRef.onclick = () =>
-                    copyText(getTelegramIdFromUID(member.referredBy));
-
-                refRow.append(copyRef);
-
-                card.append(
-                    top,
-                    idInfo,
-                    usernameInfo,
-                    referrerInfo,
-                    teamInfo,
-                    idRow,
-                    refRow
-                );
-
-                container.append(card);
-            });
-        });
 }
 
 function searchTeamMembers() {
@@ -2812,7 +2692,7 @@ function searchTeamMembers() {
     const info = document.getElementById("teamSearchInfo");
 
     if (!query) {
-        info.textContent = "Showing your complete team";
+        info.textContent = "Showing your direct referrals";
         renderTeamMembers(allTeamMembers);
         return;
     }
@@ -2831,7 +2711,7 @@ function searchTeamMembers() {
             name.includes(query);
     });
 
-    info.textContent = results.length + " member(s) found";
+    info.textContent = results.length + " direct referral(s) found";
     renderTeamMembers(results);
 }
 
@@ -2874,43 +2754,20 @@ function closeTokenomicsModal() {
     document.getElementById("tokenomicsModal").style.display = "none";
 }
 
-/* ================= LIVE MINING DISPLAY ================= */
+/* ================= CLAIMABLE BALANCE DISPLAY (MINING STOPPED) ================= */
 
 setInterval(() => {
-    if (
-        !isBanned &&
-        isVerified &&
-        walletConnected &&
-        !isSupplyLimitReached() &&
-        miningStartTime > 0
-    ) {
-        const now = Date.now();
-
-        const elapsed = Math.max(0, (now - miningStartTime) / 1000);
-
-        const mined = Math.min(
-            miningRatePerHour * MINING_DURATION_HOURS,
-            elapsed * miningRatePerSec
-        );
-
+    if (!isBanned && isVerified && walletConnected) {
+        const claimable = getPendingClaimableMiningAmount(Date.now());
         const sessionEl = document.getElementById("sessionMined");
 
         if (sessionEl) {
-            sessionEl.textContent = mined.toFixed(8);
+            sessionEl.textContent = claimable.toFixed(8);
         }
 
         const statusEl = document.getElementById("miningStatus");
-
-        if (miningEndTime > 0 && now < miningEndTime) {
-            const left = miningEndTime - now;
-            const hours = Math.floor(left / 3600000);
-            const minutes = Math.floor((left % 3600000) / 60000);
-
-            if (statusEl) {
-                statusEl.textContent = `Active (${hours}h ${minutes}m left)`;
-            }
-        } else if (statusEl) {
-            statusEl.textContent = "Session Complete";
+        if (statusEl) {
+            statusEl.textContent = "Stopped";
         }
     }
 }, 1000);
