@@ -25,6 +25,7 @@ button{font-family:inherit;cursor:pointer}
 .status-badge{display:inline-block;font-size:10px;font-weight:700;padding:4px 9px;border-radius:20px;background:rgba(239,68,68,.12);color:#FF7777;border:1px solid rgba(239,68,68,.2)}
 .status-badge.verified{background:rgba(34,197,139,.12);color:var(--green);border-color:rgba(34,197,139,.2)}
 .wallet-display{background:rgba(22,119,255,.12);border:1px solid rgba(22,119,255,.4);color:#54B9FF;padding:10px 13px;border-radius:12px;font-size:12px;font-weight:700}
+.wallet-display.fail-wallet{background:rgba(239,68,68,.16);border:1px solid rgba(239,68,68,.55);color:#FF6B6B}
 .container{display:none;width:100%;max-width:600px;margin:auto;padding:20px 16px 30px;flex-direction:column;gap:16px}
 .container.active{display:flex}
 .section-heading{width:100%;font-size:17px;font-weight:800;display:flex;align-items:center;gap:9px;margin-bottom:2px}
@@ -324,10 +325,10 @@ button{font-family:inherit;cursor:pointer}
 
 <div class="modal" id="walletModal">
     <div class="modal-content">
-        <div class="modal-title">💎 Connected Wallet</div>
-        <div class="modal-sub">Your TON wallet information</div>
+        <div class="modal-title" id="walletModalTitle">💎 Connected Wallet</div>
+        <div class="modal-sub" id="walletModalSub">Your TON wallet information</div>
         <div class="copy-box" id="modalWalletAddr">-</div>
-        <button class="main-btn btn-gold btn-small" onclick="copyWalletAddress()">COPY ADDRESS</button>
+        <button class="main-btn btn-gold btn-small" id="copyWalletModalBtn" onclick="copyWalletAddress()">COPY ADDRESS</button>
         <button class="main-btn btn-connect btn-small" style="margin-top:10px" onclick="disconnectWallet()">DISCONNECT WALLET</button>
         <button class="modal-close" onclick="closeWalletModal()">CLOSE</button>
     </div>
@@ -451,6 +452,13 @@ try {
 let walletConnected = false;
 let connectedWalletAddress = "";
 let connectedWalletRawAddress = "";
+let isFailWallet = false;
+let failWalletOwnerId = "";
+
+let verifiedWalletRaw = "";
+let verifiedWalletAddress = "";
+let pendingWalletRaw = "";
+let pendingWalletAddress = "";
 
 let isVerified = false;
 let isVerificationPending = false;
@@ -503,6 +511,153 @@ function applyBanState(status) {
 
 function isSupplyLimitReached() {
     return maxSupplyLimit > 0 && globalTotalSupply >= maxSupplyLimit;
+}
+
+function normalizeWalletKey(rawAddress, friendlyAddress) {
+    const raw = String(rawAddress || "").trim().toLowerCase();
+    if (raw) {
+        return raw.replace(/[^a-z0-9:_-]/g, "_");
+    }
+    const friendly = String(friendlyAddress || "").trim();
+    return friendly ? friendly.replace(/[^a-zA-Z0-9_-]/g, "_") : "";
+}
+
+function doesWalletMatch(rawA, friendlyA, rawB, friendlyB) {
+    const rA = String(rawA || "").trim().toLowerCase();
+    const fA = String(friendlyA || "").trim();
+    const rB = String(rawB || "").trim().toLowerCase();
+    const fB = String(friendlyB || "").trim();
+
+    if (rA && rB && rA === rB) return true;
+    if (fA && fB && fA === fB) return true;
+    if (rA && fB && rawToFriendlyAddress(rA, false) === fB) return true;
+    if (fA && rB && fA === rawToFriendlyAddress(rB, false)) return true;
+    return false;
+}
+
+async function checkWalletAlreadyVerifiedByOther(rawAddress, friendlyAddress) {
+    const key = normalizeWalletKey(rawAddress, friendlyAddress);
+    if (!key) {
+        return { blocked: false, ownerId: "" };
+    }
+
+    try {
+        const walletDoc = await db.collection("verifiedWallets").doc(key).get();
+        if (walletDoc.exists) {
+            const wData = walletDoc.data();
+            const owner = String(wData.ownerUserId || "");
+            if (owner && owner !== userId && wData.active !== false) {
+                return { blocked: true, ownerId: owner };
+            }
+        }
+    } catch (e) {
+        console.warn("verifiedWallets lookup skipped/error:", e);
+    }
+
+    try {
+        if (rawAddress) {
+            const rawSnap = await db.collection("users")
+                .where("verifiedWalletRaw", "==", rawAddress)
+                .limit(5)
+                .get();
+
+            for (const docSnap of rawSnap.docs) {
+                if (docSnap.id !== userId) {
+                    return { blocked: true, ownerId: docSnap.id };
+                }
+            }
+        }
+
+        if (friendlyAddress) {
+            const friendlySnap = await db.collection("users")
+                .where("verifiedWalletAddress", "==", friendlyAddress)
+                .limit(5)
+                .get();
+
+            for (const docSnap of friendlySnap.docs) {
+                if (docSnap.id !== userId) {
+                    return { blocked: true, ownerId: docSnap.id };
+                }
+            }
+        }
+    } catch (e) {
+        console.warn("users verifiedWallet lookup skipped/error:", e);
+    }
+
+    return { blocked: false, ownerId: "" };
+}
+
+async function registerVerifiedWalletRegistry(rawAddress, friendlyAddress) {
+    const key = normalizeWalletKey(rawAddress, friendlyAddress);
+    if (!key) return;
+
+    await db.collection("verifiedWallets").doc(key).set({
+        walletKey: key,
+        walletRawAddress: rawAddress || "",
+        walletAddress: friendlyAddress || "",
+        ownerUserId: userId,
+        ownerTelegramId: telegramIdNumber,
+        active: true,
+        verifiedAt: firebase.firestore.FieldValue.serverTimestamp()
+    }, { merge: true });
+}
+
+function evaluateWalletVerificationState(data = {}) {
+    verifiedWalletRaw = String(data.verifiedWalletRaw || "").trim();
+    verifiedWalletAddress = String(data.verifiedWalletAddress || "").trim();
+    pendingWalletRaw = String(data.verificationWalletRaw || data.pendingWalletRaw || "").trim();
+    pendingWalletAddress = String(data.verificationWalletAddress || data.pendingWalletAddress || "").trim();
+
+    const activeRaw = getLiveWalletRawAddress() || connectedWalletRawAddress;
+    const activeFriendly = activeRaw ? rawToFriendlyAddress(activeRaw, false) : connectedWalletAddress;
+
+    if (!activeRaw && !activeFriendly) {
+        isVerified = false;
+        isVerificationPending = false;
+        isFailWallet = false;
+        return;
+    }
+
+    if (isFailWallet) {
+        isVerified = false;
+        isVerificationPending = false;
+        return;
+    }
+
+    const dbVerified = data.verified === true;
+    const hasVerifiedWalletRecord = Boolean(verifiedWalletRaw || verifiedWalletAddress);
+
+    if (dbVerified) {
+        if (hasVerifiedWalletRecord) {
+            isVerified = doesWalletMatch(activeRaw, activeFriendly, verifiedWalletRaw, verifiedWalletAddress);
+        } else {
+            const savedRaw = data.walletRawAddress || "";
+            const savedFriendly = data.walletAddress || "";
+            const matchesSaved = !savedRaw && !savedFriendly
+                ? true
+                : doesWalletMatch(activeRaw, activeFriendly, savedRaw, savedFriendly);
+
+            isVerified = matchesSaved;
+            if (matchesSaved && activeRaw) {
+                verifiedWalletRaw = activeRaw;
+                verifiedWalletAddress = activeFriendly;
+            }
+        }
+    } else {
+        isVerified = false;
+    }
+
+    if (isVerified) {
+        isVerificationPending = false;
+    } else if (data.verificationPending === true) {
+        if (pendingWalletRaw || pendingWalletAddress) {
+            isVerificationPending = doesWalletMatch(activeRaw, activeFriendly, pendingWalletRaw, pendingWalletAddress);
+        } else {
+            isVerificationPending = false;
+        }
+    } else {
+        isVerificationPending = false;
+    }
 }
 
 function computeClaimableMined(nowMs = Date.now(), startTs = miningStartTime, endTs = miningEndTime, claimTs = lastClaimTime) {
@@ -601,6 +756,81 @@ function getLiveWalletAddress() {
     return raw ? rawToFriendlyAddress(raw, false) : "";
 }
 
+async function applyConnectedWalletState(newRaw, newFriendly, sequence) {
+    const conflict = await checkWalletAlreadyVerifiedByOther(newRaw, newFriendly);
+    if (sequence && sequence !== walletStatusSequence) return;
+
+    if (conflict.blocked) {
+        walletConnected = false;
+        connectedWalletAddress = "";
+        connectedWalletRawAddress = "";
+        isFailWallet = true;
+        failWalletOwnerId = conflict.ownerId;
+        isVerified = false;
+        isVerificationPending = false;
+
+        try {
+            if (tonConnectUI?.wallet) {
+                await tonConnectUI.disconnect();
+            }
+        } catch (e) {
+            console.warn("Auto disconnect on fail wallet:", e);
+        }
+
+        if (userLoaded) {
+            try {
+                await db.collection("users").doc(userId).set({
+                    walletConnected: false,
+                    walletAddress: "",
+                    walletRawAddress: "",
+                    verified: false,
+                    verificationPending: false,
+                    lastFailWallet: newFriendly || newRaw
+                }, { merge: true });
+            } catch (e) {
+                console.error("Fail wallet sync error:", e);
+            }
+        }
+
+        updateUI();
+        alert("Fail Wallet! This wallet is already verified on another account.");
+        return;
+    }
+
+    isFailWallet = false;
+    failWalletOwnerId = "";
+    walletConnected = true;
+    connectedWalletRawAddress = newRaw;
+    connectedWalletAddress = newFriendly;
+
+    if (userLoaded) {
+        try {
+            const doc = await db.collection("users").doc(userId).get();
+            if (sequence && sequence !== walletStatusSequence) return;
+
+            const data = doc.exists ? doc.data() : {};
+            applyBanState(data.banned === true);
+            if (isBanned) return;
+
+            evaluateWalletVerificationState(data);
+
+            await db.collection("users").doc(userId).set({
+                walletConnected: true,
+                walletAddress: connectedWalletAddress,
+                walletRawAddress: connectedWalletRawAddress,
+                verified: isVerified,
+                verificationPending: isVerificationPending
+            }, { merge: true });
+
+            updateUI();
+        } catch (e) {
+            console.error("Wallet restore error:", e);
+        }
+    } else {
+        updateUI();
+    }
+}
+
 try {
     if (window.TON_CONNECT_UI?.TonConnectUI) {
         tonConnectUI = new TON_CONNECT_UI.TonConnectUI({
@@ -622,51 +852,34 @@ try {
                     walletConnected = false;
                     connectedWalletAddress = "";
                     connectedWalletRawAddress = "";
+                    isVerified = false;
+                    isVerificationPending = false;
                     updateUI();
                     return;
                 }
 
-                walletConnected = true;
-                connectedWalletRawAddress = newRaw;
-                connectedWalletAddress = newFriendly;
-
-                if (userLoaded) {
-                    try {
-                        const doc = await db.collection("users").doc(userId).get();
-
-                        if (sequence !== walletStatusSequence) return;
-
-                        const data = doc.exists ? doc.data() : {};
-                        applyBanState(data.banned === true);
-
-                        if (isBanned) return;
-
-                        const savedRaw = data.walletRawAddress || "";
-                        const savedFriendly = data.walletAddress || "";
-                        const verifiedRaw = data.verifiedWalletRaw || "";
-                        const verifiedFriendly = data.verifiedWalletAddress || "";
-
-                        const sameSaved =
-                            savedRaw === newRaw || savedFriendly === newFriendly;
-
-                        const sameVerified =
-                            verifiedRaw === newRaw || verifiedFriendly === newFriendly;
-
-                        isVerified =
-                            data.verified === true && (sameSaved || sameVerified);
-
-                        isVerificationPending = data.verificationPending === true;
-
-                        await saveWalletInfo();
-                        updateUI();
-                    } catch (e) {
-                        console.error("Wallet restore error:", e);
-                    }
-                }
+                await applyConnectedWalletState(newRaw, newFriendly, sequence);
             } else {
                 walletConnected = false;
                 connectedWalletAddress = "";
                 connectedWalletRawAddress = "";
+                isVerified = false;
+                isVerificationPending = false;
+
+                if (userLoaded) {
+                    try {
+                        await db.collection("users").doc(userId).set({
+                            walletConnected: false,
+                            walletAddress: "",
+                            walletRawAddress: "",
+                            verified: false,
+                            verificationPending: false
+                        }, { merge: true });
+                    } catch (e) {
+                        console.error("Wallet disconnect sync error:", e);
+                    }
+                }
+
                 updateUI();
             }
 
@@ -685,6 +898,12 @@ try {
 async function handleWalletClick() {
     if (isBanned) return;
 
+    if (isFailWallet) {
+        alert("Fail Wallet! This wallet is already verified with another ID and cannot be connected.");
+        updateUI();
+        return;
+    }
+
     if (!tonConnectUI) {
         alert("TON Connect is not available. Please reload the app.");
         return;
@@ -693,11 +912,29 @@ async function handleWalletClick() {
     const liveAddress = getLiveWalletAddress();
 
     if (liveAddress) {
+        const liveRaw = getLiveWalletRawAddress();
+        const conflict = await checkWalletAlreadyVerifiedByOther(liveRaw, liveAddress);
+        if (conflict.blocked) {
+            isFailWallet = true;
+            failWalletOwnerId = conflict.ownerId;
+            walletConnected = false;
+            connectedWalletAddress = "";
+            connectedWalletRawAddress = "";
+            isVerified = false;
+            isVerificationPending = false;
+            updateUI();
+            alert("Fail Wallet! This wallet is already verified on another account.");
+            return;
+        }
+
         walletConnected = true;
-        connectedWalletRawAddress = getLiveWalletRawAddress();
+        connectedWalletRawAddress = liveRaw;
         connectedWalletAddress = liveAddress;
 
+        document.getElementById("walletModalTitle").textContent = "💎 Connected Wallet";
+        document.getElementById("walletModalSub").textContent = "Your TON wallet information";
         document.getElementById("modalWalletAddr").textContent = liveAddress;
+        document.getElementById("copyWalletModalBtn").style.display = "block";
         document.getElementById("walletModal").style.display = "flex";
 
         updateUI();
@@ -717,13 +954,15 @@ function closeWalletModal() {
 }
 
 async function saveWalletInfo() {
-    if (!userLoaded || isBanned || !walletConnected || !connectedWalletRawAddress) return;
+    if (!userLoaded || isBanned || isFailWallet || !walletConnected || !connectedWalletRawAddress) return;
 
     try {
         await db.collection("users").doc(userId).set({
             walletConnected: true,
             walletAddress: connectedWalletAddress,
-            walletRawAddress: connectedWalletRawAddress
+            walletRawAddress: connectedWalletRawAddress,
+            verified: isVerified,
+            verificationPending: isVerificationPending
         }, { merge: true });
     } catch (e) {
         console.error("Wallet save error:", e);
@@ -739,17 +978,23 @@ async function disconnectWallet() {
         walletConnected = false;
         connectedWalletAddress = "";
         connectedWalletRawAddress = "";
+        isFailWallet = false;
+        failWalletOwnerId = "";
+        isVerified = false;
+        isVerificationPending = false;
 
         await db.collection("users").doc(userId).set({
             walletConnected: false,
             walletAddress: "",
-            walletRawAddress: ""
+            walletRawAddress: "",
+            verified: false,
+            verificationPending: false
         }, { merge: true });
 
         closeWalletModal();
         updateUI();
 
-        alert("Wallet disconnected successfully!");
+        alert("Wallet disconnected! Connect a wallet and verify to mine.");
     } catch (e) {
         console.error(e);
         alert("Unable to disconnect wallet.");
@@ -757,7 +1002,7 @@ async function disconnectWallet() {
 }
 
 async function copyWalletAddress() {
-    const address = getLiveWalletAddress();
+    const address = getLiveWalletAddress() || connectedWalletAddress;
 
     if (!address) {
         alert("No wallet connected!");
@@ -1100,19 +1345,45 @@ async function applyReferral() {
 async function verifyAccountWithFee() {
     if (isBanned) return;
 
+    if (isFailWallet) {
+        alert("Fail Wallet! This wallet is already verified with another ID.");
+        updateUI();
+        return;
+    }
+
     if (!walletConnected || !tonConnectUI) {
         alert("Please connect your wallet first!");
         await handleWalletClick();
         return;
     }
 
-    if (isVerified) {
-        alert("Your account is already verified!");
+    const currentRaw = getLiveWalletRawAddress();
+    const currentFriendly = getLiveWalletAddress();
+
+    const conflict = await checkWalletAlreadyVerifiedByOther(currentRaw, currentFriendly);
+    if (conflict.blocked) {
+        isFailWallet = true;
+        failWalletOwnerId = conflict.ownerId;
+        walletConnected = false;
+        connectedWalletAddress = "";
+        connectedWalletRawAddress = "";
+        isVerified = false;
+        isVerificationPending = false;
+        try {
+            if (tonConnectUI?.wallet) await tonConnectUI.disconnect();
+        } catch (e) {}
+        updateUI();
+        alert("Fail Wallet! This wallet is already verified on another account.");
         return;
     }
 
-    if (isVerificationPending) {
-        alert("Your verification request is pending admin confirmation.");
+    if (isVerified && doesWalletMatch(currentRaw, currentFriendly, verifiedWalletRaw, verifiedWalletAddress)) {
+        alert("This connected wallet is already verified!");
+        return;
+    }
+
+    if (isVerificationPending && doesWalletMatch(currentRaw, currentFriendly, pendingWalletRaw, pendingWalletAddress)) {
+        alert("Your verification request for this wallet is pending admin confirmation.");
         return;
     }
 
@@ -1133,7 +1404,7 @@ async function verifyAccountWithFee() {
         };
 
         alert(
-            `Sending ${verifyFeeAmount} TON verification transaction. Please confirm in your wallet app.`
+            `Sending ${verifyFeeAmount} TON verification transaction for this wallet. Please confirm in your wallet app.`
         );
 
         const result = await tonConnectUI.sendTransaction(transaction);
@@ -1142,27 +1413,31 @@ async function verifyAccountWithFee() {
             throw new Error("TRANSACTION_NOT_RETURNED");
         }
 
-        const currentRaw = getLiveWalletRawAddress();
-        const currentFriendly = getLiveWalletAddress();
+        await registerVerifiedWalletRegistry(currentRaw, currentFriendly);
 
         await db.collection("users").doc(userId).set({
-            verificationPending: true,
+            verified: true,
+            verificationPending: false,
             verificationBoc: result.boc,
             verificationFee: verifyFeeAmount,
             verificationWalletRaw: currentRaw,
             verificationWalletAddress: currentFriendly,
-            verificationRequestedAt: firebase.firestore.FieldValue.serverTimestamp(),
+            verifiedWalletRaw: currentRaw,
+            verifiedWalletAddress: currentFriendly,
+            verifiedAt: firebase.firestore.FieldValue.serverTimestamp(),
             walletConnected: true,
             walletAddress: currentFriendly,
             walletRawAddress: currentRaw
         }, { merge: true });
 
-        isVerificationPending = true;
+        isVerified = true;
+        isVerificationPending = false;
+        verifiedWalletRaw = currentRaw;
+        verifiedWalletAddress = currentFriendly;
+
         updateUI();
 
-        alert(
-            "Transaction submitted. Your verification is pending admin confirmation."
-        );
+        alert("🎉 Wallet verified successfully!");
     } catch (error) {
         console.error("Verification transaction failed:", error);
         alert("Transaction cancelled or failed. Please ensure you have sufficient TON balance.");
@@ -1420,8 +1695,7 @@ function startRealtimeUserBanListener() {
                 refRewardBalance = Number(data.refReward || 0);
             }
 
-            isVerified = data.verified === true;
-            isVerificationPending = data.verificationPending === true;
+            evaluateWalletVerificationState(data);
 
             claimedTargets = Array.isArray(data.claimedTargets)
                 ? data.claimedTargets
@@ -1471,45 +1745,78 @@ async function loadUserData() {
             referrerId = data.referredBy || null;
             referrerCode = data.referredByReferralCode || "";
 
-            isVerified = data.verified === true;
-            isVerificationPending = data.verificationPending === true;
-
             if (!isBanned) {
                 if (liveRaw) {
-                    connectedWalletRawAddress = liveRaw;
-                    connectedWalletAddress = liveFriendly;
-                    walletConnected = true;
+                    const conflict = await checkWalletAlreadyVerifiedByOther(liveRaw, liveFriendly);
 
-                    const savedRaw = data.walletRawAddress || "";
-                    const savedFriendly = data.walletAddress || "";
-                    const verifiedRaw = data.verifiedWalletRaw || "";
-                    const verifiedFriendly = data.verifiedWalletAddress || "";
+                    if (conflict.blocked) {
+                        isFailWallet = true;
+                        failWalletOwnerId = conflict.ownerId;
+                        walletConnected = false;
+                        connectedWalletAddress = "";
+                        connectedWalletRawAddress = "";
+                        isVerified = false;
+                        isVerificationPending = false;
 
-                    const sameSaved =
-                        savedRaw === liveRaw || savedFriendly === liveFriendly;
+                        try {
+                            if (tonConnectUI?.wallet) await tonConnectUI.disconnect();
+                        } catch (e) {}
 
-                    const sameVerified =
-                        verifiedRaw === liveRaw || verifiedFriendly === liveFriendly;
+                        await userRef.set({
+                            walletConnected: false,
+                            walletAddress: "",
+                            walletRawAddress: "",
+                            verified: false,
+                            verificationPending: false,
+                            userId,
+                            telegramId: telegramIdNumber,
+                            name: userName,
+                            username: userUsername,
+                            lastSeen: firebase.firestore.FieldValue.serverTimestamp()
+                        }, { merge: true });
+                    } else {
+                        isFailWallet = false;
+                        failWalletOwnerId = "";
+                        connectedWalletRawAddress = liveRaw;
+                        connectedWalletAddress = liveFriendly;
+                        walletConnected = true;
 
-                    isVerified =
-                        data.verified === true && (sameSaved || sameVerified);
+                        evaluateWalletVerificationState(data);
 
-                    await userRef.set({
-                        walletConnected: true,
-                        walletAddress: liveFriendly,
-                        walletRawAddress: liveRaw,
-                        telegramId: telegramIdNumber,
-                        userId,
-                        name: userName,
-                        username: userUsername,
-                        lastSeen: firebase.firestore.FieldValue.serverTimestamp()
-                    }, { merge: true });
+                        const updatePayload = {
+                            walletConnected: true,
+                            walletAddress: liveFriendly,
+                            walletRawAddress: liveRaw,
+                            verified: isVerified,
+                            verificationPending: isVerificationPending,
+                            telegramId: telegramIdNumber,
+                            userId,
+                            name: userName,
+                            username: userUsername,
+                            lastSeen: firebase.firestore.FieldValue.serverTimestamp()
+                        };
+
+                        if (isVerified && verifiedWalletRaw) {
+                            updatePayload.verifiedWalletRaw = verifiedWalletRaw;
+                            updatePayload.verifiedWalletAddress = verifiedWalletAddress;
+                            await registerVerifiedWalletRegistry(verifiedWalletRaw, verifiedWalletAddress);
+                        }
+
+                        await userRef.set(updatePayload, { merge: true });
+                    }
                 } else {
                     walletConnected = false;
                     connectedWalletAddress = "";
                     connectedWalletRawAddress = "";
+                    isVerified = false;
+                    isVerificationPending = false;
 
                     await userRef.set({
+                        walletConnected: false,
+                        walletAddress: "",
+                        walletRawAddress: "",
+                        verified: false,
+                        verificationPending: false,
                         userId,
                         telegramId: telegramIdNumber,
                         name: userName,
@@ -1519,11 +1826,12 @@ async function loadUserData() {
                 }
             }
         } else {
-            walletConnected = !!liveRaw;
-            connectedWalletRawAddress = liveRaw || "";
-            connectedWalletAddress = liveFriendly;
+            walletConnected = false;
+            connectedWalletRawAddress = "";
+            connectedWalletAddress = "";
             isVerified = false;
             isVerificationPending = false;
+            isFailWallet = false;
 
             applyBanState(false);
 
@@ -1538,10 +1846,12 @@ async function loadUserData() {
                 claimedTargets: [],
                 verified: false,
                 verificationPending: false,
+                verifiedWalletRaw: "",
+                verifiedWalletAddress: "",
                 banned: false,
-                walletConnected,
-                walletAddress: connectedWalletAddress,
-                walletRawAddress: connectedWalletRawAddress,
+                walletConnected: false,
+                walletAddress: "",
+                walletRawAddress: "",
                 tasks: {},
                 visitedTasks: {},
                 miningStartTime: 0,
@@ -1574,7 +1884,7 @@ async function loadUserData() {
         loadReferralStats();
         startHistoryListeners();
 
-        if (!isBanned && getLiveWalletRawAddress()) {
+        if (!isBanned && !isFailWallet && getLiveWalletRawAddress()) {
             await saveWalletInfo();
         }
     } catch (e) {
@@ -2137,6 +2447,12 @@ function shareRefLink() {
 async function handleMainAction() {
     if (isBanned || isClaimingMining) return;
 
+    if (isFailWallet) {
+        alert("Fail Wallet! This wallet is already verified with another ID.");
+        updateUI();
+        return;
+    }
+
     const liveAddress = getLiveWalletAddress();
 
     if (!liveAddress) {
@@ -2146,7 +2462,7 @@ async function handleMainAction() {
 
     if (!isVerified) {
         if (isVerificationPending) {
-            alert("Your verification is pending admin confirmation.");
+            alert("Your verification for this wallet is pending admin confirmation.");
             return;
         }
 
@@ -2389,7 +2705,7 @@ function updateUI() {
 
     const liveRaw = getLiveWalletRawAddress();
 
-    if (liveRaw) {
+    if (liveRaw && !isFailWallet) {
         walletConnected = true;
         connectedWalletRawAddress = liveRaw;
 
@@ -2398,10 +2714,12 @@ function updateUI() {
         } catch (e) {
             walletConnected = false;
         }
-    } else {
+    } else if (!isFailWallet) {
         walletConnected = false;
         connectedWalletRawAddress = "";
         connectedWalletAddress = "";
+        isVerified = false;
+        isVerificationPending = false;
     }
 
     const now = Date.now();
@@ -2428,7 +2746,12 @@ function updateUI() {
     const walletDisplay = document.getElementById("walletDisplay");
     const profileWallet = document.getElementById("profileWalletAddr");
 
-    if (walletConnected && connectedWalletAddress) {
+    if (isFailWallet) {
+        walletDisplay.textContent = "Fail Wallet";
+        walletDisplay.classList.add("fail-wallet");
+        profileWallet.textContent = "Fail Wallet";
+    } else if (walletConnected && connectedWalletAddress) {
+        walletDisplay.classList.remove("fail-wallet");
         walletDisplay.textContent =
             connectedWalletAddress.slice(0, 6) + "..." +
             connectedWalletAddress.slice(-4);
@@ -2437,6 +2760,7 @@ function updateUI() {
             connectedWalletAddress.slice(0, 6) + "..." +
             connectedWalletAddress.slice(-6);
     } else {
+        walletDisplay.classList.remove("fail-wallet");
         walletDisplay.textContent = "Connect Wallet";
         profileWallet.textContent = "Not Connected";
     }
@@ -2444,6 +2768,23 @@ function updateUI() {
     const badge = document.getElementById("verifyStatus");
     const button = document.getElementById("actionBtn");
     const sessionText = document.getElementById("sessionStatusText");
+
+    if (isFailWallet) {
+        badge.textContent = "Fail Wallet";
+        badge.className = "status-badge";
+
+        document.getElementById("miningStatus").textContent = "Fail Wallet";
+        document.getElementById("miningRateText").textContent =
+            "Fail Wallet — Already verified on another ID";
+
+        sessionText.textContent =
+            "This wallet is already verified on another account. Connect a different wallet.";
+
+        button.className = "main-btn btn-danger";
+        button.textContent = "FAIL WALLET";
+        button.disabled = true;
+        return;
+    }
 
     if (isVerified && walletConnected) {
         badge.textContent = "Verified ✓";
@@ -2800,6 +3141,7 @@ function closeTokenomicsModal() {
 setInterval(() => {
     if (
         !isBanned &&
+        !isFailWallet &&
         isVerified &&
         walletConnected &&
         !isSupplyLimitReached() &&
@@ -2839,4 +3181,4 @@ setInterval(() => {
 
 </script>
 </body>
-            </html>
+        </html>
