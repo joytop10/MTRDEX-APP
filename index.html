@@ -379,6 +379,8 @@ tg.expand();
 
 /* ================= SETTINGS ================= */
 
+const TON_MAINNET_CHAIN = "-239";
+
 let ADMIN_WALLET_ADDRESS = "";
 let verifyFeeAmount = 0.1;
 let miningRatePerHour = 0;
@@ -754,6 +756,10 @@ function getLiveWalletRawAddress() {
 function getLiveWalletAddress() {
     const raw = getLiveWalletRawAddress();
     return raw ? rawToFriendlyAddress(raw, false) : "";
+}
+
+function getConnectedWalletChain() {
+    return String(tonConnectUI?.wallet?.account?.chain || "");
 }
 
 async function applyConnectedWalletState(newRaw, newFriendly, sequence) {
@@ -1357,6 +1363,12 @@ async function verifyAccountWithFee() {
         return;
     }
 
+    const activeChain = getConnectedWalletChain();
+    if (activeChain && activeChain !== TON_MAINNET_CHAIN) {
+        alert("Testnet wallet detected! Please switch your wallet network to TON Mainnet and try again.");
+        return;
+    }
+
     const currentRaw = getLiveWalletRawAddress();
     const currentFriendly = getLiveWalletAddress();
 
@@ -1396,6 +1408,7 @@ async function verifyAccountWithFee() {
         const nanoAmount = Math.round(verifyFeeAmount * 1e9).toString();
 
         const transaction = {
+            network: TON_MAINNET_CHAIN,
             validUntil: Math.floor(Date.now() / 1000) + 600,
             messages: [{
                 address: ADMIN_WALLET_ADDRESS,
@@ -1404,7 +1417,7 @@ async function verifyAccountWithFee() {
         };
 
         alert(
-            `Sending ${verifyFeeAmount} TON verification transaction for this wallet. Please confirm in your wallet app.`
+            `Sending ${verifyFeeAmount} TON verification transaction on TON Mainnet for this wallet. Please confirm in your wallet app.`
         );
 
         const result = await tonConnectUI.sendTransaction(transaction);
@@ -1413,11 +1426,19 @@ async function verifyAccountWithFee() {
             throw new Error("TRANSACTION_NOT_RETURNED");
         }
 
+        const postChain = getConnectedWalletChain();
+        if (postChain && postChain !== TON_MAINNET_CHAIN) {
+            alert("Verification failed: Transaction was not on TON Mainnet.");
+            return;
+        }
+
         await registerVerifiedWalletRegistry(currentRaw, currentFriendly);
 
         await db.collection("users").doc(userId).set({
             verified: true,
             verificationPending: false,
+            verificationNetwork: "mainnet",
+            verificationChain: TON_MAINNET_CHAIN,
             verificationBoc: result.boc,
             verificationFee: verifyFeeAmount,
             verificationWalletRaw: currentRaw,
@@ -1440,7 +1461,7 @@ async function verifyAccountWithFee() {
         alert("🎉 Wallet verified successfully!");
     } catch (error) {
         console.error("Verification transaction failed:", error);
-        alert("Transaction cancelled or failed. Please ensure you have sufficient TON balance.");
+        alert("Transaction cancelled or failed. Please ensure you are on TON Mainnet with sufficient TON balance.");
     }
 }
 
@@ -3181,4 +3202,4 @@ setInterval(() => {
 
 </script>
 </body>
-        </html>
+</html>
