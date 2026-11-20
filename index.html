@@ -378,9 +378,6 @@ tg.expand();
 
 /* ================= SETTINGS ================= */
 
-/* Mining rate is loaded from Admin Panel settings/config.
-   Do not hardcode the mining rate here. */
-
 let ADMIN_WALLET_ADDRESS = "";
 let verifyFeeAmount = 0.1;
 let miningRatePerHour = 0;
@@ -477,6 +474,7 @@ let withdrawActivities = [];
 
 let miningStartTime = 0;
 let miningEndTime = 0;
+let lastClaimTime = 0;
 
 let allTeamMembers = [];
 let teamLoading = false;
@@ -505,6 +503,16 @@ function applyBanState(status) {
 
 function isSupplyLimitReached() {
     return maxSupplyLimit > 0 && globalTotalSupply >= maxSupplyLimit;
+}
+
+function computeClaimableMined(nowMs = Date.now(), startTs = miningStartTime, endTs = miningEndTime, claimTs = lastClaimTime) {
+    const baseTs = claimTs > 0 ? claimTs : startTs;
+    if (!baseTs || baseTs <= 0 || miningRatePerSec <= 0) {
+        return 0;
+    }
+    const effectiveNow = endTs > 0 ? Math.min(nowMs, endTs) : nowMs;
+    const elapsedSec = Math.max(0, (effectiveNow - baseTs) / 1000);
+    return elapsedSec * miningRatePerSec;
 }
 
 function setAvatar(element) {
@@ -1406,6 +1414,7 @@ function startRealtimeUserBanListener() {
 
             miningStartTime = Number(data.miningStartTime || 0);
             miningEndTime = Number(data.miningEndTime || 0);
+            lastClaimTime = Number(data.lastClaimTime || data.miningStartTime || 0);
 
             if (data.refReward !== undefined) {
                 refRewardBalance = Number(data.refReward || 0);
@@ -1447,6 +1456,7 @@ async function loadUserData() {
 
                 miningStartTime = Number(data.miningStartTime || 0);
                 miningEndTime = Number(data.miningEndTime || 0);
+                lastClaimTime = Number(data.lastClaimTime || data.miningStartTime || 0);
             }
 
             refRewardBalance = Number(data.refReward || 0);
@@ -1536,6 +1546,7 @@ async function loadUserData() {
                 visitedTasks: {},
                 miningStartTime: 0,
                 miningEndTime: 0,
+                lastClaimTime: 0,
                 referredBy: null,
                 createdAt: firebase.firestore.FieldValue.serverTimestamp()
             });
@@ -1543,6 +1554,7 @@ async function loadUserData() {
             totalBalance = 0.00000001;
             miningStartTime = 0;
             miningEndTime = 0;
+            lastClaimTime = 0;
             referrerId = null;
             referrerCode = "";
         }
@@ -2154,43 +2166,14 @@ async function handleMainAction() {
     }
 
     const now = Date.now();
-
-    /* Session still active: keep CLAIM disabled until session completes, without showing alert */
-    if (miningStartTime > 0 && miningEndTime > now) {
-        updateUI();
-        return;
-    }
-
     isClaimingMining = true;
-
-    const elapsed = miningStartTime > 0
-        ? Math.max(0, (now - miningStartTime) / 1000)
-        : 0;
-
-    let mined = Math.min(
-        miningRatePerHour * MINING_DURATION_HOURS,
-        elapsed * miningRatePerSec
-    );
-
-    if (maxSupplyLimit > 0) {
-        mined = Math.min(
-            mined,
-            Math.max(0, maxSupplyLimit - globalTotalSupply)
-        );
-    }
-
-    if (mined <= 0 && miningStartTime > 0) {
-        isClaimingMining = false;
-        alert("No mining reward is available yet.");
-        return;
-    }
 
     const userRef = db.collection("users").doc(userId);
 
-    const newStart = now;
-    const newEnd = now + MINING_DURATION_MS;
-
     try {
+        let claimedAmount = 0;
+        let startedSession = false;
+
         await db.runTransaction(async transaction => {
             const snap = await transaction.get(userRef);
 
@@ -2202,32 +2185,72 @@ async function handleMainAction() {
             if (data.verified !== true) throw new Error("NOT_VERIFIED");
 
             const currentBalance = Number(data.balance || 0);
-            const newBalance = currentBalance + mined;
+            const startTs = Number(data.miningStartTime || 0);
+            const endTs = Number(data.miningEndTime || 0);
+            const claimTs = Number(data.lastClaimTime || startTs || 0);
 
-            transaction.set(userRef, {
-                balance: newBalance,
-                miningStartTime: newStart,
-                miningEndTime: newEnd,
-                updatedAt: firebase.firestore.FieldValue.serverTimestamp()
-            }, { merge: true });
+            if (startTs <= 0 || (endTs > 0 && now >= endTs)) {
+                const pendingBeforeReset = startTs > 0
+                    ? computeClaimableMined(now, startTs, endTs, claimTs)
+                    : 0;
 
-            totalBalance = newBalance;
-            miningStartTime = newStart;
-            miningEndTime = newEnd;
+                let toAdd = pendingBeforeReset;
+                if (maxSupplyLimit > 0) {
+                    toAdd = Math.min(toAdd, Math.max(0, maxSupplyLimit - globalTotalSupply));
+                }
+
+                const nextStart = now;
+                const nextEnd = now + MINING_DURATION_MS;
+                const newBalance = currentBalance + toAdd;
+
+                transaction.set(userRef, {
+                    balance: newBalance,
+                    miningStartTime: nextStart,
+                    miningEndTime: nextEnd,
+                    lastClaimTime: nextStart,
+                    updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+                }, { merge: true });
+
+                totalBalance = newBalance;
+                miningStartTime = nextStart;
+                miningEndTime = nextEnd;
+                lastClaimTime = nextStart;
+                claimedAmount = toAdd;
+                startedSession = true;
+            } else {
+                let pending = computeClaimableMined(now, startTs, endTs, claimTs);
+                if (maxSupplyLimit > 0) {
+                    pending = Math.min(pending, Math.max(0, maxSupplyLimit - globalTotalSupply));
+                }
+
+                const newBalance = currentBalance + pending;
+
+                transaction.set(userRef, {
+                    balance: newBalance,
+                    lastClaimTime: now,
+                    updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+                }, { merge: true });
+
+                totalBalance = newBalance;
+                miningStartTime = startTs;
+                miningEndTime = endTs;
+                lastClaimTime = now;
+                claimedAmount = pending;
+            }
         });
 
-        if (mined > 0) {
-            await recordClaimActivity("mining", "Mining Claim", mined);
+        if (claimedAmount > 0) {
+            await recordClaimActivity("mining", "Mining Claim", claimedAmount);
         }
 
         updateUI();
 
-        if (maxSupplyLimit > 0 && globalTotalSupply + mined >= maxSupplyLimit) {
-            alert(`🎉 Claimed ${mined.toFixed(8)} MTR! ${supplyStopNotice}`);
+        if (claimedAmount > 0) {
+            alert(`🎉 Claimed ${claimedAmount.toFixed(8)} MTR!`);
+        } else if (startedSession) {
+            alert("⚡ Mining session started! You can claim anytime.");
         } else {
-            alert(
-                `🎉 Successfully claimed ${mined.toFixed(8)} MTR! New 8-hour mining session started.`
-            );
+            alert("⚡ Mining is running! Keep mining and claim anytime.");
         }
     } catch (e) {
         console.error("Mining claim error:", e);
@@ -2237,7 +2260,7 @@ async function handleMainAction() {
         } else if (e.message === "NOT_VERIFIED") {
             alert("Your account is not verified.");
         } else {
-            alert("Failed to claim tokens.");
+            alert("Failed to process mining action.");
         }
     } finally {
         isClaimingMining = false;
@@ -2445,15 +2468,7 @@ function updateUI() {
                 ? `⚡ Mining Speed: +${miningRatePerHour} MTR/hour`
                 : "Mining rate not configured by admin";
 
-        const elapsed = miningStartTime > 0
-            ? Math.max(0, (now - miningStartTime) / 1000)
-            : 0;
-
-        const liveMined = Math.min(
-            miningRatePerHour * MINING_DURATION_HOURS,
-            elapsed * miningRatePerSec
-        );
-
+        const liveMined = computeClaimableMined(now);
         const sessionActive = miningEndTime > 0 && now < miningEndTime;
 
         if (sessionActive) {
@@ -2462,13 +2477,13 @@ function updateUI() {
             const minutes = Math.floor((left % 3600000) / 60000);
 
             sessionText.innerHTML =
-                `Mined in session: <strong>${liveMined.toFixed(8)} MTR</strong>`;
+                `Mined in session: <strong><span id="sessionMined">${liveMined.toFixed(8)}</span> MTR</strong>`;
 
             document.getElementById("miningStatus").textContent =
                 `Active (${hours}h ${minutes}m left)`;
         } else {
             sessionText.innerHTML =
-                `Mined in session: <strong>${liveMined.toFixed(8)} MTR (Ready to Claim)</strong>`;
+                `Mined in session: <strong><span id="sessionMined">${liveMined.toFixed(8)}</span> MTR</strong>`;
 
             document.getElementById("miningStatus").textContent =
                 miningStartTime > 0 ? "Session Complete" : "Not Started";
@@ -2476,7 +2491,7 @@ function updateUI() {
 
         button.className = "main-btn btn-gold";
         button.textContent = miningStartTime > 0 ? "CLAIM" : "START MINING";
-        button.disabled = miningRatePerHour <= 0 || sessionActive;
+        button.disabled = miningRatePerHour <= 0;
 
     } else if (walletConnected) {
         badge.textContent = isVerificationPending
@@ -2788,19 +2803,13 @@ setInterval(() => {
         isVerified &&
         walletConnected &&
         !isSupplyLimitReached() &&
-        miningStartTime > 0
+        miningStartTime > 0 &&
+        !isClaimingMining
     ) {
         const now = Date.now();
-
-        const elapsed = Math.max(0, (now - miningStartTime) / 1000);
-
-        const mined = Math.min(
-            miningRatePerHour * MINING_DURATION_HOURS,
-            elapsed * miningRatePerSec
-        );
+        const mined = computeClaimableMined(now);
 
         const sessionEl = document.getElementById("sessionMined");
-
         if (sessionEl) {
             sessionEl.textContent = mined.toFixed(8);
         }
@@ -2816,20 +2825,18 @@ setInterval(() => {
             if (statusEl) {
                 statusEl.textContent = `Active (${hours}h ${minutes}m left)`;
             }
-            if (button && miningRatePerHour > 0) {
-                button.disabled = true;
-            }
         } else {
             if (statusEl) {
                 statusEl.textContent = "Session Complete";
             }
-            if (button && miningRatePerHour > 0) {
-                button.disabled = false;
-            }
+        }
+
+        if (button && miningRatePerHour > 0) {
+            button.disabled = false;
         }
     }
-}, 1000);
+}, 250);
 
 </script>
 </body>
-    </html>
+            </html>
