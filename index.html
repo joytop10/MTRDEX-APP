@@ -510,7 +510,7 @@ function parseDurationToMs(rawValue, unitHint = "") {
     return num * 1000;  
 }  
   
-function extractTaskCooldownMs(task = {}, configData = {}) {  
+function extractTaskCooldownMs(task = {}) {  
     const taskCandidates = [  
         [task.taskCooldownSec, "sec"],  
         [task.cooldownSec, "sec"],  
@@ -652,15 +652,8 @@ function evaluateWalletVerificationState(data = {}) {
     pendingWalletRaw = String(data.verificationWalletRaw || data.pendingWalletRaw || "").trim();  
     pendingWalletAddress = String(data.verificationWalletAddress || data.pendingWalletAddress || "").trim();  
   
-    const activeRaw = getLiveWalletRawAddress() || connectedWalletRawAddress;  
-    const activeFriendly = activeRaw ? rawToFriendlyAddress(activeRaw, false) : connectedWalletAddress;  
-  
-    if (!activeRaw && !activeFriendly) {  
-        isVerified = false;  
-        isVerificationPending = false;  
-        isFailWallet = false;  
-        return;  
-    }  
+    const dbVerified = data.verified === true;  
+    const hasVerifiedWalletRecord = Boolean(verifiedWalletRaw || verifiedWalletAddress);  
   
     if (isFailWallet) {  
         isVerified = false;  
@@ -668,8 +661,15 @@ function evaluateWalletVerificationState(data = {}) {
         return;  
     }  
   
-    const dbVerified = data.verified === true;  
-    const hasVerifiedWalletRecord = Boolean(verifiedWalletRaw || verifiedWalletAddress);  
+    const activeRaw = getLiveWalletRawAddress() || connectedWalletRawAddress;  
+    const activeFriendly = activeRaw ? rawToFriendlyAddress(activeRaw, false) : connectedWalletAddress;  
+  
+    // If no wallet is currently connected, keep account's verified state intact if already verified in DB  
+    if (!activeRaw && !activeFriendly) {  
+        isVerified = dbVerified;  
+        isVerificationPending = !dbVerified && data.verificationPending === true;  
+        return;  
+    }  
   
     if (dbVerified) {  
         if (hasVerifiedWalletRecord) {  
@@ -827,8 +827,6 @@ async function applyConnectedWalletState(newRaw, newFriendly, sequence) {
                     walletConnected: false,  
                     walletAddress: "",  
                     walletRawAddress: "",  
-                    verified: false,  
-                    verificationPending: false,  
                     lastFailWallet: newFriendly || newRaw  
                 }, { merge: true });  
             } catch (e) {  
@@ -858,13 +856,21 @@ async function applyConnectedWalletState(newRaw, newFriendly, sequence) {
   
             evaluateWalletVerificationState(data);  
   
-            await db.collection("users").doc(userId).set({  
+            const payload = {  
                 walletConnected: true,  
                 walletAddress: connectedWalletAddress,  
                 walletRawAddress: connectedWalletRawAddress,  
                 verified: isVerified,  
                 verificationPending: isVerificationPending  
-            }, { merge: true });  
+            };  
+  
+            if (isVerified && newRaw) {  
+                payload.verifiedWalletRaw = verifiedWalletRaw || newRaw;  
+                payload.verifiedWalletAddress = verifiedWalletAddress || newFriendly;  
+                await registerVerifiedWalletRegistry(payload.verifiedWalletRaw, payload.verifiedWalletAddress);  
+            }  
+  
+            await db.collection("users").doc(userId).set(payload, { merge: true });  
   
             updateUI();  
         } catch (e) {  
@@ -896,28 +902,23 @@ try {
                     walletConnected = false;  
                     connectedWalletAddress = "";  
                     connectedWalletRawAddress = "";  
-                    isVerified = false;  
-                    isVerificationPending = false;  
                     updateUI();  
                     return;  
                 }  
   
                 await applyConnectedWalletState(newRaw, newFriendly, sequence);  
             } else {  
+                // Disconnecting wallet only marks connection offline; it does NOT wipe user's verified wallet record  
                 walletConnected = false;  
                 connectedWalletAddress = "";  
                 connectedWalletRawAddress = "";  
-                isVerified = false;  
-                isVerificationPending = false;  
   
                 if (userLoaded) {  
                     try {  
                         await db.collection("users").doc(userId).set({  
                             walletConnected: false,  
                             walletAddress: "",  
-                            walletRawAddress: "",  
-                            verified: false,  
-                            verificationPending: false  
+                            walletRawAddress: ""  
                         }, { merge: true });  
                     } catch (e) {  
                         console.error("Wallet disconnect sync error:", e);  
@@ -1024,21 +1025,17 @@ async function disconnectWallet() {
         connectedWalletRawAddress = "";  
         isFailWallet = false;  
         failWalletOwnerId = "";  
-        isVerified = false;  
-        isVerificationPending = false;  
   
         await db.collection("users").doc(userId).set({  
             walletConnected: false,  
             walletAddress: "",  
-            walletRawAddress: "",  
-            verified: false,  
-            verificationPending: false  
+            walletRawAddress: ""  
         }, { merge: true });  
   
         closeWalletModal();  
         updateUI();  
   
-        alert("Wallet disconnected! Connect a wallet and verify to mine.");  
+        alert("Wallet disconnected! Reconnect your verified wallet anytime to continue mining.");  
     } catch (e) {  
         console.error(e);  
         alert("Unable to disconnect wallet.");  
@@ -1819,8 +1816,6 @@ async function loadUserData() {
                             walletConnected: false,  
                             walletAddress: "",  
                             walletRawAddress: "",  
-                            verified: false,  
-                            verificationPending: false,  
                             userId,  
                             telegramId: telegramIdNumber,  
                             name: userName,  
@@ -1861,15 +1856,12 @@ async function loadUserData() {
                     walletConnected = false;  
                     connectedWalletAddress = "";  
                     connectedWalletRawAddress = "";  
-                    isVerified = false;  
-                    isVerificationPending = false;  
+                    evaluateWalletVerificationState(data);  
   
                     await userRef.set({  
                         walletConnected: false,  
                         walletAddress: "",  
                         walletRawAddress: "",  
-                        verified: false,  
-                        verificationPending: false,  
                         userId,  
                         telegramId: telegramIdNumber,  
                         name: userName,  
@@ -2896,8 +2888,6 @@ function updateUI() {
         walletConnected = false;  
         connectedWalletRawAddress = "";  
         connectedWalletAddress = "";  
-        isVerified = false;  
-        isVerificationPending = false;  
     }  
   
     const now = Date.now();  
@@ -3039,8 +3029,8 @@ function updateUI() {
         button.disabled = isVerificationPending;  
   
     } else {  
-        badge.textContent = "Unverified";  
-        badge.className = "status-badge";  
+        badge.textContent = isVerified ? "Verified ✓" : "Unverified";  
+        badge.className = isVerified ? "status-badge verified" : "status-badge";  
   
         document.getElementById("miningStatus").textContent = "Inactive";  
         document.getElementById("miningRateText").textContent =  
