@@ -488,6 +488,14 @@
                     <input type="number" id="minWithdrawInput" class="form-control" style="margin-bottom:0;" placeholder="e.g. 10">
                     <button class="main-btn btn-success" onclick="saveMinWithdraw()">Save Limit</button>
                 </div>
+
+                <hr style="border-color: rgba(255,255,255,0.1); margin: 18px 0;">
+
+                <div class="section-title">💸 Maximum Withdrawal Limit (MTR)</div>
+                <div style="display: flex; gap: 10px;">
+                    <input type="number" step="any" min="0" id="maxWithdrawInput" class="form-control" style="margin-bottom:0;" placeholder="e.g. 1000 (0 = Unlimited)">
+                    <button class="main-btn btn-gold" onclick="saveMaxWithdraw()">Save Max Limit</button>
+                </div>
             </div>
 
             <!-- ADMIN PASSWORD & PIN SETTINGS -->
@@ -1044,6 +1052,10 @@
                     }
 
                     if (data.minWithdraw) document.getElementById('minWithdrawInput').value = data.minWithdraw;
+                    const maxWInput = document.getElementById('maxWithdrawInput');
+                    if (data.maxWithdraw !== undefined && maxWInput && document.activeElement !== maxWInput) {
+                        maxWInput.value = data.maxWithdraw;
+                    }
                     if (data.miningRate !== undefined) document.getElementById('miningRateInput').value = data.miningRate;
                     if (data.maintenanceNotice !== undefined) document.getElementById('maintenanceNoticeInput').value = data.maintenanceNotice;
                     if (data.refCommission !== undefined) document.getElementById('refCommissionInput').value = data.refCommission;
@@ -1333,6 +1345,15 @@
             }
         }
 
+        function saveMaxWithdraw() {
+            const rawVal = parseFloat(document.getElementById('maxWithdrawInput').value);
+            const val = (!isNaN(rawVal) && rawVal >= 0) ? rawVal : 0;
+            verifyTxPinAction(() => {
+                db.collection("settings").doc("config").set({ maxWithdraw: val }, { merge: true })
+                  .then(() => alert("✅ Maximum withdrawal limit updated!"));
+            });
+        }
+
         function updateAdminPassword() {
             const newPass = document.getElementById('newAdminPass').value.trim();
             if (newPass.length < 4) {
@@ -1369,4 +1390,4 @@
         }
     </script>
 </body>
-                    </html>
+                </html>
