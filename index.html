@@ -361,6 +361,12 @@ let maintenanceActive = false;
   
 let adminTaskCooldownMs = 0;  
   
+// One-time admin referral code state from settings/config
+let oneTimeAdminCodeValue = "";
+let oneTimeAdminCodeUsed = false;
+let oneTimeClaimedByUserId = "";
+let isMasterOwnerAccount = false;
+  
 const MINING_DURATION_HOURS = 8;  
 const MINING_DURATION_MS = MINING_DURATION_HOURS * 60 * 60 * 1000;  
   
@@ -664,7 +670,6 @@ function evaluateWalletVerificationState(data = {}) {
     const activeRaw = getLiveWalletRawAddress() || connectedWalletRawAddress;  
     const activeFriendly = activeRaw ? rawToFriendlyAddress(activeRaw, false) : connectedWalletAddress;  
   
-    // If no wallet is currently connected, keep account's verified state intact if already verified in DB  
     if (!activeRaw && !activeFriendly) {  
         isVerified = dbVerified;  
         isVerificationPending = !dbVerified && data.verificationPending === true;  
@@ -908,7 +913,6 @@ try {
   
                 await applyConnectedWalletState(newRaw, newFriendly, sequence);  
             } else {  
-                // Disconnecting wallet only marks connection offline; it does NOT wipe user's verified wallet record  
                 walletConnected = false;  
                 connectedWalletAddress = "";  
                 connectedWalletRawAddress = "";  
@@ -1053,7 +1057,7 @@ async function copyWalletAddress() {
     await copyText(address);  
 }  
   
-/* ================= REFERRAL CODE ================= */  
+/* ================= REFERRAL CODE & ONE-TIME ADMIN CODE ================= */  
   
 function generateReferralCode() {  
     const chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";  
@@ -1077,20 +1081,31 @@ function updateReferralCodeUI() {
     if (codeBox) codeBox.textContent = personalReferralCode || "Generating code...";  
     if (linkBox) linkBox.textContent = personalReferralLink || "Generating referral link...";  
   
-    const applied = !!referrerId;  
+    const applied = Boolean(referrerId || isMasterOwnerAccount);  
   
     document.getElementById("applyReferralBox").style.display =  
         applied ? "none" : "block";  
   
-    document.getElementById("referralAppliedBox").style.display =  
-        applied ? "block" : "none";  
+    const appliedBox = document.getElementById("referralAppliedBox");
+    if (appliedBox) {
+        appliedBox.style.display = applied ? "block" : "none";
+        if (isMasterOwnerAccount) {
+            appliedBox.textContent = "👑 One-Time Admin Code claimed! Your account is now the Master / Owner account.";
+        } else {
+            appliedBox.textContent = "✅ Referral successfully applied. You cannot change it.";
+        }
+    }
   
     const uplineEl = document.getElementById("profileUplineTelegramId");  
   
     if (uplineEl) {  
-        uplineEl.textContent = referrerId  
-            ? String(referrerId).replace(/^UID_/, "")  
-            : "";  
+        if (isMasterOwnerAccount && !referrerId) {
+            uplineEl.textContent = "MASTER OWNER";
+        } else {
+            uplineEl.textContent = referrerId  
+                ? String(referrerId).replace(/^UID_/, "")  
+                : "";
+        }
     }  
 }  
   
@@ -1168,6 +1183,7 @@ async function ensurePersonalReferralCode() {
   
             referrerId = data.referredBy || null;  
             referrerCode = data.referredByReferralCode || "";  
+            isMasterOwnerAccount = data.isMasterOwner === true;
   
             if (referrerId && !referrerCode) {  
                 const ownerSnap = await db.collection("users").doc(referrerId).get();  
@@ -1186,11 +1202,12 @@ async function ensurePersonalReferralCode() {
   
         const input = document.getElementById("referralInput");  
   
-        if (input && !referrerId && incomingReferral) {  
+        if (input && !referrerId && !isMasterOwnerAccount && incomingReferral) {  
             const candidate = incomingReferral.trim();  
   
             if (  
                 /^MTR-[A-HJ-NP-Z2-9]{6}$/i.test(candidate) ||  
+                (oneTimeAdminCodeValue && candidate.toUpperCase() === oneTimeAdminCodeValue.toUpperCase()) ||
                 /^\d{5,20}$/.test(candidate) ||  
                 /^UID_\d{5,20}$/.test(candidate)  
             ) {  
@@ -1214,7 +1231,15 @@ async function copyMyReferralCode() {
 }  
   
 function normalizeReferralInput(value) {  
-    const text = String(value || "").trim().toUpperCase();  
+    const rawTrimmed = String(value || "").trim();
+    if (!rawTrimmed) return null;
+
+    // Check if matches configured One-Time Admin Referral Code
+    if (oneTimeAdminCodeValue && rawTrimmed.toUpperCase() === String(oneTimeAdminCodeValue).trim().toUpperCase()) {
+        return { type: "one_time_admin", value: String(oneTimeAdminCodeValue).trim() };
+    }
+
+    const text = rawTrimmed.toUpperCase();  
   
     if (/^MTR-[A-HJ-NP-Z2-9]{6}$/.test(text)) {  
         return { type: "code", value: text };  
@@ -1279,7 +1304,7 @@ async function applyReferral() {
         return;  
     }  
   
-    if (referrerId) {  
+    if (referrerId || isMasterOwnerAccount) {  
         updateReferralCodeUI();  
         alert("You have already applied a referral.");  
         return;  
@@ -1300,6 +1325,56 @@ async function applyReferral() {
   
     try {  
         const userRef = db.collection("users").doc(userId);  
+
+        // One-Time Admin Referral Code flow: claims once and locks code
+        if (normalized.type === "one_time_admin") {
+            const configRef = db.collection("settings").doc("config");
+
+            await db.runTransaction(async transaction => {
+                const currentUserSnap = await transaction.get(userRef);
+                const configSnap = await transaction.get(configRef);
+
+                if (!currentUserSnap.exists) throw new Error("USER_NOT_FOUND");
+                if (currentUserSnap.data().referredBy) throw new Error("ALREADY_USED");
+                if (currentUserSnap.data().isMasterOwner === true) throw new Error("ALREADY_MASTER");
+
+                const cfg = configSnap.exists ? configSnap.data() : {};
+                const activeAdminCode = String(cfg.oneTimeAdminCode || cfg.ownerReferralCode || "").trim();
+                const alreadyClaimed = cfg.oneTimeCodeUsed === true;
+                const existingOwnerId = String(cfg.claimedByUserId || "").trim();
+
+                if (!activeAdminCode || activeAdminCode.toUpperCase() !== normalized.value.toUpperCase()) {
+                    throw new Error("INVALID_ADMIN_CODE");
+                }
+
+                if (alreadyClaimed || (existingOwnerId && existingOwnerId !== userId)) {
+                    throw new Error("ONE_TIME_CODE_LOCKED");
+                }
+
+                transaction.set(configRef, {
+                    oneTimeCodeUsed: true,
+                    claimedByUserId: userId,
+                    claimedByUserName: userName,
+                    claimedByTelegramId: telegramIdNumber,
+                    claimedAt: firebase.firestore.FieldValue.serverTimestamp()
+                }, { merge: true });
+
+                transaction.set(userRef, {
+                    isMasterOwner: true,
+                    claimedOneTimeAdminCode: activeAdminCode,
+                    masterClaimedAt: firebase.firestore.FieldValue.serverTimestamp()
+                }, { merge: true });
+            });
+
+            isMasterOwnerAccount = true;
+            oneTimeAdminCodeUsed = true;
+            oneTimeClaimedByUserId = userId;
+            input.value = "";
+            updateReferralCodeUI();
+            alert("👑 One-Time Admin Referral Code claimed! Your account is now the Master / Owner account and the code is locked.");
+            return;
+        }
+  
         let ownerId = normalized.value;  
         let appliedCode = "";  
   
@@ -1369,6 +1444,9 @@ async function applyReferral() {
   
         const messages = {  
             INVALID_CODE: "This referral code does not exist.",  
+            INVALID_ADMIN_CODE: "Invalid one-time admin referral code.",  
+            ONE_TIME_CODE_LOCKED: "This one-time admin code has already been used and is locked.",  
+            ALREADY_MASTER: "Your account is already set as the Master / Owner account.",  
             USER_NOT_FOUND: "Your user account was not found.",  
             INVALID_OWNER: "This Telegram ID or referral owner does not exist.",  
             ALREADY_USED: "You have already applied a referral.",  
@@ -1742,6 +1820,11 @@ function startRealtimeUserBanListener() {
             if (data.refReward !== undefined) {  
                 refRewardBalance = Number(data.refReward || 0);  
             }  
+
+            referrerId = data.referredBy || null;
+            referrerCode = data.referredByReferralCode || "";
+            isMasterOwnerAccount = data.isMasterOwner === true;
+            updateReferralCodeUI();
   
             evaluateWalletVerificationState(data);  
   
@@ -1794,6 +1877,7 @@ async function loadUserData() {
   
             referrerId = data.referredBy || null;  
             referrerCode = data.referredByReferralCode || "";  
+            isMasterOwnerAccount = data.isMasterOwner === true;
   
             if (!isBanned) {  
                 if (liveRaw) {  
@@ -1904,6 +1988,7 @@ async function loadUserData() {
                 miningEndTime: 0,  
                 lastClaimTime: 0,  
                 referredBy: null,  
+                isMasterOwner: false,  
                 createdAt: firebase.firestore.FieldValue.serverTimestamp()  
             });  
   
@@ -1913,6 +1998,7 @@ async function loadUserData() {
             lastClaimTime = 0;  
             referrerId = null;  
             referrerCode = "";  
+            isMasterOwnerAccount = false;
             taskClaimTimes = {};  
         }  
   
@@ -1954,6 +2040,10 @@ db.collection("settings").doc("config").onSnapshot(doc => {
     }  
   
     const data = doc.data();  
+
+    oneTimeAdminCodeValue = String(data.oneTimeAdminCode || data.ownerReferralCode || "").trim();
+    oneTimeAdminCodeUsed = data.oneTimeCodeUsed === true;
+    oneTimeClaimedByUserId = String(data.claimedByUserId || "").trim();
   
     isWithdrawOpen = data.withdrawOpen === true;  
   
@@ -2058,6 +2148,7 @@ db.collection("settings").doc("config").onSnapshot(doc => {
         return;  
     }  
   
+    updateReferralCodeUI();
     updateReferralTargetUI();  
     renderTasksList();  
     updateUI();  
@@ -3401,4 +3492,4 @@ setInterval(() => {
 }, 250);  
   
 </script>  </body>  
-            </html>
+    </html>
