@@ -361,7 +361,6 @@ let maintenanceActive = false;
   
 let adminTaskCooldownMs = 0;  
   
-// One-time admin referral code state from settings/config
 let oneTimeAdminCodeValue = "";
 let oneTimeAdminCodeUsed = false;
 let oneTimeClaimedByUserId = "";
@@ -562,6 +561,14 @@ function formatCooldownRemaining(remainingMs) {
     }  
     return `${seconds}s`;  
 }  
+  
+function formatSessionTimeRemaining(remainingMs) {
+    const safeMs = Math.max(0, remainingMs);
+    const totalMinutes = Math.floor(safeMs / 60000);
+    const hours = Math.floor(totalMinutes / 60);
+    const minutes = totalMinutes % 60;
+    return `${hours}h ${minutes}m`;
+}
   
 function normalizeWalletKey(rawAddress, friendlyAddress) {  
     const raw = String(rawAddress || "").trim().toLowerCase();  
@@ -1234,7 +1241,6 @@ function normalizeReferralInput(value) {
     const rawTrimmed = String(value || "").trim();
     if (!rawTrimmed) return null;
 
-    // Check if matches configured One-Time Admin Referral Code
     if (oneTimeAdminCodeValue && rawTrimmed.toUpperCase() === String(oneTimeAdminCodeValue).trim().toUpperCase()) {
         return { type: "one_time_admin", value: String(oneTimeAdminCodeValue).trim() };
     }
@@ -1256,7 +1262,6 @@ function normalizeReferralInput(value) {
     return null;  
 }  
   
-/* Blocks any downline member (any depth) from becoming the upline */  
 async function isUserInDownline(candidateDownlineUid, currentUserUid) {  
     if (!candidateDownlineUid || !currentUserUid) return false;  
     if (candidateDownlineUid === currentUserUid) return true;  
@@ -1326,7 +1331,6 @@ async function applyReferral() {
     try {  
         const userRef = db.collection("users").doc(userId);  
 
-        // One-Time Admin Referral Code flow: claims once and locks code
         if (normalized.type === "one_time_admin") {
             const configRef = db.collection("settings").doc("config");
 
@@ -2766,54 +2770,35 @@ async function handleMainAction() {
             const endTs = Number(data.miningEndTime || 0);  
             const claimTs = Number(data.lastClaimTime || startTs || 0);  
   
-            if (startTs <= 0 || (endTs > 0 && now >= endTs)) {  
-                const pendingBeforeReset = startTs > 0  
-                    ? computeClaimableMined(now, startTs, endTs, claimTs)  
-                    : 0;  
+            const hadActiveSession = startTs > 0;
+            const pendingEarned = hadActiveSession  
+                ? computeClaimableMined(now, startTs, endTs, claimTs)  
+                : 0;  
   
-                let toAdd = pendingBeforeReset;  
-                if (maxSupplyLimit > 0) {  
-                    toAdd = Math.min(toAdd, Math.max(0, maxSupplyLimit - globalTotalSupply));  
-                }  
-  
-                const nextStart = now;  
-                const nextEnd = now + MINING_DURATION_MS;  
-                const newBalance = currentBalance + toAdd;  
-  
-                transaction.set(userRef, {  
-                    balance: newBalance,  
-                    miningStartTime: nextStart,  
-                    miningEndTime: nextEnd,  
-                    lastClaimTime: nextStart,  
-                    updatedAt: firebase.firestore.FieldValue.serverTimestamp()  
-                }, { merge: true });  
-  
-                totalBalance = newBalance;  
-                miningStartTime = nextStart;  
-                miningEndTime = nextEnd;  
-                lastClaimTime = nextStart;  
-                claimedAmount = toAdd;  
-                startedSession = true;  
-            } else {  
-                let pending = computeClaimableMined(now, startTs, endTs, claimTs);  
-                if (maxSupplyLimit > 0) {  
-                    pending = Math.min(pending, Math.max(0, maxSupplyLimit - globalTotalSupply));  
-                }  
-  
-                const newBalance = currentBalance + pending;  
-  
-                transaction.set(userRef, {  
-                    balance: newBalance,  
-                    lastClaimTime: now,  
-                    updatedAt: firebase.firestore.FieldValue.serverTimestamp()  
-                }, { merge: true });  
-  
-                totalBalance = newBalance;  
-                miningStartTime = startTs;  
-                miningEndTime = endTs;  
-                lastClaimTime = now;  
-                claimedAmount = pending;  
+            let toAdd = pendingEarned;  
+            if (maxSupplyLimit > 0) {  
+                toAdd = Math.min(toAdd, Math.max(0, maxSupplyLimit - globalTotalSupply));  
             }  
+  
+            // Refresh a full 8-hour mining session on start or claim so timer resets cleanly
+            const nextStart = now;  
+            const nextEnd = now + MINING_DURATION_MS;  
+            const newBalance = currentBalance + toAdd;  
+  
+            transaction.set(userRef, {  
+                balance: newBalance,  
+                miningStartTime: nextStart,  
+                miningEndTime: nextEnd,  
+                lastClaimTime: nextStart,  
+                updatedAt: firebase.firestore.FieldValue.serverTimestamp()  
+            }, { merge: true });  
+  
+            totalBalance = newBalance;  
+            miningStartTime = nextStart;  
+            miningEndTime = nextEnd;  
+            lastClaimTime = nextStart;  
+            claimedAmount = toAdd;  
+            startedSession = !hadActiveSession;  
         });  
   
         if (claimedAmount > 0) {  
@@ -2823,11 +2808,11 @@ async function handleMainAction() {
         updateUI();  
   
         if (claimedAmount > 0) {  
-            alert(`🎉 Claimed ${claimedAmount.toFixed(8)} MTR!`);  
+            alert(`🎉 Claimed ${claimedAmount.toFixed(8)} MTR! 8h mining timer refreshed.`);  
         } else if (startedSession) {  
-            alert("⚡ Mining session started! You can claim anytime.");  
+            alert("⚡ 8h mining session started! You can claim anytime.");  
         } else {  
-            alert("⚡ Mining is running! Keep mining and claim anytime.");  
+            alert("⚡ 8h mining timer refreshed! Keep mining and claim anytime.");  
         }  
     } catch (e) {  
         console.error("Mining claim error:", e);  
@@ -3073,14 +3058,12 @@ function updateUI() {
   
         if (sessionActive) {  
             const left = miningEndTime - now;  
-            const hours = Math.floor(left / 3600000);  
-            const minutes = Math.floor((left % 3600000) / 60000);  
   
             sessionText.innerHTML =  
                 `Mined in session: <strong><span id="sessionMined">${liveMined.toFixed(8)}</span> MTR</strong>`;  
   
             document.getElementById("miningStatus").textContent =  
-                `Active (${hours}h ${minutes}m left)`;  
+                `Active (${formatSessionTimeRemaining(left)} left)`;  
         } else {  
             sessionText.innerHTML =  
                 `Mined in session: <strong><span id="sessionMined">${liveMined.toFixed(8)}</span> MTR</strong>`;  
@@ -3473,11 +3456,9 @@ setInterval(() => {
   
         if (miningEndTime > 0 && now < miningEndTime) {  
             const left = miningEndTime - now;  
-            const hours = Math.floor(left / 3600000);  
-            const minutes = Math.floor((left % 3600000) / 60000);  
   
             if (statusEl) {  
-                statusEl.textContent = `Active (${hours}h ${minutes}m left)`;  
+                statusEl.textContent = `Active (${formatSessionTimeRemaining(left)} left)`;  
             }  
         } else {  
             if (statusEl) {  
@@ -3492,4 +3473,4 @@ setInterval(() => {
 }, 250);  
   
 </script>  </body>  
-    </html>
+</html>
