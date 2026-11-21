@@ -1,995 +1,1372 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-<title>MTR Master - Secure Admin Panel</title>
-<script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore-compat.js"></script>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>MTR Master - Secure Admin Panel</title>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore-compat.js"></script>
+    <style>
+        :root {
+            --bg-dark: #060B14;
+            --card-bg: #0D1522;
+            --gold-light: #F5C443;
+            --gold-dark: #C68B17;
+            --neon-blue: #0077FF;
+            --cyan-glow: #00D4FF;
+            --text-main: #FFFFFF;
+            --text-muted: #8E9BAE;
+            --danger: #FF453A;
+            --success: #32D74B;
+            --warning: #FF9F0A;
+        }
 
-<style>
-:root {
-    --bg-dark:#060B14;--card-bg:#0D1522;--gold-light:#F5C443;--gold-dark:#C68B17;
-    --neon-blue:#0077FF;--cyan-glow:#00D4FF;--text-main:#FFFFFF;--text-muted:#8E9BAE;
-    --danger:#FF453A;--success:#32D74B;--warning:#FF9F0A;
-}
-*{box-sizing:border-box;margin:0;padding:0;font-family:'Segoe UI',Roboto,sans-serif}
-body{background:var(--bg-dark);color:var(--text-main);min-height:100vh;padding:16px}
-#loginOverlay{position:fixed;inset:0;background:var(--bg-dark);z-index:9999;display:flex;justify-content:center;align-items:center;padding:20px}
-.login-box{background:var(--card-bg);border:1px solid var(--gold-light);border-radius:16px;padding:30px 24px;width:100%;max-width:360px;text-align:center}
-.header{display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;padding:15px 20px;background:var(--card-bg);border:1px solid rgba(0,119,255,.3);border-radius:14px;margin-bottom:20px}
-.header h2{color:var(--gold-light);font-size:19px}
-.stats-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:12px;margin-bottom:20px}
-.stat-card{background:var(--card-bg);border:1px solid rgba(245,196,67,.3);border-radius:14px;padding:15px;text-align:center}
-.stat-label{font-size:11px;color:var(--text-muted);text-transform:uppercase;letter-spacing:.5px}
-.stat-value{font-size:22px;font-weight:800;color:var(--gold-light);margin-top:6px}
-.admin-tabs{display:flex;gap:8px;overflow-x:auto;margin-bottom:18px;padding-bottom:5px}
-.tab-btn{padding:10px 16px;border-radius:10px;border:1px solid rgba(0,119,255,.3);background:var(--card-bg);color:var(--text-muted);font-size:13px;font-weight:bold;cursor:pointer;white-space:nowrap}
-.tab-btn.active{background:linear-gradient(90deg,var(--gold-light),var(--gold-dark));color:#000;border-color:var(--gold-light)}
-.tab-content{display:none}.tab-content.active{display:block}
-.section-card{background:var(--card-bg);border:1px solid rgba(0,119,255,.3);border-radius:14px;padding:18px;margin-bottom:18px}
-.section-title{font-size:15px;font-weight:700;color:var(--gold-light);margin-bottom:14px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px}
-.form-control{width:100%;padding:11px 12px;background:#060B14;border:1px solid rgba(0,119,255,.4);border-radius:8px;color:#FFF;font-size:13px;margin-bottom:10px}
-.form-control:focus{outline:none;border-color:var(--gold-light)}
-.main-btn{padding:10px 16px;border-radius:8px;border:none;font-size:12px;font-weight:bold;cursor:pointer;text-transform:uppercase;transition:.2s}
-.btn-primary{background:linear-gradient(90deg,var(--neon-blue),#0051B3);color:#FFF}
-.btn-success{background:var(--success);color:#000}
-.btn-danger{background:var(--danger);color:#FFF}
-.btn-warning{background:var(--warning);color:#000}
-.btn-gold{background:linear-gradient(90deg,var(--gold-light),var(--gold-dark));color:#000}
-.copy-mini-btn{padding:2px 7px;border-radius:5px;border:1px solid rgba(0,212,255,.4);background:rgba(0,212,255,.12);color:var(--cyan-glow);font-size:10px;font-weight:bold;cursor:pointer;margin-left:5px}
-.date-filter-bar{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:14px;background:#060B14;padding:12px;border-radius:10px;border:1px solid rgba(255,255,255,.08)}
-.date-summary-box{background:rgba(0,119,255,.08);border:1px solid rgba(0,212,255,.25);border-radius:10px;padding:12px;margin-bottom:14px;font-size:12px;color:var(--cyan-glow);display:flex;justify-content:space-between;flex-wrap:wrap;gap:10px}
-.filter-bar{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px}
-.filter-chip{padding:6px 12px;border-radius:20px;font-size:12px;cursor:pointer;background:#060B14;border:1px solid rgba(255,255,255,.15);color:var(--text-muted)}
-.filter-chip.active{border-color:var(--cyan-glow);color:var(--cyan-glow);background:rgba(0,212,255,.1)}
-.table-responsive{width:100%;overflow-x:auto}
-table{width:100%;border-collapse:collapse;text-align:left;font-size:12px}
-th,td{padding:11px 10px;border-bottom:1px solid rgba(255,255,255,.08);white-space:nowrap}
-th{color:var(--gold-light);background:rgba(6,11,20,.8)}
-tr:hover{background:rgba(0,119,255,.05)}
-.action-btns{display:flex;gap:5px;flex-wrap:wrap}
-.badge{padding:3px 8px;border-radius:6px;font-size:11px;font-weight:bold}
-.badge-verified{background:rgba(50,215,75,.15);color:var(--success)}
-.badge-unverified{background:rgba(255,69,58,.15);color:var(--danger)}
-.badge-banned{background:#FF453A;color:#FFF}
-.target-row-card{display:flex;justify-content:space-between;align-items:center;background:#060B14;border:1px solid rgba(255,255,255,.1);border-radius:10px;padding:12px 14px;margin-bottom:10px;gap:10px}
-.modal{display:none;position:fixed;inset:0;background:rgba(0,0,0,.85);justify-content:center;align-items:center;z-index:1000;padding:20px}
-.modal-content{background:var(--card-bg);border:1px solid var(--gold-light);border-radius:14px;width:100%;max-width:420px;padding:20px;max-height:80vh;overflow-y:auto}
-.small-note{font-size:11px;color:var(--text-muted);line-height:1.6;margin-bottom:10px}
-.address-box{background:#060B14;border:1px solid rgba(0,212,255,.25);border-radius:10px;padding:12px;word-break:break-all;color:var(--cyan-glow);font-size:13px;margin:10px 0}
-@media(max-width:600px){body{padding:9px}.section-card{padding:13px}.header{padding:12px}.stat-value{font-size:19px}}
-</style>
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Segoe UI', Roboto, sans-serif; }
+        body { background-color: var(--bg-dark); color: var(--text-main); min-height: 100vh; padding: 16px; }
+
+        #loginOverlay {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: var(--bg-dark); z-index: 9999;
+            display: flex; justify-content: center; align-items: center; padding: 20px;
+        }
+        .login-box {
+            background: var(--card-bg); border: 1px solid var(--gold-light);
+            border-radius: 16px; padding: 30px 24px; width: 100%; max-width: 360px; text-align: center;
+        }
+
+        .header {
+            display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px;
+            padding: 15px 20px; background: var(--card-bg); border: 1px solid rgba(0, 119, 255, 0.3);
+            border-radius: 14px; margin-bottom: 20px;
+        }
+        .header h2 { color: var(--gold-light); font-size: 19px; }
+
+        .stats-grid {
+            display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 12px; margin-bottom: 20px;
+        }
+        .stat-card {
+            background: var(--card-bg); border: 1px solid rgba(245, 196, 67, 0.3);
+            border-radius: 14px; padding: 15px; text-align: center;
+        }
+        .stat-label { font-size: 11px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px; }
+        .stat-value { font-size: 22px; font-weight: 800; color: var(--gold-light); margin-top: 6px; }
+
+        .admin-tabs {
+            display: flex; gap: 8px; overflow-x: auto; margin-bottom: 18px; padding-bottom: 5px;
+        }
+        .tab-btn {
+            padding: 10px 16px; border-radius: 10px; border: 1px solid rgba(0, 119, 255, 0.3);
+            background: var(--card-bg); color: var(--text-muted); font-size: 13px; font-weight: bold;
+            cursor: pointer; white-space: nowrap;
+        }
+        .tab-btn.active {
+            background: linear-gradient(90deg, var(--gold-light), var(--gold-dark));
+            color: #000; border-color: var(--gold-light);
+        }
+
+        .tab-content { display: none; }
+        .tab-content.active { display: block; }
+
+        .section-card {
+            background: var(--card-bg); border: 1px solid rgba(0, 119, 255, 0.3);
+            border-radius: 14px; padding: 18px; margin-bottom: 18px;
+        }
+        .section-title {
+            font-size: 15px; font-weight: 700; color: var(--gold-light); margin-bottom: 14px;
+            display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px;
+        }
+
+        .form-control {
+            width: 100%; padding: 11px 12px; background: #060B14; border: 1px solid rgba(0, 119, 255, 0.4);
+            border-radius: 8px; color: #FFF; font-size: 13px; margin-bottom: 10px;
+        }
+        .form-control:focus { outline: none; border-color: var(--gold-light); }
+
+        .main-btn {
+            padding: 10px 16px; border-radius: 8px; border: none; font-size: 12px; font-weight: bold;
+            cursor: pointer; text-transform: uppercase; transition: 0.2s;
+        }
+        .btn-primary { background: linear-gradient(90deg, var(--neon-blue), #0051B3); color: #FFF; }
+        .btn-success { background: var(--success); color: #000; }
+        .btn-danger { background: var(--danger); color: #FFF; }
+        .btn-warning { background: var(--warning); color: #000; }
+        .btn-gold { background: linear-gradient(90deg, var(--gold-light), var(--gold-dark)); color: #000; }
+
+        .copy-mini-btn {
+            padding: 2px 7px; border-radius: 5px; border: 1px solid rgba(0, 212, 255, 0.4);
+            background: rgba(0, 212, 255, 0.12); color: var(--cyan-glow); font-size: 10px;
+            font-weight: bold; cursor: pointer; margin-left: 5px;
+        }
+        .copy-mini-btn:hover { background: rgba(0, 212, 255, 0.25); }
+
+        .date-filter-bar {
+            display: flex; gap: 10px; align-items: center; flex-wrap: wrap; margin-bottom: 14px;
+            background: #060B14; padding: 12px; border-radius: 10px; border: 1px solid rgba(255,255,255,0.08);
+        }
+        .date-summary-box {
+            background: rgba(0, 119, 255, 0.08); border: 1px solid rgba(0, 212, 255, 0.25);
+            border-radius: 10px; padding: 12px; margin-bottom: 14px; font-size: 12px; color: var(--cyan-glow);
+            display: flex; justify-content: space-between; flex-wrap: wrap; gap: 10px;
+        }
+
+        .filter-bar { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 12px; }
+        .filter-chip {
+            padding: 6px 12px; border-radius: 20px; font-size: 12px; cursor: pointer;
+            background: #060B14; border: 1px solid rgba(255,255,255,0.15); color: var(--text-muted);
+        }
+        .filter-chip.active { border-color: var(--cyan-glow); color: var(--cyan-glow); background: rgba(0, 212, 255, 0.1); }
+
+        .table-responsive { width: 100%; overflow-x: auto; }
+        table { width: 100%; border-collapse: collapse; text-align: left; font-size: 12px; }
+        th, td { padding: 11px 10px; border-bottom: 1px solid rgba(255,255,255,0.08); white-space: nowrap; }
+        th { color: var(--gold-light); background: rgba(6, 11, 20, 0.8); }
+        tr:hover { background: rgba(0, 119, 255, 0.05); }
+
+        .action-btns { display: flex; gap: 5px; flex-wrap: wrap; }
+        .badge { padding: 3px 8px; border-radius: 6px; font-size: 11px; font-weight: bold; }
+        .badge-verified { background: rgba(50, 215, 75, 0.15); color: var(--success); }
+        .badge-unverified { background: rgba(255, 69, 58, 0.15); color: var(--danger); }
+        .badge-banned { background: #FF453A; color: #FFF; }
+
+        .target-row-card {
+            display: flex; justify-content: space-between; align-items: center;
+            background: #060B14; border: 1px solid rgba(255,255,255,0.1);
+            border-radius: 10px; padding: 12px 14px; margin-bottom: 10px; gap: 10px;
+        }
+
+        .info-highlight-box {
+            background: #060B14; border: 1px solid rgba(0, 212, 255, 0.25);
+            border-radius: 10px; padding: 12px 14px; margin-bottom: 14px; font-size: 12px;
+        }
+
+        .modal {
+            display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.85); justify-content: center; align-items: center; z-index: 1000; padding: 20px;
+        }
+        .modal-content {
+            background: var(--card-bg); border: 1px solid var(--gold-light);
+            border-radius: 14px; width: 100%; max-width: 420px; padding: 20px; max-height: 80vh; overflow-y: auto;
+        }
+    </style>
 </head>
-
 <body>
 
-<div id="loginOverlay">
-    <div class="login-box">
-        <h2 style="color:var(--gold-light);margin-bottom:8px">🔐 Admin Access</h2>
-        <p style="font-size:12px;color:var(--text-muted);margin-bottom:18px">Enter Admin Password to manage MTR Master</p>
-        <input type="password" id="adminPassInput" class="form-control" placeholder="Enter Admin Password..." onkeydown="if(event.key==='Enter')checkAdminLogin()">
-        <button class="main-btn btn-gold" style="width:100%;padding:12px" onclick="checkAdminLogin()">Unlock Panel</button>
-    </div>
-</div>
-
-<div id="adminDashboard" style="display:none">
-    <div class="header">
-        <h2>👑 MTR Master Admin Panel</h2>
-        <div style="display:flex;align-items:center;gap:10px">
-            <span style="font-size:12px;color:var(--success)">● Live Sync</span>
-            <button class="main-btn btn-danger" style="padding:6px 10px" onclick="logoutAdmin()">Logout</button>
+    <!-- ADMIN LOGIN SCREEN -->
+    <div id="loginOverlay">
+        <div class="login-box">
+            <h2 style="color: var(--gold-light); margin-bottom: 8px;">🔐 Admin Access</h2>
+            <p style="font-size: 12px; color: var(--text-muted); margin-bottom: 18px;">Enter Admin Password to manage MTR Master</p>
+            <input type="password" id="adminPassInput" class="form-control" placeholder="Enter Admin Password...">
+            <button class="main-btn btn-gold" style="width: 100%; padding: 12px;" onclick="checkAdminLogin()">Unlock Panel</button>
         </div>
     </div>
 
-    <div class="stats-grid">
-        <div class="stat-card"><div class="stat-label">Total Users</div><div class="stat-value" id="statTotalUsers">0</div></div>
-        <div class="stat-card"><div class="stat-label">Verified Miners</div><div class="stat-value" id="statVerifiedUsers" style="color:var(--success)">0</div></div>
-        <div class="stat-card"><div class="stat-label">Pending Withdraws</div><div class="stat-value" id="statPendingWithdraws" style="color:var(--warning)">0</div></div>
-        <div class="stat-card"><div class="stat-label">Completed Withdraws</div><div class="stat-value" id="statCompletedWithdraws" style="color:var(--success)">0</div></div>
-        <div class="stat-card"><div class="stat-label">Rejected Withdraws</div><div class="stat-value" id="statRejectedWithdraws" style="color:var(--danger)">0</div></div>
-        <div class="stat-card"><div class="stat-label">Total Paid MTR</div><div class="stat-value" id="statTotalPaidMtr">0.00</div></div>
-        <div class="stat-card"><div class="stat-label">Est. TON Revenue</div><div class="stat-value" id="statTonRevenue" style="color:var(--cyan-glow)">0.0 TON</div></div>
-        <div class="stat-card"><div class="stat-label">Total MTR Supply</div><div class="stat-value" id="statTotalMtr">0.00</div></div>
-        <div class="stat-card"><div class="stat-label">Pending Deposits</div><div class="stat-value" id="statPendingDeposits" style="color:var(--warning)">0</div></div>
-        <div class="stat-card"><div class="stat-label">Owner Referrals</div><div class="stat-value" id="statOwnerReferrals" style="color:var(--cyan-glow)">0</div></div>
+    <!-- MAIN DASHBOARD -->
+    <div id="adminDashboard" style="display: none;">
+        <div class="header">
+            <h2>👑 MTR Master Admin Panel</h2>
+            <div style="display: flex; align-items: center; gap: 10px;">
+                <span style="font-size: 12px; color: var(--success);">● Live Sync</span>
+                <button class="main-btn btn-danger" style="padding: 6px 10px;" onclick="logoutAdmin()">Logout</button>
+            </div>
+        </div>
+
+        <!-- LIVE ANALYTICS -->
+        <div class="stats-grid">
+            <div class="stat-card">
+                <div class="stat-label">Total Users</div>
+                <div class="stat-value" id="statTotalUsers">0</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-label">Verified Miners</div>
+                <div class="stat-value" id="statVerifiedUsers" style="color: var(--success);">0</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-label">Under Master ID</div>
+                <div class="stat-value" id="statOwnerReferrals" style="color: var(--gold-light);">0</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-label">Pending Withdraws</div>
+                <div class="stat-value" id="statPendingWithdraws" style="color: var(--warning);">0</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-label">Completed Withdraws</div>
+                <div class="stat-value" id="statCompletedWithdraws" style="color: var(--success);">0</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-label">Rejected Withdraws</div>
+                <div class="stat-value" id="statRejectedWithdraws" style="color: var(--danger);">0</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-label">Total Paid MTR</div>
+                <div class="stat-value" id="statTotalPaidMtr" style="color: var(--gold-light);">0.00</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-label">Est. TON Revenue</div>
+                <div class="stat-value" id="statTonRevenue" style="color: var(--cyan-glow);">0.0 TON</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-label">Total MTR Supply</div>
+                <div class="stat-value" id="statTotalMtr">0.00</div>
+            </div>
+        </div>
+
+        <!-- NAVIGATION TABS -->
+        <div class="admin-tabs">
+            <button class="tab-btn active" onclick="switchAdminTab('users', this)">👥 Users Search & Manage</button>
+            <button class="tab-btn" onclick="switchAdminTab('deposits', this)">💎 TON Deposit Address</button>
+            <button class="tab-btn" onclick="switchAdminTab('withdrawals', this)">💸 Withdrawals</button>
+            <button class="tab-btn" onclick="switchAdminTab('referrals', this)">🎁 Referral Targets</button>
+            <button class="tab-btn" onclick="switchAdminTab('owner-referral', this)">👑 One-Time Admin Code</button>
+            <button class="tab-btn" onclick="switchAdminTab('tasks', this)">📋 Tasks Manager</button>
+            <button class="tab-btn" onclick="switchAdminTab('settings', this)">⚙️ Admin & Site Settings</button>
+        </div>
+
+        <!-- TAB 1: USERS MANAGEMENT & SEARCH -->
+        <div id="tab-users" class="tab-content active">
+            <div class="section-card">
+                <div class="section-title">
+                    <span>🔍 Advanced User Search</span>
+                    <span id="filteredCountText" style="font-size: 12px; color: var(--cyan-glow);">Showing all users</span>
+                </div>
+                <input type="text" id="userSearchInput" class="form-control" placeholder="Search by Telegram ID (UID_...), Username (@...), Name, or Wallet Address..." onkeyup="renderUsersTable()">
+                <div class="filter-bar">
+                    <span class="filter-chip active" onclick="setUserFilter('all', this)">All Users</span>
+                    <span class="filter-chip" onclick="setUserFilter('verified', this)">Verified Only ✓</span>
+                    <span class="filter-chip" onclick="setUserFilter('unverified', this)">Unverified</span>
+                    <span class="filter-chip" onclick="setUserFilter('banned', this)">Banned 🚫</span>
+                </div>
+
+                <div class="table-responsive">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>User Info (Name / Username / ID)</th>
+                                <th>Balance</th>
+                                <th>Status</th>
+                                <th>Referrals</th>
+                                <th>Wallet Address</th>
+                                <th>Secure Actions (PIN Required)</th>
+                            </tr>
+                        </thead>
+                        <tbody id="usersTableBody">
+                            <tr><td colspan="6" style="text-align:center;">Loading users...</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- TAB 2: TON DEPOSIT ADDRESS MANAGEMENT -->
+        <div id="tab-deposits" class="tab-content">
+            <div class="section-card" style="border-color: var(--gold-light);">
+                <div class="section-title">
+                    <span>💎 TON Deposit Address (Auto System)</span>
+                    <span style="font-size:11px; color:var(--success);">● TON Network Only</span>
+                </div>
+                <p style="font-size: 12px; color: var(--text-muted); margin-bottom: 12px;">
+                    Set or change the TON deposit address used by your automatic transaction system. Whenever you save a new address, it updates in Firestore immediately.
+                </p>
+
+                <label style="font-size:12px; color:var(--text-muted); display:block; margin-bottom:4px;">TON Deposit Address</label>
+                <div style="display:flex; gap:8px; align-items:center; margin-bottom:10px;">
+                    <input type="text" id="depositTonInput" class="form-control" style="margin-bottom:0;" placeholder="Enter TON wallet address (e.g. UQ... or EQ...)">
+                    <button class="main-btn btn-primary" style="padding:10px 12px;" onclick="copyToClipboard(document.getElementById('depositTonInput').value.trim(), 'TON Deposit Address')">Copy</button>
+                </div>
+
+                <button class="main-btn btn-gold" onclick="saveTonDepositAddress()">Save / Update TON Address</button>
+
+                <div class="info-highlight-box" style="margin-top:14px; margin-bottom:0;" id="activeTonDepositSummary">
+                    <strong style="color:var(--cyan-glow);">Active TON Deposit Address:</strong>
+                    <div style="margin-top:6px; color:var(--text-muted);">Loading TON address...</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- TAB 3: WITHDRAWALS -->
+        <div id="tab-withdrawals" class="tab-content">
+            <div class="section-card">
+                <div class="section-title">📤 Withdrawal Requests Queue & Date Calendar</div>
+
+                <div class="date-filter-bar">
+                    <label for="withdrawDateFilter" style="font-size:12px; color:var(--gold-light); font-weight:bold;">📅 Select Date:</label>
+                    <input type="date" id="withdrawDateFilter" class="form-control" style="width:auto; margin-bottom:0;" onchange="renderWithdrawalsTable()">
+                    <button class="main-btn btn-primary" style="padding:8px 12px;" onclick="clearWithdrawDateFilter()">All Dates</button>
+                </div>
+
+                <div class="date-summary-box" id="withdrawDateSummary">
+                    <span>📊 Showing all withdrawal requests</span>
+                    <span>Total Requests: 0</span>
+                </div>
+
+                <div class="table-responsive">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>User ID & Details</th>
+                                <th>Date & Time</th>
+                                <th>Amount (MTR)</th>
+                                <th>TON Wallet Address</th>
+                                <th>Status</th>
+                                <th>Secure Action</th>
+                            </tr>
+                        </thead>
+                        <tbody id="withdrawTableBody">
+                            <tr><td colspan="6" style="text-align:center;">No withdrawal requests found</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- TAB 4: REFERRAL TARGETS -->
+        <div id="tab-referrals" class="tab-content">
+            <div class="section-card">
+                <div class="section-title">➕ Add New Referral Target Milestone</div>
+                <p style="font-size: 12px; color: var(--text-muted); margin-bottom: 12px;">
+                    Add multiple referral targets (e.g. 3 referrals = 5 MTR, 10 referrals = 20 MTR). Click "Save All Referral Targets" after adding.
+                </p>
+                <label style="font-size:12px; color:var(--text-muted); display:block; margin-bottom:4px;">Required Verified Referrals</label>
+                <input type="number" id="refTargetInput" class="form-control" placeholder="e.g. 5">
+
+                <label style="font-size:12px; color:var(--text-muted); display:block; margin-bottom:4px;">Reward Token / Points (MTR)</label>
+                <input type="number" step="any" id="refRewardInput" class="form-control" placeholder="e.g. 15">
+
+                <button class="main-btn btn-gold" onclick="addReferralTargetToList()">Add Target to List</button>
+            </div>
+
+            <div class="section-card">
+                <div class="section-title">🎯 Active Referral Targets List</div>
+                <div id="adminRefTargetsList"><p style="font-size:12px; color:var(--text-muted);">No referral targets in list yet.</p></div>
+
+                <label style="font-size:12px; color:var(--text-muted); display:block; margin-top:12px; margin-bottom:4px;">Optional Direct Commission Per Verified Referral (MTR)</label>
+                <input type="number" step="any" id="refCommissionInput" class="form-control" placeholder="e.g. 0">
+
+                <button class="main-btn btn-success" style="width:100%;" onclick="saveAllReferralTargets()">Save All Referral Targets</button>
+            </div>
+        </div>
+
+        <!-- TAB 5: ONE-TIME ADMIN / OWNER REFERRAL CODE -->
+        <div id="tab-owner-referral" class="tab-content">
+            <div class="section-card" style="border-color: var(--gold-light);">
+                <div class="section-title">
+                    <span>👑 One-Time Admin Referral Code</span>
+                    <span id="oneTimeCodeStatusBadge" class="badge badge-verified">AVAILABLE (1 USE)</span>
+                </div>
+                <p style="font-size: 12px; color: var(--text-muted); margin-bottom: 12px;">
+                    This single unique code can be used <strong>only once</strong>. Once a user claims it, the code locks and that account becomes the <strong>Master / Owner Account</strong> under which all subsequent accounts are tracked.
+                </p>
+
+                <label style="font-size:12px; color:var(--text-muted); display:block; margin-bottom:4px;">Single One-Time Admin Referral Code</label>
+                <div style="display:flex; gap:8px; align-items:center; margin-bottom:10px; flex-wrap:wrap;">
+                    <input type="text" id="ownerRefCodeInput" class="form-control" style="flex:1; min-width:180px; margin-bottom:0;" value="MTR_OWNER_8492X" placeholder="Unique One-Time Code">
+                    <button class="main-btn btn-primary" style="padding:10px 12px;" onclick="generateOwnerReferralCode()">New Code</button>
+                    <button class="main-btn btn-gold" style="padding:10px 12px;" onclick="copyToClipboard(document.getElementById('ownerRefCodeInput').value.trim(), 'One-Time Admin Code')">Copy</button>
+                </div>
+
+                <div class="info-highlight-box" id="oneTimeCodeClaimBox">
+                    <div style="margin-bottom:6px;">
+                        <strong style="color:var(--gold-light);">Claim Status:</strong>
+                        <span id="oneTimeClaimDetails" style="color:var(--text-muted);">Not claimed yet — ready for one-time use.</span>
+                    </div>
+                    <div>
+                        <strong style="color:var(--cyan-glow);">Master / Owner Account ID:</strong>
+                        <code id="claimedOwnerUserIdText">None</code>
+                    </div>
+                </div>
+
+                <div style="display:flex; gap:8px; flex-wrap:wrap; margin-bottom:14px;">
+                    <button class="main-btn btn-success" onclick="saveOneTimeAdminCode()">Save / Activate One-Time Code</button>
+                    <button class="main-btn btn-warning" onclick="resetOneTimeAdminCode()">Reset Code (Allow 1 Use)</button>
+                </div>
+
+                <div class="info-highlight-box" style="margin-bottom:0;">
+                    <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px; margin-bottom:10px;">
+                        <span style="color:var(--gold-light); font-weight:bold;">
+                            👥 Accounts Under Master ID: <span id="ownerRefCountBadge" style="color:var(--cyan-glow);">0</span>
+                        </span>
+                        <span style="font-size:11px; color:var(--text-muted);" id="ownerRefActiveSummary">Master ID: None</span>
+                    </div>
+                    <div class="table-responsive">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>User Name</th>
+                                    <th>Username</th>
+                                    <th>User ID</th>
+                                    <th>Status</th>
+                                    <th>Balance (MTR)</th>
+                                </tr>
+                            </thead>
+                            <tbody id="ownerReferredUsersBody">
+                                <tr><td colspan="5" style="text-align:center; color:var(--text-muted);">No accounts under Master ID yet</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- TAB 6: TASKS MANAGER -->
+        <div id="tab-tasks" class="tab-content">
+            <div class="section-card">
+                <div class="section-title">➕ Add New Earn Task</div>
+                <input type="text" id="taskTitle" class="form-control" placeholder="Task Title (e.g. Join Official Telegram Channel)">
+                <input type="number" step="any" id="taskReward" class="form-control" placeholder="Reward MTR (e.g. 10)">
+                <input type="text" id="taskLink" class="form-control" placeholder="Link URL (e.g. https://t.me/yourchannel)">
+                <input type="number" id="taskResetHours" class="form-control" min="0" step="0.5" placeholder="Reset / Re-enable Time in Hours (e.g. 24 for every 24h, 0 for one-time)">
+                <button class="main-btn btn-gold" onclick="addNewTask()">Publish Task</button>
+            </div>
+
+            <div class="section-card">
+                <div class="section-title">📋 Active Tasks List</div>
+                <div class="table-responsive">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Title</th>
+                                <th>Reward</th>
+                                <th>Reset Time</th>
+                                <th>Link</th>
+                                <th>Action</th>
+                            </tr>
+                        </thead>
+                        <tbody id="tasksTableBody"></tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- TAB 7: ADMIN SETTINGS & SITE MAINTENANCE -->
+        <div id="tab-settings" class="tab-content">
+            <!-- MAX TOTAL SUPPLY STOP MINING & NOTICE -->
+            <div class="section-card" style="border-color: var(--danger);">
+                <div class="section-title">🛑 Max Total Supply Limit & Mining Stop Notice</div>
+                <p style="font-size: 12px; color: var(--text-muted); margin-bottom: 10px;" id="maxSupplyStatusDesc">
+                    Set 0 or leave blank for unlimited supply. When Total MTR Supply reaches or exceeds this limit, mining stops for all users and the notice is displayed.
+                </p>
+                <label style="font-size:12px; color:var(--text-muted); display:block; margin-bottom:4px;">Max Total Supply Limit (MTR)</label>
+                <input type="number" step="any" min="0" id="maxSupplyLimitInput" class="form-control" placeholder="e.g. 100000 (0 = Unlimited)">
+
+                <label style="font-size:12px; color:var(--text-muted); display:block; margin-bottom:4px;">Notice Message When Supply Limit Reached</label>
+                <input type="text" id="supplyStopNoticeInput" class="form-control" placeholder="e.g. Total MTR supply limit has been reached! Mining is now stopped.">
+
+                <button class="main-btn btn-danger" onclick="saveMaxSupplyConfig()">Save Supply Limit & Notice</button>
+            </div>
+
+            <!-- MINING SPEED CONTROL -->
+            <div class="section-card" style="border-color: var(--cyan-glow);">
+                <div class="section-title">⚡ Mining Speed Control (MTR / Hour)</div>
+                <p style="font-size: 13px; color: var(--text-muted); margin-bottom: 12px;">Set the active global mining rate per hour for users (Default is 0.1).</p>
+                <div style="display: flex; gap: 10px;">
+                    <input type="number" step="0.0001" id="miningRateInput" class="form-control" style="margin-bottom:0;" placeholder="e.g. 0.1">
+                    <button class="main-btn btn-success" onclick="saveMiningRate()">Save Speed</button>
+                </div>
+            </div>
+
+            <!-- MAINTENANCE MODE CONTROL -->
+            <div class="section-card" style="border-color: var(--warning);">
+                <div class="section-title">🛑 Site Maintenance Mode (Off Switch)</div>
+                <p style="font-size: 13px; color: var(--text-muted); margin-bottom: 12px;" id="maintenanceStatusDesc">Checking status...</p>
+                <input type="text" id="maintenanceNoticeInput" class="form-control" placeholder="Notice message to show users when site is offline">
+                <div style="display: flex; gap: 10px;">
+                    <button class="main-btn btn-primary" onclick="saveMaintenanceNotice()">Save Notice</button>
+                    <button class="main-btn" id="toggleMaintenanceBtn" onclick="toggleMaintenanceMode()">Toggle Maintenance</button>
+                </div>
+            </div>
+
+            <!-- WITHDRAWAL CONTROL -->
+            <div class="section-card">
+                <div class="section-title">⚙️ Withdrawal System Control</div>
+                <p style="font-size: 13px; color: var(--text-muted); margin-bottom: 12px;" id="withdrawStatusDesc">Checking status...</p>
+                <button class="main-btn btn-primary" id="toggleWithdrawBtn" onclick="toggleWithdrawSystem()">Toggle Withdrawal</button>
+
+                <hr style="border-color: rgba(255,255,255,0.1); margin: 18px 0;">
+
+                <div class="section-title">💰 Minimum Withdrawal Limit (MTR)</div>
+                <div style="display: flex; gap: 10px;">
+                    <input type="number" id="minWithdrawInput" class="form-control" style="margin-bottom:0;" placeholder="e.g. 10">
+                    <button class="main-btn btn-success" onclick="saveMinWithdraw()">Save Limit</button>
+                </div>
+            </div>
+
+            <!-- ADMIN PASSWORD & PIN SETTINGS -->
+            <div class="section-card">
+                <div class="section-title">🔐 Admin Security & Credentials</div>
+                <p style="font-size: 12px; color: var(--text-muted); margin-bottom: 10px;">Change Admin Panel Login Password:</p>
+                <input type="password" id="newAdminPass" class="form-control" placeholder="New Admin Password">
+                <button class="main-btn btn-gold" style="margin-bottom: 15px;" onclick="updateAdminPassword()">Update Admin Password</button>
+
+                <p style="font-size: 12px; color: var(--text-muted); margin-bottom: 10px;">Change Transaction PIN (Required for user actions):</p>
+                <input type="password" id="newTxPin" class="form-control" placeholder="New 4-digit PIN (e.g. 5678)">
+                <button class="main-btn btn-success" onclick="updateTxPin()">Update Transaction PIN</button>
+            </div>
+        </div>
     </div>
 
-    <div class="admin-tabs">
-        <button class="tab-btn active" onclick="switchAdminTab('users',this)">👥 Users Search & Manage</button>
-        <button class="tab-btn" onclick="switchAdminTab('withdrawals',this)">💸 Withdrawals</button>
-        <button class="tab-btn" onclick="switchAdminTab('deposits',this)">💳 Deposits</button>
-        <button class="tab-btn" onclick="switchAdminTab('referrals',this)">🎁 Referral Targets</button>
-        <button class="tab-btn" onclick="switchAdminTab('tasks',this)">📋 Tasks Manager</button>
-        <button class="tab-btn" onclick="switchAdminTab('settings',this)">⚙️ Admin & Site Settings</button>
-    </div>
-
-    <!-- USERS -->
-    <div id="tab-users" class="tab-content active">
-        <div class="section-card">
-            <div class="section-title">
-                <span>🔍 Advanced User Search</span>
-                <span id="filteredCountText" style="font-size:12px;color:var(--cyan-glow)">Showing all users</span>
+    <!-- REFERRAL INSPECTOR MODAL -->
+    <div class="modal" id="refModal">
+        <div class="modal-content">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+                <h4 style="color: var(--gold-light);" id="refModalTitle">User Referrals</h4>
+                <button class="main-btn btn-danger" style="padding: 4px 8px;" onclick="closeRefModal()">X</button>
             </div>
-            <input type="text" id="userSearchInput" class="form-control" placeholder="Search by Telegram ID, Username, Name or Wallet..." oninput="renderUsersTable()">
-            <div class="filter-bar">
-                <span class="filter-chip active" onclick="setUserFilter('all',this)">All Users</span>
-                <span class="filter-chip" onclick="setUserFilter('verified',this)">Verified Only ✓</span>
-                <span class="filter-chip" onclick="setUserFilter('unverified',this)">Unverified</span>
-                <span class="filter-chip" onclick="setUserFilter('banned',this)">Banned 🚫</span>
-            </div>
-            <div class="table-responsive">
-                <table>
-                    <thead><tr><th>User Info</th><th>Balance</th><th>Status</th><th>Referrals</th><th>Wallet Address</th><th>Actions</th></tr></thead>
-                    <tbody id="usersTableBody"><tr><td colspan="6" style="text-align:center">Loading users...</td></tr></tbody>
-                </table>
-            </div>
+            <div id="refModalList" style="font-size: 12px; text-align: left;">Loading...</div>
         </div>
     </div>
 
-    <!-- WITHDRAWALS -->
-    <div id="tab-withdrawals" class="tab-content">
-        <div class="section-card">
-            <div class="section-title">📤 Withdrawal Requests Queue & Date Calendar</div>
-            <div class="date-filter-bar">
-                <label style="font-size:12px;color:var(--gold-light);font-weight:bold">📅 Select Date:</label>
-                <input type="date" id="withdrawDateFilter" class="form-control" style="width:auto;margin-bottom:0" onchange="renderWithdrawalsTable()">
-                <button class="main-btn btn-primary" style="padding:8px 12px" onclick="clearWithdrawDateFilter()">All Dates</button>
-            </div>
-            <div class="date-summary-box" id="withdrawDateSummary">Showing all withdrawal requests</div>
-            <div class="table-responsive">
-                <table>
-                    <thead><tr><th>User Details</th><th>Date & Time</th><th>Amount</th><th>TON Wallet</th><th>Status</th><th>Action</th></tr></thead>
-                    <tbody id="withdrawTableBody"></tbody>
-                </table>
-            </div>
-        </div>
-    </div>
+    <script>
+        const firebaseConfig = {
+            apiKey: "AIzaSyA74QlASZn_mz9c4XjdpJAJQHyJqX9xdk4",
+            authDomain: "mtrdex.firebaseapp.com",
+            projectId: "mtrdex",
+            storageBucket: "mtrdex.firebasestorage.app",
+            messagingSenderId: "1086565020372",
+            appId: "1:1086565020372:web:908ecf8369e83c4d6dc141",
+            measurementId: "G-YP1ZKWZPL6"
+        };
+        if (!firebase.apps.length) firebase.initializeApp(firebaseConfig);
+        const db = firebase.firestore();
 
-    <!-- DEPOSITS -->
-    <div id="tab-deposits" class="tab-content">
-        <div class="section-card">
-            <div class="section-title">💳 Deposit Requests & Transaction Verification</div>
-            <p class="small-note">ইউজার প্যানেল থেকে জমা হওয়া ডিপোজিট রিকোয়েস্ট এখানে দেখা যাবে। Transaction ID যাচাই করে Approve করলে ইউজারের MTR ব্যালেন্স যোগ হবে।</p>
-            <div class="filter-bar">
-                <span class="filter-chip active" onclick="setDepositFilter('all',this)">All Deposits</span>
-                <span class="filter-chip" onclick="setDepositFilter('pending',this)">Pending</span>
-                <span class="filter-chip" onclick="setDepositFilter('approved',this)">Approved</span>
-                <span class="filter-chip" onclick="setDepositFilter('rejected',this)">Rejected</span>
-            </div>
-            <div class="table-responsive">
-                <table>
-                    <thead><tr><th>User Details</th><th>Amount</th><th>Network</th><th>Transaction ID</th><th>Date</th><th>Status</th><th>Action</th></tr></thead>
-                    <tbody id="depositTableBody"><tr><td colspan="7" style="text-align:center">Loading deposits...</td></tr></tbody>
-                </table>
-            </div>
-        </div>
-    </div>
+        const DEFAULT_UNIQUE_OWNER_CODE = "MTR_OWNER_8492X";
 
-    <!-- REFERRALS -->
-    <div id="tab-referrals" class="tab-content">
-        <div class="section-card">
-            <div class="section-title">➕ Add New Referral Target Milestone</div>
-            <p class="small-note">Add multiple referral targets. Save All Referral Targets after adding.</p>
-            <label class="small-note">Required Verified Referrals</label>
-            <input type="number" id="refTargetInput" class="form-control" placeholder="e.g. 5">
-            <label class="small-note">Reward Token / Points (MTR)</label>
-            <input type="number" step="any" id="refRewardInput" class="form-control" placeholder="e.g. 15">
-            <button class="main-btn btn-gold" onclick="addReferralTargetToList()">Add Target to List</button>
-        </div>
-        <div class="section-card">
-            <div class="section-title">🎯 Active Referral Targets List</div>
-            <div id="adminRefTargetsList"><p class="small-note">No referral targets in list yet.</p></div>
-            <label class="small-note">Optional Direct Commission Per Verified Referral (MTR)</label>
-            <input type="number" step="any" id="refCommissionInput" class="form-control" placeholder="e.g. 0">
-            <button class="main-btn btn-success" style="width:100%" onclick="saveAllReferralTargets()">Save All Referral Targets</button>
-        </div>
+        let allUsersData = [];
+        let allWithdrawalsData = [];
+        let adminRefTargets = [];
+        let currentFilter = 'all';
+        let isWithdrawOpen = false;
+        let isMaintenanceOn = false;
+        let currentTotalSupply = 0;
+        let maxSupplyLimit = 0;
+        let supplyStopNotice = "Total MTR supply limit has been reached! Mining is now stopped.";
 
-        <div class="section-card">
-            <div class="section-title">👑 Owner Referral Management</div>
-            <p class="small-note">Owner Telegram User ID এখানে সেট করুন। যেসব ইউজারের referredBy এই ID-এর সমান, তারা Owner Referral হিসেবে তালিকাভুক্ত হবে।</p>
-            <label class="small-note">Owner Telegram User ID / User Document ID</label>
-            <input type="text" id="ownerTelegramIdInput" class="form-control" placeholder="Enter Owner Telegram UID / User ID">
-            <button class="main-btn btn-success" onclick="saveOwnerTelegramId()">Save Owner ID</button>
-            <div style="margin-top:18px;border-top:1px solid rgba(255,255,255,.1);padding-top:15px">
-                <div class="section-title">🔑 One-Time Owner Activation Code</div>
-                <p class="small-note">এখানে কোড তৈরি ও সংরক্ষণ করা যাবে। ইউজার প্যানেলে কোড Redeem করার ব্যবস্থা এবং নিরাপদ backend validation না থাকলে শুধু এই Admin Panel দিয়ে কোড নিজে থেকে Redeem বা Owner Account তৈরি হবে না।</p>
-                <div class="address-box" id="ownerCodeDisplay">No activation code generated</div>
-                <button class="main-btn btn-gold" onclick="generateOwnerCode()">Generate New Code</button>
-                <button class="main-btn btn-primary" onclick="copyOwnerCode()">Copy Code</button>
-                <p id="ownerCodeStatus" class="small-note" style="margin-top:10px">Code status: Not configured</p>
-            </div>
-        </div>
+        // One-time admin referral code state
+        let ownerReferralCode = DEFAULT_UNIQUE_OWNER_CODE;
+        let oneTimeCodeUsed = false;
+        let claimedByUserId = "";
+        let claimedByUserName = "";
 
-        <div class="section-card">
-            <div class="section-title">
-                <span>👑 Owner Referral Members</span>
-                <span id="ownerReferralCount" style="color:var(--cyan-glow)">0 Members</span>
-            </div>
-            <div class="table-responsive">
-                <table>
-                    <thead><tr><th>User Name</th><th>Telegram ID</th><th>Username</th><th>Balance</th><th>Status</th></tr></thead>
-                    <tbody id="ownerReferralTableBody"><tr><td colspan="5" style="text-align:center">Set Owner ID to view referrals</td></tr></tbody>
-                </table>
-            </div>
-        </div>
-    </div>
+        let ADMIN_PASSWORD = localStorage.getItem('mtr_admin_pass') || "admin123";
+        let TRANSACTION_PIN = localStorage.getItem('mtr_tx_pin') || "1234";
 
-    <!-- TASKS -->
-    <div id="tab-tasks" class="tab-content">
-        <div class="section-card">
-            <div class="section-title">➕ Add New Earn Task</div>
-            <input type="text" id="taskTitle" class="form-control" placeholder="Task Title">
-            <input type="number" step="any" id="taskReward" class="form-control" placeholder="Reward MTR">
-            <input type="text" id="taskLink" class="form-control" placeholder="Link URL">
-            <input type="number" id="taskResetHours" class="form-control" min="0" step="0.5" placeholder="Reset Time in Hours (0 = one-time)">
-            <button class="main-btn btn-gold" onclick="addNewTask()">Publish Task</button>
-        </div>
-        <div class="section-card">
-            <div class="section-title">📋 Active Tasks List</div>
-            <div class="table-responsive">
-                <table>
-                    <thead><tr><th>Title</th><th>Reward</th><th>Reset Time</th><th>Link</th><th>Action</th></tr></thead>
-                    <tbody id="tasksTableBody"></tbody>
-                </table>
-            </div>
-        </div>
-    </div>
+        function escapeAttr(str) {
+            return String(str || "").replace(/\\/g, "\\\\").replace(/'/g, "\\'").replace(/"/g, "&quot;");
+        }
 
-    <!-- SETTINGS -->
-    <div id="tab-settings" class="tab-content">
+        function escapeHTML(str) {
+            return String(str || "").replace(/[&<>"']/g, c => ({
+                '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;'
+            }[c]));
+        }
 
-        <div class="section-card" style="border-color:var(--success)">
-            <div class="section-title">💳 Deposit Wallet Address Settings</div>
-            <p class="small-note">ইউজারদের ডিপোজিট করার জন্য যে Wallet Address দেখানো হবে সেটি এখানে লিখে Save করুন। Network এবং Address ঠিকভাবে যাচাই করে দিন।</p>
-            <label class="small-note">Deposit Network</label>
-            <select id="depositNetworkInput" class="form-control">
-                <option value="TON">TON Network</option>
-                <option value="TRC20">TRON (TRC20)</option>
-                <option value="BEP20">BNB Smart Chain (BEP20)</option>
-                <option value="ERC20">Ethereum (ERC20)</option>
-                <option value="Other">Other Network</option>
-            </select>
-            <label class="small-note">Deposit Wallet Address</label>
-            <textarea id="depositAddressInput" class="form-control" rows="3" placeholder="Enter your deposit wallet address"></textarea>
-            <label class="small-note">Deposit Instructions (Optional)</label>
-            <textarea id="depositInstructionsInput" class="form-control" rows="3" placeholder="Enter deposit instructions for users"></textarea>
-            <button class="main-btn btn-success" onclick="saveDepositAddress()">Save / Update Deposit Address</button>
-            <div style="margin-top:12px">
-                <p class="small-note">Current Saved Address:</p>
-                <div class="address-box" id="currentDepositAddress">No deposit address saved</div>
-                <p class="small-note" id="currentDepositNetwork">Network: Not set</p>
-            </div>
-        </div>
+        async function copyToClipboard(text, label = "Copied") {
+            if (!text) return;
+            try {
+                await navigator.clipboard.writeText(text);
+                alert(`✅ ${label} copied!`);
+            } catch (e) {
+                const ta = document.createElement("textarea");
+                ta.value = text;
+                document.body.appendChild(ta);
+                ta.select();
+                document.execCommand("copy");
+                ta.remove();
+                alert(`✅ ${label} copied!`);
+            }
+        }
 
-        <div class="section-card" style="border-color:var(--danger)">
-            <div class="section-title">🛑 Max Total Supply Limit & Mining Stop Notice</div>
-            <p style="font-size:12px;color:var(--text-muted);margin-bottom:10px" id="maxSupplyStatusDesc">Set 0 for unlimited supply.</p>
-            <label class="small-note">Max Total Supply Limit (MTR)</label>
-            <input type="number" step="any" min="0" id="maxSupplyLimitInput" class="form-control" placeholder="0 = Unlimited">
-            <label class="small-note">Notice Message When Supply Limit Reached</label>
-            <input type="text" id="supplyStopNoticeInput" class="form-control" placeholder="Mining stopped notice">
-            <button class="main-btn btn-danger" onclick="saveMaxSupplyConfig()">Save Supply Limit & Notice</button>
-        </div>
+        function checkAdminLogin() {
+            const input = document.getElementById('adminPassInput').value;
+            if (input === ADMIN_PASSWORD) {
+                sessionStorage.setItem('mtr_admin_auth', 'true');
+                document.getElementById('loginOverlay').style.display = 'none';
+                document.getElementById('adminDashboard').style.display = 'block';
+                initAdminListeners();
+            } else {
+                alert("❌ Wrong Admin Password!");
+            }
+        }
 
-        <div class="section-card" style="border-color:var(--cyan-glow)">
-            <div class="section-title">⚡ Mining Speed Control (MTR / Hour)</div>
-            <p class="small-note">Set the active global mining rate per hour.</p>
-            <div style="display:flex;gap:10px">
-                <input type="number" step="0.0001" id="miningRateInput" class="form-control" style="margin-bottom:0" placeholder="e.g. 0.1">
-                <button class="main-btn btn-success" onclick="saveMiningRate()">Save Speed</button>
-            </div>
-        </div>
+        function logoutAdmin() {
+            sessionStorage.removeItem('mtr_admin_auth');
+            location.reload();
+        }
 
-        <div class="section-card" style="border-color:var(--warning)">
-            <div class="section-title">🛑 Site Maintenance Mode</div>
-            <p class="small-note" id="maintenanceStatusDesc">Checking status...</p>
-            <input type="text" id="maintenanceNoticeInput" class="form-control" placeholder="Notice message to show users">
-            <div style="display:flex;gap:10px">
-                <button class="main-btn btn-primary" onclick="saveMaintenanceNotice()">Save Notice</button>
-                <button class="main-btn" id="toggleMaintenanceBtn" onclick="toggleMaintenanceMode()">Toggle Maintenance</button>
-            </div>
-        </div>
+        if (sessionStorage.getItem('mtr_admin_auth') === 'true') {
+            document.getElementById('loginOverlay').style.display = 'none';
+            document.getElementById('adminDashboard').style.display = 'block';
+            initAdminListeners();
+        }
 
-        <div class="section-card">
-            <div class="section-title">⚙️ Withdrawal System Control</div>
-            <p class="small-note" id="withdrawStatusDesc">Checking status...</p>
-            <button class="main-btn btn-primary" id="toggleWithdrawBtn" onclick="toggleWithdrawSystem()">Toggle Withdrawal</button>
-            <hr style="border-color:rgba(255,255,255,.1);margin:18px 0">
-            <div class="section-title">💰 Minimum Withdrawal Limit (MTR)</div>
-            <div style="display:flex;gap:10px">
-                <input type="number" id="minWithdrawInput" class="form-control" style="margin-bottom:0" placeholder="e.g. 10">
-                <button class="main-btn btn-success" onclick="saveMinWithdraw()">Save Limit</button>
-            </div>
-        </div>
+        function verifyTxPinAction(actionCallback) {
+            let pinInput = prompt("🔒 Enter Transaction PIN to confirm action:");
+            if (pinInput === null) return;
+            if (pinInput === TRANSACTION_PIN) {
+                actionCallback();
+            } else {
+                alert("❌ Incorrect Transaction PIN! Action aborted.");
+            }
+        }
 
-        <div class="section-card">
-            <div class="section-title">🔐 Admin Security & Credentials</div>
-            <p class="small-note">Change Admin Panel Login Password:</p>
-            <input type="password" id="newAdminPass" class="form-control" placeholder="New Admin Password">
-            <button class="main-btn btn-gold" style="margin-bottom:15px" onclick="updateAdminPassword()">Update Admin Password</button>
-            <p class="small-note">Change Transaction PIN:</p>
-            <input type="password" id="newTxPin" class="form-control" placeholder="New 4-digit PIN">
-            <button class="main-btn btn-success" onclick="updateTxPin()">Update Transaction PIN</button>
-        </div>
-    </div>
-</div>
+        function updateSupplyStatusBanner() {
+            const descEl = document.getElementById('maxSupplyStatusDesc');
+            if (!descEl) return;
+            if (maxSupplyLimit > 0) {
+                const reached = currentTotalSupply >= maxSupplyLimit;
+                descEl.innerHTML = `Current Supply: <strong>${currentTotalSupply.toFixed(4)} MTR</strong> / Limit: <strong>${maxSupplyLimit} MTR</strong> — Status: <strong style="color:${reached ? 'var(--danger)' : 'var(--success)'};">${reached ? 'LIMIT REACHED (MINING STOPPED)' : 'ACTIVE'}</strong>`;
+            } else {
+                descEl.innerHTML = `Current Supply: <strong>${currentTotalSupply.toFixed(4)} MTR</strong> — Limit: <strong>Unlimited (0)</strong>`;
+            }
+        }
 
-<div class="modal" id="refModal">
-    <div class="modal-content">
-        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
-            <h4 style="color:var(--gold-light)" id="refModalTitle">User Referrals</h4>
-            <button class="main-btn btn-danger" style="padding:4px 8px" onclick="closeRefModal()">X</button>
-        </div>
-        <div id="refModalList" style="font-size:12px;text-align:left">Loading...</div>
-    </div>
-</div>
+        function saveMaxSupplyConfig() {
+            const limitVal = parseFloat(document.getElementById('maxSupplyLimitInput').value);
+            const limit = (!isNaN(limitVal) && limitVal > 0) ? limitVal : 0;
+            const notice = document.getElementById('supplyStopNoticeInput').value.trim() ||
+                "Total MTR supply limit has been reached! Mining is now stopped.";
 
-<script>
-const firebaseConfig = {
-    apiKey:"AIzaSyA74QlASZn_mz9c4XjdpJAJQHyJqX9xdk4",
-    authDomain:"mtrdex.firebaseapp.com",
-    projectId:"mtrdex",
-    storageBucket:"mtrdex.firebasestorage.app",
-    messagingSenderId:"1086565020372",
-    appId:"1:1086565020372:web:908ecf8369e83c4d6dc141",
-    measurementId:"G-YP1ZKWZPL6"
-};
+            verifyTxPinAction(() => {
+                db.collection("settings").doc("config").set({
+                    maxSupplyLimit: limit,
+                    supplyStopNotice: notice
+                }, { merge: true }).then(() => {
+                    alert("✅ Max supply limit and notice saved!");
+                }).catch(err => alert("Error saving supply settings: " + err));
+            });
+        }
 
-if(!firebase.apps.length) firebase.initializeApp(firebaseConfig);
-const db=firebase.firestore();
+        /* ================= TON DEPOSIT ADDRESS LOGIC ================= */
+        function renderActiveTonDepositSummary(tonAddr = "") {
+            const box = document.getElementById('activeTonDepositSummary');
+            if (!box) return;
+            box.innerHTML = `
+                <strong style="color:var(--cyan-glow);">Active TON Deposit Address:</strong>
+                <div style="margin-top:6px;">
+                    ${tonAddr
+                        ? `<code>${escapeHTML(tonAddr)}</code><button class="copy-mini-btn" onclick="copyToClipboard('${escapeAttr(tonAddr)}', 'TON Deposit Address')">Copy</button>`
+                        : `<span style="color:var(--text-muted);">Not set yet</span>`
+                    }
+                </div>
+            `;
+        }
 
-let allUsersData=[];
-let allWithdrawalsData=[];
-let allDepositsData=[];
-let adminRefTargets=[];
-let currentFilter="all";
-let currentDepositFilter="all";
-let isWithdrawOpen=false;
-let isMaintenanceOn=false;
-let currentTotalSupply=0;
-let maxSupplyLimit=0;
-let supplyStopNotice="Total MTR supply limit has been reached! Mining is now stopped.";
-let ownerTelegramId="";
-let ownerActivationCode="";
-let ownerActivationCodeActive=false;
-let ADMIN_PASSWORD=localStorage.getItem("mtr_admin_pass")||"admin123";
-let TRANSACTION_PIN=localStorage.getItem("mtr_tx_pin")||"1234";
-let listenersStarted=false;
+        function saveTonDepositAddress() {
+            const tonAddress = document.getElementById('depositTonInput').value.trim();
 
-function escapeHTML(str){
-    return String(str??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#039;"}[c]));
-}
-function escapeAttr(str){return escapeHTML(str).replace(/`/g,"&#096;");}
+            verifyTxPinAction(() => {
+                db.collection("settings").doc("config").set({
+                    tonDepositAddress: tonAddress,
+                    depositAddresses: {
+                        ton: tonAddress,
+                        updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+                    }
+                }, { merge: true }).then(() => {
+                    renderActiveTonDepositSummary(tonAddress);
+                    alert("✅ TON deposit address updated & saved!");
+                }).catch(err => alert("Error saving TON deposit address: " + err));
+            });
+        }
 
-async function copyToClipboard(text,label="Copied"){
-    if(!text)return;
-    try{await navigator.clipboard.writeText(String(text));alert("✅ "+label+" copied!");}
-    catch(e){
-        const ta=document.createElement("textarea");ta.value=String(text);
-        document.body.appendChild(ta);ta.select();document.execCommand("copy");ta.remove();
-        alert("✅ "+label+" copied!");
-    }
-}
+        /* ================= ONE-TIME ADMIN REFERRAL CODE LOGIC ================= */
+        function generateOwnerReferralCode() {
+            if (oneTimeCodeUsed) {
+                alert("⚠️ This code is already claimed/locked. Click 'Reset Code' first if you want to issue a fresh one-time code.");
+                return;
+            }
+            const chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+            let randomPart = "";
+            for (let i = 0; i < 6; i++) {
+                randomPart += chars.charAt(Math.floor(Math.random() * chars.length));
+            }
+            document.getElementById('ownerRefCodeInput').value = "MTR_OWNER_" + randomPart;
+        }
 
-function checkAdminLogin(){
-    const input=document.getElementById("adminPassInput").value;
-    if(input===ADMIN_PASSWORD){
-        sessionStorage.setItem("mtr_admin_auth","true");
-        document.getElementById("loginOverlay").style.display="none";
-        document.getElementById("adminDashboard").style.display="block";
-        initAdminListeners();
-    }else alert("❌ Wrong Admin Password!");
-}
-function logoutAdmin(){sessionStorage.removeItem("mtr_admin_auth");location.reload();}
+        function saveOneTimeAdminCode() {
+            const code = document.getElementById('ownerRefCodeInput').value.trim() || DEFAULT_UNIQUE_OWNER_CODE;
 
-if(sessionStorage.getItem("mtr_admin_auth")==="true"){
-    document.getElementById("loginOverlay").style.display="none";
-    document.getElementById("adminDashboard").style.display="block";
-    initAdminListeners();
-}
+            verifyTxPinAction(() => {
+                db.collection("settings").doc("config").set({
+                    ownerReferralCode: code,
+                    oneTimeAdminCode: code,
+                    oneTimeCodeUsed: oneTimeCodeUsed,
+                    claimedByUserId: claimedByUserId || "",
+                    claimedByUserName: claimedByUserName || ""
+                }, { merge: true }).then(() => {
+                    ownerReferralCode = code;
+                    renderOneTimeCodeUI();
+                    alert("✅ One-Time Admin Referral Code saved!");
+                }).catch(err => alert("Error saving one-time code: " + err));
+            });
+        }
 
-function verifyTxPinAction(callback){
-    const pin=prompt("🔒 Enter Transaction PIN to confirm action:");
-    if(pin===null)return;
-    if(pin===TRANSACTION_PIN)callback();
-    else alert("❌ Incorrect Transaction PIN!");
-}
+        function resetOneTimeAdminCode() {
+            verifyTxPinAction(() => {
+                const freshCode = document.getElementById('ownerRefCodeInput').value.trim() || DEFAULT_UNIQUE_OWNER_CODE;
+                db.collection("settings").doc("config").set({
+                    ownerReferralCode: freshCode,
+                    oneTimeAdminCode: freshCode,
+                    oneTimeCodeUsed: false,
+                    claimedByUserId: "",
+                    claimedByUserName: ""
+                }, { merge: true }).then(() => {
+                    oneTimeCodeUsed = false;
+                    claimedByUserId = "";
+                    claimedByUserName = "";
+                    renderOneTimeCodeUI();
+                    alert("✅ One-Time code reset! It can now be claimed once by a Master account.");
+                }).catch(err => alert("Error resetting code: " + err));
+            });
+        }
 
-function switchAdminTab(tab,el){
-    document.querySelectorAll(".tab-content").forEach(x=>x.classList.remove("active"));
-    document.querySelectorAll(".tab-btn").forEach(x=>x.classList.remove("active"));
-    document.getElementById("tab-"+tab).classList.add("active");
-    el.classList.add("active");
-}
+        function renderOneTimeCodeUI() {
+            const badge = document.getElementById('oneTimeCodeStatusBadge');
+            const details = document.getElementById('oneTimeClaimDetails');
+            const ownerIdEl = document.getElementById('claimedOwnerUserIdText');
+            const summaryEl = document.getElementById('ownerRefActiveSummary');
+            const countBadge = document.getElementById('ownerRefCountBadge');
+            const statCard = document.getElementById('statOwnerReferrals');
+            const tbody = document.getElementById('ownerReferredUsersBody');
 
-function updateSupplyStatusBanner(){
-    const el=document.getElementById("maxSupplyStatusDesc");
-    if(!el)return;
-    if(maxSupplyLimit>0){
-        const reached=currentTotalSupply>=maxSupplyLimit;
-        el.innerHTML=`Current Supply: <strong>${currentTotalSupply.toFixed(4)} MTR</strong> / Limit: <strong>${maxSupplyLimit} MTR</strong> — <strong style="color:${reached?"var(--danger)":"var(--success)"}">${reached?"LIMIT REACHED":"ACTIVE"}</strong>`;
-    }else el.innerHTML=`Current Supply: <strong>${currentTotalSupply.toFixed(4)} MTR</strong> — Unlimited`;
-}
+            if (badge) {
+                if (oneTimeCodeUsed) {
+                    badge.className = "badge badge-banned";
+                    badge.innerText = "USED / LOCKED";
+                } else {
+                    badge.className = "badge badge-verified";
+                    badge.innerText = "AVAILABLE (1 USE)";
+                }
+            }
 
-function getDateObj(item){
-    if(item.createdAt&&typeof item.createdAt.toDate==="function")return item.createdAt.toDate();
-    if(item.createdAt&&item.createdAt.seconds)return new Date(item.createdAt.seconds*1000);
-    if(item.timestampMs)return new Date(Number(item.timestampMs));
-    if(item.date)return new Date(item.date);
-    return null;
-}
-function dateText(item){
-    const d=getDateObj(item);
-    return d&&!isNaN(d.getTime())?d.toLocaleString():"N/A";
-}
-function dateInputValue(d){
-    if(!d||isNaN(d.getTime()))return "";
-    return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`;
-}
+            if (details) {
+                if (oneTimeCodeUsed) {
+                    details.innerHTML = `<strong style="color:var(--warning);">Already Used Once</strong> by <strong>${escapeHTML(claimedByUserName || "Master User")}</strong> (${escapeHTML(claimedByUserId || "")}). Code is now locked.`;
+                } else {
+                    details.innerHTML = `Not claimed yet — first account to use code <code>${escapeHTML(ownerReferralCode)}</code> becomes the Master account.`;
+                }
+            }
 
-/* SETTINGS LISTENER */
-function initAdminListeners(){
-    if(listenersStarted)return;
-    listenersStarted=true;
+            if (ownerIdEl) {
+                ownerIdEl.innerText = claimedByUserId || "None";
+            }
 
-    db.collection("users").onSnapshot(snapshot=>{
-        allUsersData=[];
-        let verified=0,total=0;
-        snapshot.forEach(doc=>{
-            const data=doc.data();data.id=doc.id;allUsersData.push(data);
-            if(data.verified)verified++;
-            total+=Number(data.balance||0);
-        });
-        currentTotalSupply=total;
-        document.getElementById("statTotalUsers").innerText=allUsersData.length;
-        document.getElementById("statVerifiedUsers").innerText=verified;
-        document.getElementById("statTonRevenue").innerText=(verified*.1).toFixed(1)+" TON";
-        document.getElementById("statTotalMtr").innerText=total.toFixed(2);
-        updateSupplyStatusBanner();
-        renderUsersTable();
-        renderOwnerReferrals();
-    },err=>alert("Users listener error: "+err.message));
+            if (summaryEl) {
+                summaryEl.innerText = claimedByUserId
+                    ? `Master ID: ${claimedByUserId}`
+                    : `Master ID: Not claimed yet`;
+            }
 
-    db.collection("settings").doc("config").onSnapshot(doc=>{
-        if(!doc.exists)return;
-        const d=doc.data();
+            // All accounts whose referredBy matches the claimed Master account ID
+            const underMaster = claimedByUserId
+                ? allUsersData.filter(u => u.id !== claimedByUserId && String(u.referredBy || "").trim() === String(claimedByUserId).trim())
+                : [];
 
-        isWithdrawOpen=!!d.withdrawOpen;
-        isMaintenanceOn=!!d.maintenanceMode;
-        maxSupplyLimit=Number(d.maxSupplyLimit||0);
-        supplyStopNotice=d.supplyStopNotice||supplyStopNotice;
+            if (countBadge) countBadge.innerText = String(underMaster.length);
+            if (statCard) statCard.innerText = String(underMaster.length);
 
-        setInputIfInactive("maxSupplyLimitInput",maxSupplyLimit||"");
-        setInputIfInactive("supplyStopNoticeInput",supplyStopNotice);
-        setInputIfInactive("minWithdrawInput",d.minWithdraw??"");
-        setInputIfInactive("miningRateInput",d.miningRate??"");
-        setInputIfInactive("maintenanceNoticeInput",d.maintenanceNotice??"");
-        setInputIfInactive("refCommissionInput",d.refCommission??"");
+            if (!tbody) return;
+            if (!underMaster.length) {
+                tbody.innerHTML = "<tr><td colspan='5' style='text-align:center; color:var(--text-muted);'>No accounts under Master ID yet</td></tr>";
+                return;
+            }
 
-        const network=d.depositNetwork||"TON";
-        setInputIfInactive("depositNetworkInput",network);
-        setInputIfInactive("depositAddressInput",d.depositAddress||"");
-        setInputIfInactive("depositInstructionsInput",d.depositInstructions||"");
+            tbody.innerHTML = underMaster.map(u => {
+                const cleanUsername = u.username ? (u.username.startsWith("@") ? u.username : "@" + u.username) : "@no_username";
+                const statusBadge = u.banned
+                    ? `<span class="badge badge-banned">Banned</span>`
+                    : (u.verified ? `<span class="badge badge-verified">Verified ✓</span>` : `<span class="badge badge-unverified">Unverified</span>`);
 
-        document.getElementById("currentDepositAddress").innerText=d.depositAddress||"No deposit address saved";
-        document.getElementById("currentDepositNetwork").innerText="Network: "+network;
+                return `
+                    <tr>
+                        <td><strong>${escapeHTML(u.name || "Unknown")}</strong></td>
+                        <td style="color:var(--cyan-glow);">${escapeHTML(cleanUsername)}</td>
+                        <td><code>${escapeHTML(u.id || "")}</code></td>
+                        <td>${statusBadge}</td>
+                        <td style="color:var(--gold-light); font-weight:bold;">${Number(u.balance || 0).toFixed(4)} MTR</td>
+                    </tr>
+                `;
+            }).join("");
+        }
 
-        const ownerInput=document.getElementById("ownerTelegramIdInput");
-        ownerTelegramId=d.ownerTelegramId||"";
-        if(document.activeElement!==ownerInput)ownerInput.value=ownerTelegramId;
+        function getWithdrawDateObj(w) {
+            if (w.createdAt && typeof w.createdAt.toDate === "function") {
+                return w.createdAt.toDate();
+            }
+            if (w.createdAt && w.createdAt.seconds) {
+                return new Date(w.createdAt.seconds * 1000);
+            }
+            if (w.timestampMs) {
+                return new Date(Number(w.timestampMs));
+            }
+            return null;
+        }
 
-        ownerActivationCode=d.ownerActivationCode||"";
-        ownerActivationCodeActive=!!d.ownerActivationCodeActive;
-        document.getElementById("ownerCodeDisplay").innerText=ownerActivationCode||"No activation code generated";
-        document.getElementById("ownerCodeStatus").innerText=ownerActivationCode
-            ?"Code status: "+(ownerActivationCodeActive?"ACTIVE":"INACTIVE / USED")
-            :"Code status: Not configured";
+        function formatDateInputValue(dateObj) {
+            if (!dateObj || isNaN(dateObj.getTime())) return "";
+            const y = dateObj.getFullYear();
+            const m = String(dateObj.getMonth() + 1).padStart(2, "0");
+            const d = String(dateObj.getDate()).padStart(2, "0");
+            return `${y}-${m}-${d}`;
+        }
 
-        updateSupplyStatusBanner();
-        updateToggleButtons();
+        function clearWithdrawDateFilter() {
+            document.getElementById('withdrawDateFilter').value = "";
+            renderWithdrawalsTable();
+        }
 
-        if(Array.isArray(d.refTargets)){
-            adminRefTargets=d.refTargets.map(t=>({target:Number(t.target),reward:Number(t.reward)}));
+        function renderWithdrawalsTable() {
+            const selectedDate = document.getElementById('withdrawDateFilter').value;
+            const summaryEl = document.getElementById('withdrawDateSummary');
+            const tbody = document.getElementById('withdrawTableBody');
+
+            const filtered = allWithdrawalsData.filter(w => {
+                if (!selectedDate) return true;
+                const dObj = getWithdrawDateObj(w);
+                return formatDateInputValue(dObj) === selectedDate;
+            });
+
+            const uniqueUsers = new Set(filtered.map(w => w.userId).filter(Boolean));
+            const sumAmount = filtered.reduce((acc, item) => acc + Number(item.amount || 0), 0);
+
+            if (selectedDate) {
+                summaryEl.innerHTML = `
+                    <span>📅 Date: <strong>${escapeHTML(selectedDate)}</strong></span>
+                    <span>👥 Users Withdrew: <strong>${uniqueUsers.size}</strong></span>
+                    <span>💰 Total MTR: <strong>${sumAmount.toFixed(4)} MTR</strong></span>
+                    <span>📄 Requests: <strong>${filtered.length}</strong></span>
+                `;
+            } else {
+                summaryEl.innerHTML = `
+                    <span>📊 Showing All Dates</span>
+                    <span>👥 Unique Users: <strong>${uniqueUsers.size}</strong></span>
+                    <span>💰 Total MTR: <strong>${sumAmount.toFixed(4)} MTR</strong></span>
+                    <span>📄 Total Requests: <strong>${filtered.length}</strong></span>
+                `;
+            }
+
+            if (!filtered.length) {
+                tbody.innerHTML = "<tr><td colspan='6' style='text-align:center;'>No withdrawal requests found for this selection</td></tr>";
+                return;
+            }
+
+            let html = "";
+            filtered.forEach(w => {
+                const status = (w.status || "pending").toLowerCase();
+                const statusColor = status === 'approved' ? 'var(--success)' : (status === 'rejected' ? 'var(--danger)' : 'var(--warning)');
+                const dObj = getWithdrawDateObj(w);
+                const dateTimeText = dObj && !isNaN(dObj.getTime())
+                    ? dObj.toLocaleString([], { year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })
+                    : "N/A";
+
+                let actionButtonsHtml = "";
+                if (!w.status || status === 'pending') {
+                    actionButtonsHtml = `
+                        <button class="main-btn btn-success" style="padding:4px 8px;" onclick="verifyTxPinAction(() => handleWithdrawAction('${escapeAttr(w.id)}', '${escapeAttr(w.userId)}', ${Number(w.amount || 0)}, 'approved'))">Approve</button>
+                        <button class="main-btn btn-danger" style="padding:4px 8px;" onclick="verifyTxPinAction(() => handleWithdrawAction('${escapeAttr(w.id)}', '${escapeAttr(w.userId)}', ${Number(w.amount || 0)}, 'rejected'))">Reject</button>
+                    `;
+                } else if (status === 'rejected') {
+                    actionButtonsHtml = `
+                        <button class="main-btn btn-danger" style="padding:4px 8px;" onclick="verifyTxPinAction(() => deleteRejectedWithdrawal('${escapeAttr(w.id)}'))">🗑️ Delete</button>
+                    `;
+                } else {
+                    actionButtonsHtml = `<span style="color:var(--text-muted);">-</span>`;
+                }
+
+                html += `
+                    <tr>
+                        <td>
+                            <strong>${escapeHTML(w.userName || "User")}</strong><br>
+                            <span style="font-size:10px; color:var(--cyan-glow);">${escapeHTML(w.userUsername || "")}</span><br>
+                            <code>${escapeHTML(w.userId || "")}</code>
+                        </td>
+                        <td style="font-size:11px; color:var(--text-muted);">${escapeHTML(dateTimeText)}</td>
+                        <td style="color:var(--gold-light); font-weight:bold;">${Number(w.amount || 0).toFixed(4)} MTR</td>
+                        <td style="font-size:11px;">
+                            ${escapeHTML(w.walletAddress || "None")}
+                            ${w.walletAddress ? `<button class="copy-mini-btn" onclick="copyToClipboard('${escapeAttr(w.walletAddress)}', 'Wallet Address')">Copy</button>` : ""}
+                        </td>
+                        <td style="color:${statusColor}; font-weight:bold; text-transform:uppercase;">${escapeHTML(status)}</td>
+                        <td><div class="action-btns">${actionButtonsHtml}</div></td>
+                    </tr>
+                `;
+            });
+
+            tbody.innerHTML = html;
+        }
+
+        function deleteRejectedWithdrawal(docId) {
+            db.collection("withdrawals").doc(docId).delete()
+                .then(() => alert("✅ Rejected withdrawal record deleted!"))
+                .catch(err => alert("Error deleting withdrawal: " + err));
+        }
+
+        function renderAdminRefTargetsList() {
+            const container = document.getElementById('adminRefTargetsList');
+            if (!container) return;
+            if (!adminRefTargets.length) {
+                container.innerHTML = '<p style="font-size:12px; color:var(--text-muted);">No referral targets in list yet.</p>';
+                return;
+            }
+            container.innerHTML = adminRefTargets.map((item, idx) => `
+                <div class="target-row-card">
+                    <div>
+                        <strong style="color:var(--gold-light);">🎯 ${Number(item.target)} Verified Referrals</strong>
+                        <span style="color:var(--success); font-weight:bold; margin-left:8px;">+${Number(item.reward)} MTR</span>
+                    </div>
+                    <button class="main-btn btn-danger" style="padding:5px 10px;" onclick="removeReferralTarget(${idx})">Remove</button>
+                </div>
+            `).join("");
+        }
+
+        function addReferralTargetToList() {
+            const targetVal = parseInt(document.getElementById('refTargetInput').value, 10);
+            const rewardVal = parseFloat(document.getElementById('refRewardInput').value);
+
+            if (isNaN(targetVal) || targetVal <= 0 || isNaN(rewardVal) || rewardVal <= 0) {
+                alert("Please enter valid Required Verified Referrals and Reward MTR!");
+                return;
+            }
+
+            adminRefTargets.push({ target: targetVal, reward: rewardVal });
+            document.getElementById('refTargetInput').value = "";
+            document.getElementById('refRewardInput').value = "";
             renderAdminRefTargetsList();
         }
-    },err=>alert("Settings listener error: "+err.message));
 
-    db.collection("tasks").onSnapshot(snapshot=>{
-        let html="";
-        snapshot.forEach(doc=>{
-            const t=doc.data();
-            const reset=Number(t.resetHours||0);
-            html+=`<tr>
-                <td><strong>${escapeHTML(t.title||"")}</strong></td>
-                <td style="color:var(--gold-light)">+${Number(t.reward||0)} MTR</td>
-                <td style="color:var(--cyan-glow)">${reset>0?"Every "+reset+"h":"One-time"}</td>
-                <td><a href="${escapeAttr(t.link||"#")}" target="_blank" rel="noopener" style="color:var(--cyan-glow)">Open Link</a></td>
-                <td><button class="main-btn btn-danger" style="padding:4px 8px" onclick="verifyTxPinAction(()=>deleteTask('${escapeAttr(doc.id)}'))">Delete</button></td>
-            </tr>`;
-        });
-        document.getElementById("tasksTableBody").innerHTML=html||"<tr><td colspan='5' style='text-align:center'>No active tasks</td></tr>";
-    });
-
-    db.collection("withdrawals").onSnapshot(snapshot=>{
-        allWithdrawalsData=[];
-        let pending=0,completed=0,rejected=0,paid=0;
-        snapshot.forEach(doc=>{
-            const w=doc.data();w.id=doc.id;allWithdrawalsData.push(w);
-            const st=(w.status||"pending").toLowerCase();
-            if(st==="approved"){completed++;paid+=Number(w.amount||0);}
-            else if(st==="rejected")rejected++;
-            else pending++;
-        });
-        document.getElementById("statPendingWithdraws").innerText=pending;
-        document.getElementById("statCompletedWithdraws").innerText=completed;
-        document.getElementById("statRejectedWithdraws").innerText=rejected;
-        document.getElementById("statTotalPaidMtr").innerText=paid.toFixed(2);
-        allWithdrawalsData.sort((a,b)=>(getDateObj(b)?.getTime()||0)-(getDateObj(a)?.getTime()||0));
-        renderWithdrawalsTable();
-    });
-
-    db.collection("deposits").onSnapshot(snapshot=>{
-        allDepositsData=[];
-        let pending=0;
-        snapshot.forEach(doc=>{
-            const d=doc.data();d.id=doc.id;allDepositsData.push(d);
-            if((d.status||"pending").toLowerCase()==="pending")pending++;
-        });
-        document.getElementById("statPendingDeposits").innerText=pending;
-        allDepositsData.sort((a,b)=>(getDateObj(b)?.getTime()||0)-(getDateObj(a)?.getTime()||0));
-        renderDepositsTable();
-    },err=>{
-        document.getElementById("depositTableBody").innerHTML="<tr><td colspan='7'>Could not load deposits: "+escapeHTML(err.message)+"</td></tr>";
-    });
-}
-
-function setInputIfInactive(id,value){
-    const el=document.getElementById(id);
-    if(el&&document.activeElement!==el)el.value=value;
-}
-function updateToggleButtons(){
-    const wd=document.getElementById("withdrawStatusDesc");
-    const wb=document.getElementById("toggleWithdrawBtn");
-    if(wd&&wb){
-        wd.innerHTML="Current Status: <strong style='color:"+(isWithdrawOpen?"var(--success)":"var(--danger)")+"'>"+(isWithdrawOpen?"OPEN":"CLOSED")+"</strong>";
-        wb.className="main-btn "+(isWithdrawOpen?"btn-danger":"btn-success");
-        wb.innerText=isWithdrawOpen?"Close Withdrawal":"Open Withdrawal";
-    }
-    const md=document.getElementById("maintenanceStatusDesc");
-    const mb=document.getElementById("toggleMaintenanceBtn");
-    if(md&&mb){
-        md.innerHTML="Current Status: <strong style='color:"+(isMaintenanceOn?"var(--danger)":"var(--success)")+"'>"+(isMaintenanceOn?"SITE OFFLINE":"SITE ONLINE")+"</strong>";
-        mb.className="main-btn "+(isMaintenanceOn?"btn-success":"btn-danger");
-        mb.innerText=isMaintenanceOn?"Turn Site ONLINE":"Turn Site OFFLINE";
-    }
-}
-
-/* DEPOSIT ADDRESS */
-function saveDepositAddress(){
-    const network=document.getElementById("depositNetworkInput").value;
-    const address=document.getElementById("depositAddressInput").value.trim();
-    const instructions=document.getElementById("depositInstructionsInput").value.trim();
-    if(!address){alert("Please enter the deposit wallet address.");return;}
-    verifyTxPinAction(()=>{
-        db.collection("settings").doc("config").set({
-            depositNetwork:network,
-            depositAddress:address,
-            depositInstructions:instructions,
-            depositAddressUpdatedAt:firebase.firestore.FieldValue.serverTimestamp()
-        },{merge:true}).then(()=>alert("✅ Deposit address saved successfully!"))
-        .catch(err=>alert("Deposit address save error: "+err.message));
-    });
-}
-
-/* DEPOSIT MANAGEMENT */
-function setDepositFilter(filter,el){
-    currentDepositFilter=filter;
-    document.querySelectorAll("#tab-deposits .filter-chip").forEach(x=>x.classList.remove("active"));
-    el.classList.add("active");
-    renderDepositsTable();
-}
-function renderDepositsTable(){
-    const body=document.getElementById("depositTableBody");
-    if(!body)return;
-    const rows=allDepositsData.filter(d=>{
-        const st=(d.status||"pending").toLowerCase();
-        return currentDepositFilter==="all"||st===currentDepositFilter;
-    });
-    if(!rows.length){
-        body.innerHTML="<tr><td colspan='7' style='text-align:center'>No deposit requests found</td></tr>";
-        return;
-    }
-    body.innerHTML=rows.map(d=>{
-        const status=(d.status||"pending").toLowerCase();
-        const uid=d.userId||d.uid||"";
-        const tx=d.txHash||d.transactionId||d.txId||"";
-        const amount=Number(d.amount||0);
-        let actions="-";
-        if(status==="pending"){
-            actions=`<div class="action-btns">
-                <button class="main-btn btn-success" style="padding:5px 7px" onclick="verifyTxPinAction(()=>approveDeposit('${escapeAttr(d.id)}','${escapeAttr(uid)}',${amount}))">Approve</button>
-                <button class="main-btn btn-danger" style="padding:5px 7px" onclick="verifyTxPinAction(()=>rejectDeposit('${escapeAttr(d.id)}'))">Reject</button>
-            </div>`;
+        function removeReferralTarget(index) {
+            adminRefTargets.splice(index, 1);
+            renderAdminRefTargetsList();
         }
-        return `<tr>
-            <td><strong>${escapeHTML(d.userName||d.name||"User")}</strong><br><code>${escapeHTML(uid)}</code><br><span style="color:var(--cyan-glow)">${escapeHTML(d.username||d.userUsername||"")}</span></td>
-            <td style="color:var(--gold-light);font-weight:bold">${amount.toFixed(4)} ${escapeHTML(d.currency||d.token||"")}</td>
-            <td>${escapeHTML(d.network||d.depositNetwork||"N/A")}</td>
-            <td>${escapeHTML(tx||"Not submitted")}${tx?`<button class="copy-mini-btn" onclick="copyToClipboard('${escapeAttr(tx)}','Transaction ID')">Copy</button>`:""}</td>
-            <td>${escapeHTML(dateText(d))}</td>
-            <td style="font-weight:bold;color:${status==="approved"?"var(--success)":status==="rejected"?"var(--danger)":"var(--warning)"}">${escapeHTML(status.toUpperCase())}</td>
-            <td>${actions}</td>
-        </tr>`;
-    }).join("");
-}
 
-/*
-Expected deposits collection fields:
-userId, amount, txHash (or transactionId / txId), status:"pending".
-Approval adds amount to users/{userId}.balance in a Firestore transaction
-and marks the deposit approved atomically to prevent double crediting.
-*/
-async function approveDeposit(depositId,userId,amount){
-    if(!userId){alert("Deposit request has no userId.");return;}
-    if(!Number.isFinite(amount)||amount<=0){alert("Invalid deposit amount.");return;}
-    if(!confirm("Approve this deposit and add "+amount+" MTR to user balance?"))return;
-    try{
-        await db.runTransaction(async transaction=>{
-            const depRef=db.collection("deposits").doc(depositId);
-            const userRef=db.collection("users").doc(userId);
-            const depSnap=await transaction.get(depRef);
-            const userSnap=await transaction.get(userRef);
-            if(!depSnap.exists)throw new Error("Deposit request not found.");
-            if(!userSnap.exists)throw new Error("User account not found.");
-            const dep=depSnap.data();
-            const st=(dep.status||"pending").toLowerCase();
-            if(st!=="pending")throw new Error("This deposit is already processed.");
-            const actualAmount=Number(dep.amount||0);
-            if(!Number.isFinite(actualAmount)||actualAmount<=0)throw new Error("Invalid amount in deposit record.");
-            const current=Number(userSnap.data().balance||0);
-            transaction.update(userRef,{balance:current+actualAmount});
-            transaction.update(depRef,{
-                status:"approved",
-                approvedAt:firebase.firestore.FieldValue.serverTimestamp(),
-                approvedBy:"admin"
+        function saveAllReferralTargets() {
+            const commissionVal = parseFloat(document.getElementById('refCommissionInput').value);
+            const refCommission = isNaN(commissionVal) || commissionVal < 0 ? 0 : commissionVal;
+
+            verifyTxPinAction(() => {
+                db.collection("settings").doc("config").set({
+                    refTargets: adminRefTargets,
+                    refCommission: refCommission
+                }, { merge: true }).then(() => {
+                    alert("✅ All referral targets saved to Firestore!");
+                }).catch(err => alert("Error saving targets: " + err));
             });
-        });
-        alert("✅ Deposit approved and user balance updated!");
-    }catch(err){alert("Deposit approval failed: "+err.message);}
-}
-async function rejectDeposit(depositId){
-    if(!confirm("Reject this deposit request?"))return;
-    try{
-        const ref=db.collection("deposits").doc(depositId);
-        await db.runTransaction(async transaction=>{
-            const snap=await transaction.get(ref);
-            if(!snap.exists)throw new Error("Deposit request not found.");
-            if((snap.data().status||"pending").toLowerCase()!=="pending")throw new Error("This request is already processed.");
-            transaction.update(ref,{
-                status:"rejected",
-                rejectedAt:firebase.firestore.FieldValue.serverTimestamp(),
-                rejectedBy:"admin"
-            });
-        });
-        alert("Deposit request rejected.");
-    }catch(err){alert("Reject failed: "+err.message);}
-}
-
-/* USERS */
-function setUserFilter(filter,el){
-    currentFilter=filter;
-    document.querySelectorAll("#tab-users .filter-chip").forEach(x=>x.classList.remove("active"));
-    el.classList.add("active");
-    renderUsersTable();
-}
-function renderUsersTable(){
-    const query=(document.getElementById("userSearchInput").value||"").toLowerCase().trim();
-    const filtered=allUsersData.filter(u=>{
-        const name=(u.name||"").toLowerCase();
-        const uid=(u.id||"").toLowerCase();
-        const username=(u.username||"").toLowerCase();
-        const wallet=(u.walletAddress||"").toLowerCase();
-        const matches=name.includes(query)||uid.includes(query)||username.includes(query)||wallet.includes(query);
-        if(!matches)return false;
-        if(currentFilter==="verified")return u.verified===true;
-        if(currentFilter==="unverified")return !u.verified;
-        if(currentFilter==="banned")return u.banned===true;
-        return true;
-    });
-    document.getElementById("filteredCountText").innerText="Showing "+filtered.length+" users";
-    const body=document.getElementById("usersTableBody");
-    body.innerHTML=filtered.map(u=>{
-        const bal=Number(u.balance||0).toFixed(4);
-        const wallet=u.walletAddress||"";
-        const shortWallet=wallet?wallet.substring(0,6)+"..."+wallet.slice(-4):"None";
-        const badge=u.banned?'<span class="badge badge-banned">Banned</span>':
-            u.verified?'<span class="badge badge-verified">Verified ✓</span>':
-            '<span class="badge badge-unverified">Unverified</span>';
-        const username=u.username?(u.username.startsWith("@")?u.username:"@"+u.username):"";
-        const referrals=allUsersData.filter(x=>x.referredBy===u.id).length;
-        return `<tr>
-            <td><strong>${escapeHTML(u.name||"Unknown")}</strong><br>
-            <span style="font-size:11px;color:var(--cyan-glow)">${escapeHTML(username||"@no_username")}</span>
-            ${username?`<button class="copy-mini-btn" onclick="copyToClipboard('${escapeAttr(username)}','Username')">Copy</button>`:""}<br>
-            <span style="font-size:10px;color:var(--text-muted)">${escapeHTML(u.id)}</span></td>
-            <td style="color:var(--gold-light);font-weight:bold">${bal} MTR</td>
-            <td>${badge}</td>
-            <td><button class="main-btn btn-primary" style="padding:4px 8px;font-size:11px" onclick="inspectReferrals('${escapeAttr(u.id)}','${escapeAttr(u.name||"User")}')">👥 ${referrals} Team</button></td>
-            <td title="${escapeAttr(wallet)}">${escapeHTML(shortWallet)} ${wallet?`<button class="copy-mini-btn" onclick="copyToClipboard('${escapeAttr(wallet)}','Wallet Address')">Copy</button>`:""}</td>
-            <td><div class="action-btns">
-                <button class="main-btn btn-gold" style="padding:5px 7px" onclick="verifyTxPinAction(()=>editUserBalance('${escapeAttr(u.id)}',${Number(u.balance||0)}))">💰 Bal</button>
-                <button class="main-btn ${u.verified?"btn-warning":"btn-success"}" style="padding:5px 7px" onclick="verifyTxPinAction(()=>toggleUserVerify('${escapeAttr(u.id)}',${!!u.verified}))">${u.verified?"Unverify":"Verify"}</button>
-                <button class="main-btn ${u.banned?"btn-primary":"btn-danger"}" style="padding:5px 7px" onclick="verifyTxPinAction(()=>toggleUserBan('${escapeAttr(u.id)}',${!!u.banned}))">${u.banned?"Unban":"Ban"}</button>
-                <button class="main-btn btn-danger" style="padding:5px 7px" onclick="verifyTxPinAction(()=>deleteUserAccount('${escapeAttr(u.id)}'))">🗑️ Delete</button>
-            </div></td>
-        </tr>`;
-    }).join("")||"<tr><td colspan='6' style='text-align:center'>No matching users found</td></tr>";
-}
-
-function deleteUserAccount(uid){
-    if(confirm("Delete account "+uid+"? This action is irreversible.")){
-        db.collection("users").doc(uid).delete()
-        .then(()=>alert("✅ User account deleted!"))
-        .catch(err=>alert("Delete error: "+err.message));
-    }
-}
-function editUserBalance(uid,current){
-    const val=prompt("Edit MTR Balance for "+uid,current);
-    if(val===null)return;
-    const n=Number(val);
-    if(!Number.isFinite(n)||n<0){alert("Enter a valid non-negative balance.");return;}
-    db.collection("users").doc(uid).update({balance:n})
-    .then(()=>alert("✅ Balance updated!")).catch(e=>alert(e.message));
-}
-function toggleUserVerify(uid,status){
-    db.collection("users").doc(uid).update({verified:!status})
-    .then(()=>alert("Verification status changed!")).catch(e=>alert(e.message));
-}
-function toggleUserBan(uid,status){
-    db.collection("users").doc(uid).update({banned:!status})
-    .then(()=>alert("Ban status updated!")).catch(e=>alert(e.message));
-}
-
-/* REFERRALS */
-function inspectReferrals(uid,name){
-    document.getElementById("refModalTitle").innerText="Referrals of "+name;
-    document.getElementById("refModalList").innerHTML="Loading team...";
-    document.getElementById("refModal").style.display="flex";
-    const team=allUsersData.filter(u=>u.referredBy===uid);
-    if(!team.length){
-        document.getElementById("refModalList").innerHTML="<p style='color:var(--text-muted)'>No referrals found.</p>";
-        return;
-    }
-    document.getElementById("refModalList").innerHTML=`<p style="margin-bottom:8px;color:var(--cyan-glow)">Total Invited: ${team.length}</p>`+
-        team.map(m=>`<div style="padding:8px;border-bottom:1px solid rgba(255,255,255,.1);display:flex;justify-content:space-between;gap:8px">
-        <span>${escapeHTML(m.name||"User")} (${escapeHTML(m.id)})</span>
-        <span style="color:${m.verified?"var(--success)":"var(--danger)"}">${m.verified?"Verified ✓":"Unverified"}</span></div>`).join("");
-}
-function closeRefModal(){document.getElementById("refModal").style.display="none";}
-
-function renderAdminRefTargetsList(){
-    const el=document.getElementById("adminRefTargetsList");
-    if(!adminRefTargets.length){el.innerHTML='<p class="small-note">No referral targets in list yet.</p>';return;}
-    el.innerHTML=adminRefTargets.map((x,i)=>`
-        <div class="target-row-card">
-            <div><strong style="color:var(--gold-light)">🎯 ${Number(x.target)} Verified Referrals</strong>
-            <span style="color:var(--success);font-weight:bold;margin-left:8px">+${Number(x.reward)} MTR</span></div>
-            <button class="main-btn btn-danger" style="padding:5px 10px" onclick="removeReferralTarget(${i})">Remove</button>
-        </div>`).join("");
-}
-function addReferralTargetToList(){
-    const target=parseInt(document.getElementById("refTargetInput").value,10);
-    const reward=parseFloat(document.getElementById("refRewardInput").value);
-    if(!Number.isFinite(target)||target<=0||!Number.isFinite(reward)||reward<=0){alert("Enter valid referral target and reward.");return;}
-    adminRefTargets.push({target,reward});
-    document.getElementById("refTargetInput").value="";
-    document.getElementById("refRewardInput").value="";
-    renderAdminRefTargetsList();
-}
-function removeReferralTarget(i){adminRefTargets.splice(i,1);renderAdminRefTargetsList();}
-function saveAllReferralTargets(){
-    const c=parseFloat(document.getElementById("refCommissionInput").value);
-    const commission=Number.isFinite(c)&&c>=0?c:0;
-    verifyTxPinAction(()=>{
-        db.collection("settings").doc("config").set({refTargets:adminRefTargets,refCommission:commission},{merge:true})
-        .then(()=>alert("✅ Referral targets saved!")).catch(e=>alert(e.message));
-    });
-}
-
-/* OWNER REFERRAL */
-function saveOwnerTelegramId(){
-    const id=document.getElementById("ownerTelegramIdInput").value.trim();
-    if(!id){alert("Enter Owner Telegram ID / user document ID.");return;}
-    verifyTxPinAction(()=>{
-        db.collection("settings").doc("config").set({ownerTelegramId:id},{merge:true})
-        .then(()=>alert("✅ Owner ID saved!")).catch(e=>alert(e.message));
-    });
-}
-function renderOwnerReferrals(){
-    const body=document.getElementById("ownerReferralTableBody");
-    const members=ownerTelegramId?allUsersData.filter(u=>u.referredBy===ownerTelegramId):[];
-    document.getElementById("ownerReferralCount").innerText=members.length+" Members";
-    document.getElementById("statOwnerReferrals").innerText=members.length;
-    if(!ownerTelegramId){
-        body.innerHTML="<tr><td colspan='5' style='text-align:center'>Set Owner ID to view referrals</td></tr>";
-        return;
-    }
-    body.innerHTML=members.map(u=>`<tr>
-        <td>${escapeHTML(u.name||"Unknown")}</td>
-        <td>${escapeHTML(u.id)}</td>
-        <td>${escapeHTML(u.username||"N/A")}</td>
-        <td style="color:var(--gold-light)">${Number(u.balance||0).toFixed(4)} MTR</td>
-        <td style="color:${u.verified?"var(--success)":"var(--warning)"}">${u.verified?"Verified":"Unverified"}</td>
-    </tr>`).join("")||"<tr><td colspan='5' style='text-align:center'>No Owner referrals found</td></tr>";
-}
-function generateOwnerCode(){
-    const chars="ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
-    let code="MTR-";
-    const bytes=new Uint8Array(12);
-    if(window.crypto&&crypto.getRandomValues)crypto.getRandomValues(bytes);
-    else for(let i=0;i<bytes.length;i++)bytes[i]=Math.floor(Math.random()*256);
-    for(let i=0;i<bytes.length;i++){code+=chars[bytes[i]%chars.length];if(i===3||i===7)code+="-";}
-    if(!confirm("Generate a new Owner activation code? The previous code will be replaced."))return;
-    verifyTxPinAction(()=>{
-        db.collection("settings").doc("config").set({
-            ownerActivationCode:code,
-            ownerActivationCodeActive:true,
-            ownerActivationUsedBy:"",
-            ownerActivationUsedAt:null
-        },{merge:true}).then(()=>{
-            document.getElementById("ownerCodeDisplay").innerText=code;
-            document.getElementById("ownerCodeStatus").innerText="Code status: ACTIVE";
-            ownerActivationCode=code;ownerActivationCodeActive=true;
-            alert("Owner activation code generated and saved.");
-        }).catch(e=>alert(e.message));
-    });
-}
-function copyOwnerCode(){if(ownerActivationCode)copyToClipboard(ownerActivationCode,"Owner activation code");else alert("Generate a code first.");}
-
-/* WITHDRAWALS */
-function clearWithdrawDateFilter(){document.getElementById("withdrawDateFilter").value="";renderWithdrawalsTable();}
-function renderWithdrawalsTable(){
-    const selected=document.getElementById("withdrawDateFilter").value;
-    const filtered=allWithdrawalsData.filter(w=>!selected||dateInputValue(getDateObj(w))===selected);
-    const users=new Set(filtered.map(x=>x.userId).filter(Boolean));
-    const sum=filtered.reduce((a,x)=>a+Number(x.amount||0),0);
-    document.getElementById("withdrawDateSummary").innerHTML=`
-        <span>${selected?"📅 "+escapeHTML(selected):"📊 All Dates"}</span>
-        <span>👥 Users: ${users.size}</span><span>💰 Total: ${sum.toFixed(4)} MTR</span>
-        <span>📄 Requests: ${filtered.length}</span>`;
-    const body=document.getElementById("withdrawTableBody");
-    if(!filtered.length){body.innerHTML="<tr><td colspan='6' style='text-align:center'>No withdrawal requests found</td></tr>";return;}
-    body.innerHTML=filtered.map(w=>{
-        const status=(w.status||"pending").toLowerCase();
-        let action="-";
-        if(status==="pending"){
-            action=`<button class="main-btn btn-success" style="padding:4px 8px" onclick="verifyTxPinAction(()=>handleWithdrawAction('${escapeAttr(w.id)}','${escapeAttr(w.userId||"")}',${Number(w.amount||0)},'approved'))">Approve</button>
-            <button class="main-btn btn-danger" style="padding:4px 8px" onclick="verifyTxPinAction(()=>handleWithdrawAction('${escapeAttr(w.id)}','${escapeAttr(w.userId||"")}',${Number(w.amount||0)},'rejected'))">Reject</button>`;
-        }else if(status==="rejected"){
-            action=`<button class="main-btn btn-danger" style="padding:4px 8px" onclick="verifyTxPinAction(()=>deleteRejectedWithdrawal('${escapeAttr(w.id)}'))">Delete</button>`;
         }
-        return `<tr>
-            <td><strong>${escapeHTML(w.userName||"User")}</strong><br>${escapeHTML(w.userUsername||"")}<br><code>${escapeHTML(w.userId||"")}</code></td>
-            <td>${escapeHTML(dateText(w))}</td>
-            <td style="color:var(--gold-light);font-weight:bold">${Number(w.amount||0).toFixed(4)} MTR</td>
-            <td>${escapeHTML(w.walletAddress||"None")}${w.walletAddress?`<button class="copy-mini-btn" onclick="copyToClipboard('${escapeAttr(w.walletAddress)}','Wallet')">Copy</button>`:""}</td>
-            <td style="font-weight:bold;color:${status==="approved"?"var(--success)":status==="rejected"?"var(--danger)":"var(--warning)"}">${escapeHTML(status.toUpperCase())}</td>
-            <td><div class="action-btns">${action}</div></td>
-        </tr>`;
-    }).join("");
-}
-async function handleWithdrawAction(docId,uid,amount,newStatus){
-    try{
-        await db.runTransaction(async transaction=>{
-            const wRef=db.collection("withdrawals").doc(docId);
-            const wSnap=await transaction.get(wRef);
-            if(!wSnap.exists)throw new Error("Withdrawal request not found.");
-            const w=wSnap.data();
-            if((w.status||"pending").toLowerCase()!=="pending")throw new Error("This request is already processed.");
-            if(newStatus==="rejected"){
-                const uRef=db.collection("users").doc(uid);
-                const uSnap=await transaction.get(uRef);
-                if(uSnap.exists)transaction.update(uRef,{balance:Number(uSnap.data().balance||0)+Number(w.amount||amount||0)});
+
+        function initAdminListeners() {
+            renderOneTimeCodeUI();
+
+            db.collection("users").onSnapshot((snapshot) => {
+                allUsersData = [];
+                let verifiedCount = 0;
+                let totalMtr = 0;
+
+                snapshot.forEach((doc) => {
+                    let data = doc.data();
+                    data.id = doc.id;
+                    allUsersData.push(data);
+
+                    if (data.verified) verifiedCount++;
+                    totalMtr += Number(data.balance || 0);
+                });
+
+                currentTotalSupply = totalMtr;
+                document.getElementById('statTotalUsers').innerText = allUsersData.length;
+                document.getElementById('statVerifiedUsers').innerText = verifiedCount;
+                document.getElementById('statTonRevenue').innerText = (verifiedCount * 0.1).toFixed(1) + " TON";
+                document.getElementById('statTotalMtr').innerText = totalMtr.toFixed(2);
+
+                updateSupplyStatusBanner();
+                renderUsersTable();
+                renderOneTimeCodeUI();
+            });
+
+            db.collection("settings").doc("config").onSnapshot((doc) => {
+                if (doc.exists) {
+                    const data = doc.data();
+                    isWithdrawOpen = data.withdrawOpen || false;
+                    isMaintenanceOn = data.maintenanceMode || false;
+                    maxSupplyLimit = Number(data.maxSupplyLimit || 0);
+                    if (data.supplyStopNotice) {
+                        supplyStopNotice = data.supplyStopNotice;
+                    }
+
+                    const maxInput = document.getElementById('maxSupplyLimitInput');
+                    const noticeInput = document.getElementById('supplyStopNoticeInput');
+                    if (maxInput && document.activeElement !== maxInput) {
+                        maxInput.value = maxSupplyLimit > 0 ? maxSupplyLimit : "";
+                    }
+                    if (noticeInput && document.activeElement !== noticeInput) {
+                        noticeInput.value = supplyStopNotice;
+                    }
+                    updateSupplyStatusBanner();
+
+                    // TON deposit address sync
+                    const tonAddr = data.tonDepositAddress || (data.depositAddresses && data.depositAddresses.ton) || "";
+                    const tonInput = document.getElementById('depositTonInput');
+                    if (tonInput && document.activeElement !== tonInput) {
+                        tonInput.value = tonAddr;
+                    }
+                    renderActiveTonDepositSummary(tonAddr);
+
+                    // One-time admin referral code sync
+                    ownerReferralCode = data.oneTimeAdminCode || data.ownerReferralCode || DEFAULT_UNIQUE_OWNER_CODE;
+                    oneTimeCodeUsed = Boolean(data.oneTimeCodeUsed);
+                    claimedByUserId = data.claimedByUserId || "";
+                    claimedByUserName = data.claimedByUserName || "";
+
+                    const ownerCodeInput = document.getElementById('ownerRefCodeInput');
+                    if (ownerCodeInput && document.activeElement !== ownerCodeInput) {
+                        ownerCodeInput.value = ownerReferralCode;
+                    }
+                    renderOneTimeCodeUI();
+
+                    const wDesc = document.getElementById('withdrawStatusDesc');
+                    const wBtn = document.getElementById('toggleWithdrawBtn');
+                    if (isWithdrawOpen) {
+                        wDesc.innerHTML = "Current Status: <strong style='color:var(--success);'>OPEN</strong>";
+                        wBtn.className = "main-btn btn-danger";
+                        wBtn.innerText = "Close Withdrawal";
+                    } else {
+                        wDesc.innerHTML = "Current Status: <strong style='color:var(--danger);'>CLOSED</strong>";
+                        wBtn.className = "main-btn btn-success";
+                        wBtn.innerText = "Open Withdrawal";
+                    }
+
+                    const mDesc = document.getElementById('maintenanceStatusDesc');
+                    const mBtn = document.getElementById('toggleMaintenanceBtn');
+                    if (isMaintenanceOn) {
+                        mDesc.innerHTML = "Current Status: <strong style='color:var(--danger);'>SITE IS OFFLINE (Maintenance Mode Active)</strong>";
+                        mBtn.className = "main-btn btn-success";
+                        mBtn.innerText = "Turn Site ONLINE";
+                    } else {
+                        mDesc.innerHTML = "Current Status: <strong style='color:var(--success);'>SITE IS ONLINE (Normal Operation)</strong>";
+                        mBtn.className = "main-btn btn-danger";
+                        mBtn.innerText = "Turn Site OFFLINE";
+                    }
+
+                    if (data.minWithdraw) document.getElementById('minWithdrawInput').value = data.minWithdraw;
+                    if (data.miningRate !== undefined) document.getElementById('miningRateInput').value = data.miningRate;
+                    if (data.maintenanceNotice !== undefined) document.getElementById('maintenanceNoticeInput').value = data.maintenanceNotice;
+                    if (data.refCommission !== undefined) document.getElementById('refCommissionInput').value = data.refCommission;
+
+                    if (Array.isArray(data.refTargets)) {
+                        adminRefTargets = data.refTargets.map(t => ({
+                            target: Number(t.target),
+                            reward: Number(t.reward)
+                        }));
+                        renderAdminRefTargetsList();
+                    }
+                }
+            });
+
+            db.collection("tasks").onSnapshot((snapshot) => {
+                let html = "";
+                snapshot.forEach((doc) => {
+                    let t = doc.data();
+                    const resetHours = Number(t.resetHours || 0);
+                    const resetLabel = resetHours > 0 ? `Every ${resetHours}h` : "One-time";
+                    html += `
+                        <tr>
+                            <td><strong>${escapeHTML(t.title)}</strong></td>
+                            <td style="color:var(--gold-light);">+${Number(t.reward || 0)} MTR</td>
+                            <td style="color:var(--cyan-glow);">${escapeHTML(resetLabel)}</td>
+                            <td><a href="${escapeAttr(t.link)}" target="_blank" style="color:var(--cyan-glow);">Open Link</a></td>
+                            <td><button class="main-btn btn-danger" style="padding:4px 8px;" onclick="verifyTxPinAction(() => deleteTask('${escapeAttr(doc.id)}'))">Delete</button></td>
+                        </tr>
+                    `;
+                });
+                document.getElementById('tasksTableBody').innerHTML = html || "<tr><td colspan='5' style='text-align:center;'>No active tasks</td></tr>";
+            });
+
+            db.collection("withdrawals").onSnapshot((snapshot) => {
+                allWithdrawalsData = [];
+                let pendingCount = 0;
+                let completedCount = 0;
+                let rejectedCount = 0;
+                let paidMtr = 0;
+
+                snapshot.forEach((doc) => {
+                    let w = doc.data();
+                    w.id = doc.id;
+                    allWithdrawalsData.push(w);
+
+                    const st = (w.status || "pending").toLowerCase();
+                    if (st === "approved") {
+                        completedCount++;
+                        paidMtr += Number(w.amount || 0);
+                    } else if (st === "rejected") {
+                        rejectedCount++;
+                    } else {
+                        pendingCount++;
+                    }
+                });
+
+                document.getElementById('statPendingWithdraws').innerText = pendingCount;
+                document.getElementById('statCompletedWithdraws').innerText = completedCount;
+                document.getElementById('statRejectedWithdraws').innerText = rejectedCount;
+                document.getElementById('statTotalPaidMtr').innerText = paidMtr.toFixed(2);
+
+                allWithdrawalsData.sort((a, b) => {
+                    const da = getWithdrawDateObj(a)?.getTime() || 0;
+                    const dbTime = getWithdrawDateObj(b)?.getTime() || 0;
+                    return dbTime - da;
+                });
+
+                renderWithdrawalsTable();
+            });
+        }
+
+        function setUserFilter(filter, el) {
+            currentFilter = filter;
+            document.querySelectorAll('.filter-chip').forEach(c => c.classList.remove('active'));
+            el.classList.add('active');
+            renderUsersTable();
+        }
+
+        function renderUsersTable() {
+            const query = document.getElementById('userSearchInput').value.toLowerCase().trim();
+            let filtered = allUsersData.filter(u => {
+                const name = (u.name || "").toLowerCase();
+                const uid = (u.id || "").toLowerCase();
+                const username = (u.username || "").toLowerCase();
+                const wallet = (u.walletAddress || "").toLowerCase();
+
+                const matchSearch = name.includes(query) || uid.includes(query) || username.includes(query) || wallet.includes(query);
+                if (!matchSearch) return false;
+
+                if (currentFilter === 'verified') return u.verified === true;
+                if (currentFilter === 'unverified') return !u.verified;
+                if (currentFilter === 'banned') return u.banned === true;
+                return true;
+            });
+
+            document.getElementById('filteredCountText').innerText = `Showing ${filtered.length} users`;
+
+            let html = "";
+            filtered.forEach(u => {
+                let bal = Number(u.balance || 0).toFixed(4);
+                let walletShort = u.walletAddress ? u.walletAddress.substring(0, 6) + "..." + u.walletAddress.slice(-4) : "None";
+                let statusBadge = u.banned ? `<span class="badge badge-banned">Banned</span>` :
+                                  (u.verified ? `<span class="badge badge-verified">Verified ✓</span>` : `<span class="badge badge-unverified">Unverified</span>`);
+
+                const cleanUsername = u.username ? (u.username.startsWith("@") ? u.username : "@" + u.username) : "";
+
+                html += `
+                    <tr>
+                        <td>
+                            <strong>${escapeHTML(u.name || "Unknown")}</strong><br>
+                            <span style="font-size:11px; color:var(--cyan-glow);">${escapeHTML(cleanUsername || '@no_username')}</span>
+                            ${cleanUsername ? `<button class="copy-mini-btn" onclick="copyToClipboard('${escapeAttr(cleanUsername)}', 'Username')">Copy</button>` : ""}<br>
+                            <span style="font-size:10px; color:var(--text-muted);">${escapeHTML(u.id)}</span>
+                        </td>
+                        <td style="color:var(--gold-light); font-weight:bold;">${bal} MTR</td>
+                        <td>${statusBadge}</td>
+                        <td>
+                            <button class="main-btn btn-primary" style="padding:4px 8px; font-size:11px;" onclick="inspectReferrals('${escapeAttr(u.id)}', '${escapeAttr(u.name || "User")}')">
+                                👥 ${u.referralCount || 0} Team
+                            </button>
+                        </td>
+                        <td title="${escapeAttr(u.walletAddress || '')}">
+                            ${escapeHTML(walletShort)}
+                            ${u.walletAddress ? `<button class="copy-mini-btn" onclick="copyToClipboard('${escapeAttr(u.walletAddress)}', 'Wallet Address')">Copy</button>` : ""}
+                        </td>
+                        <td>
+                            <div class="action-btns">
+                                <button class="main-btn btn-gold" style="padding:5px 7px;" onclick="verifyTxPinAction(() => editUserBalance('${escapeAttr(u.id)}', ${Number(u.balance || 0)}))">💰 Bal</button>
+                                <button class="main-btn ${u.verified ? 'btn-warning' : 'btn-success'}" style="padding:5px 7px;" onclick="verifyTxPinAction(() => toggleUserVerify('${escapeAttr(u.id)}', ${!!u.verified}))">
+                                    ${u.verified ? 'Unverify' : 'Verify'}
+                                </button>
+                                <button class="main-btn ${u.banned ? 'btn-primary' : 'btn-danger'}" style="padding:5px 7px;" onclick="verifyTxPinAction(() => toggleUserBan('${escapeAttr(u.id)}', ${!!u.banned}))">
+                                    ${u.banned ? 'Unban' : 'Ban'}
+                                </button>
+                                <button class="main-btn btn-danger" style="padding:5px 7px;" onclick="verifyTxPinAction(() => deleteUserAccount('${escapeAttr(u.id)}'))">🗑️ Delete</button>
+                            </div>
+                        </td>
+                    </tr>
+                `;
+            });
+
+            document.getElementById('usersTableBody').innerHTML = html || "<tr><td colspan='6' style='text-align:center;'>No matching users found</td></tr>";
+        }
+
+        function deleteUserAccount(uid) {
+            if (confirm(`Are you sure you want to completely delete account ${uid}? This action is irreversible and allows the user to re-register fresh.`)) {
+                db.collection("users").doc(uid).delete()
+                  .then(() => alert("✅ User account successfully deleted!"))
+                  .catch(err => alert("Error deleting user: " + err));
             }
-            transaction.update(wRef,{status:newStatus,processedAt:firebase.firestore.FieldValue.serverTimestamp()});
-        });
-        alert("Withdrawal "+newStatus+"!");
-    }catch(e){alert("Withdrawal action failed: "+e.message);}
-}
-function deleteRejectedWithdrawal(id){
-    if(!confirm("Delete this rejected withdrawal record?"))return;
-    db.collection("withdrawals").doc(id).delete().then(()=>alert("Rejected withdrawal deleted!")).catch(e=>alert(e.message));
-}
+        }
 
-/* TASKS */
-function addNewTask(){
-    const title=document.getElementById("taskTitle").value.trim();
-    const reward=parseFloat(document.getElementById("taskReward").value);
-    const link=document.getElementById("taskLink").value.trim();
-    const raw=parseFloat(document.getElementById("taskResetHours").value);
-    const resetHours=Number.isFinite(raw)&&raw>=0?raw:0;
-    if(!title||!Number.isFinite(reward)||reward<=0||!link){alert("Fill all task fields correctly.");return;}
-    try{new URL(link);}catch(e){alert("Enter a valid task URL.");return;}
-    verifyTxPinAction(()=>{
-        db.collection("tasks").add({
-            title,reward,link,resetHours,
-            createdAt:firebase.firestore.FieldValue.serverTimestamp()
-        }).then(()=>{
-            alert("✅ Task added!");
-            ["taskTitle","taskReward","taskLink","taskResetHours"].forEach(id=>document.getElementById(id).value="");
-        }).catch(e=>alert(e.message));
-    });
-}
-function deleteTask(id){
-    db.collection("tasks").doc(id).delete().then(()=>alert("Task deleted!")).catch(e=>alert(e.message));
-}
+        function editUserBalance(uid, currentBal) {
+            let val = prompt(`Edit MTR Balance for ${uid}:`, currentBal);
+            if (val !== null && !isNaN(val) && val.trim() !== "") {
+                db.collection("users").doc(uid).update({ balance: parseFloat(val) })
+                  .then(() => alert("✅ Balance successfully updated!"));
+            }
+        }
 
-/* GENERAL SETTINGS */
-function saveMaxSupplyConfig(){
-    const v=parseFloat(document.getElementById("maxSupplyLimitInput").value);
-    const limit=Number.isFinite(v)&&v>0?v:0;
-    const notice=document.getElementById("supplyStopNoticeInput").value.trim()||"Total MTR supply limit has been reached! Mining is now stopped.";
-    verifyTxPinAction(()=>{
-        db.collection("settings").doc("config").set({maxSupplyLimit:limit,supplyStopNotice:notice},{merge:true})
-        .then(()=>alert("✅ Supply settings saved!")).catch(e=>alert(e.message));
-    });
-}
-function saveMiningRate(){
-    const rate=parseFloat(document.getElementById("miningRateInput").value);
-    if(!Number.isFinite(rate)||rate<=0){alert("Enter a valid mining rate.");return;}
-    verifyTxPinAction(()=>{
-        db.collection("settings").doc("config").set({miningRate:rate},{merge:true})
-        .then(()=>alert("✅ Mining rate updated!")).catch(e=>alert(e.message));
-    });
-}
-function toggleWithdrawSystem(){
-    verifyTxPinAction(()=>{
-        db.collection("settings").doc("config").set({withdrawOpen:!isWithdrawOpen},{merge:true})
-        .then(()=>alert("Withdrawal system status updated!")).catch(e=>alert(e.message));
-    });
-}
-function toggleMaintenanceMode(){
-    verifyTxPinAction(()=>{
-        db.collection("settings").doc("config").set({maintenanceMode:!isMaintenanceOn},{merge:true})
-        .then(()=>alert("Maintenance mode updated!")).catch(e=>alert(e.message));
-    });
-}
-function saveMaintenanceNotice(){
-    const msg=document.getElementById("maintenanceNoticeInput").value.trim();
-    verifyTxPinAction(()=>{
-        db.collection("settings").doc("config").set({maintenanceNotice:msg},{merge:true})
-        .then(()=>alert("Maintenance notice updated!")).catch(e=>alert(e.message));
-    });
-}
-function saveMinWithdraw(){
-    const val=parseFloat(document.getElementById("minWithdrawInput").value);
-    if(!Number.isFinite(val)||val<=0){alert("Enter a valid minimum withdrawal.");return;}
-    verifyTxPinAction(()=>{
-        db.collection("settings").doc("config").set({minWithdraw:val},{merge:true})
-        .then(()=>alert("Minimum withdrawal updated!")).catch(e=>alert(e.message));
-    });
-}
-function updateAdminPassword(){
-    const pass=document.getElementById("newAdminPass").value.trim();
-    if(pass.length<8){alert("Use a password with at least 8 characters.");return;}
-    verifyTxPinAction(()=>{
-        ADMIN_PASSWORD=pass;
-        localStorage.setItem("mtr_admin_pass",pass);
-        document.getElementById("newAdminPass").value="";
-        alert("Admin password updated on this browser.");
-    });
-}
-function updateTxPin(){
-    const pin=document.getElementById("newTxPin").value.trim();
-    if(!/^\d{4}$/.test(pin)){alert("Transaction PIN must be 4 digits.");return;}
-    verifyTxPinAction(()=>{
-        TRANSACTION_PIN=pin;
-        localStorage.setItem("mtr_tx_pin",pin);
-        document.getElementById("newTxPin").value="";
-        alert("Transaction PIN updated on this browser.");
-    });
-}
-</script>
+        function toggleUserVerify(uid, currentStatus) {
+            db.collection("users").doc(uid).update({ verified: !currentStatus })
+              .then(() => alert("✅ Verification status changed!"));
+        }
+
+        function toggleUserBan(uid, currentBan) {
+            db.collection("users").doc(uid).update({ banned: !currentBan })
+              .then(() => alert("✅ Ban status updated!"));
+        }
+
+        function inspectReferrals(uid, name) {
+            document.getElementById('refModalTitle').innerText = `Referrals of ${name}`;
+            document.getElementById('refModalList').innerHTML = "Loading team...";
+            document.getElementById('refModal').style.display = 'flex';
+
+            const team = allUsersData.filter(u => u.referredBy === uid);
+            if (team.length === 0) {
+                document.getElementById('refModalList').innerHTML = "<p style='color:var(--text-muted);'>No referrals found for this user.</p>";
+                return;
+            }
+
+            let listHtml = `<p style="margin-bottom:8px; color:var(--cyan-glow);">Total Invited: ${team.length}</p>`;
+            team.forEach(m => {
+                listHtml += `
+                    <div style="padding:8px; border-bottom:1px solid rgba(255,255,255,0.1); display:flex; justify-content:space-between;">
+                        <span>${escapeHTML(m.name)} (${escapeHTML(m.id)})</span>
+                        <span style="color:${m.verified ? 'var(--success)' : 'var(--danger)'};">${m.verified ? 'Verified ✓' : 'Unverified'}</span>
+                    </div>
+                `;
+            });
+            document.getElementById('refModalList').innerHTML = listHtml;
+        }
+
+        function closeRefModal() {
+            document.getElementById('refModal').style.display = 'none';
+        }
+
+        function handleWithdrawAction(docId, uid, amount, newStatus) {
+            db.collection("withdrawals").doc(docId).update({ status: newStatus }).then(() => {
+                if (newStatus === 'rejected') {
+                    db.collection("users").doc(uid).get().then(doc => {
+                        if (doc.exists) {
+                            let curBal = Number(doc.data().balance || 0);
+                            db.collection("users").doc(uid).update({ balance: curBal + Number(amount || 0) });
+                        }
+                    });
+                }
+                alert(`Withdrawal ${newStatus}!`);
+            });
+        }
+
+        function addNewTask() {
+            const title = document.getElementById('taskTitle').value.trim();
+            const reward = parseFloat(document.getElementById('taskReward').value);
+            const link = document.getElementById('taskLink').value.trim();
+            const resetHoursRaw = parseFloat(document.getElementById('taskResetHours').value);
+            const resetHours = isNaN(resetHoursRaw) || resetHoursRaw < 0 ? 0 : resetHoursRaw;
+
+            if (!title || isNaN(reward) || !link) {
+                alert("Please fill all task fields properly!");
+                return;
+            }
+
+            verifyTxPinAction(() => {
+                db.collection("tasks").add({
+                    title,
+                    reward,
+                    link,
+                    resetHours,
+                    createdAt: firebase.firestore.FieldValue.serverTimestamp()
+                }).then(() => {
+                    alert("✅ Task added!");
+                    document.getElementById('taskTitle').value = "";
+                    document.getElementById('taskReward').value = "";
+                    document.getElementById('taskLink').value = "";
+                    document.getElementById('taskResetHours').value = "";
+                });
+            });
+        }
+
+        function deleteTask(taskId) {
+            db.collection("tasks").doc(taskId).delete()
+              .then(() => alert("Task deleted!"));
+        }
+
+        function saveMiningRate() {
+            const rate = parseFloat(document.getElementById('miningRateInput').value);
+            if (!isNaN(rate) && rate > 0) {
+                verifyTxPinAction(() => {
+                    db.collection("settings").doc("config").set({ miningRate: rate }, { merge: true })
+                      .then(() => alert("✅ Global mining rate updated successfully!"));
+                });
+            } else {
+                alert("Please enter a valid mining rate!");
+            }
+        }
+
+        function toggleWithdrawSystem() {
+            verifyTxPinAction(() => {
+                db.collection("settings").doc("config").set({ withdrawOpen: !isWithdrawOpen }, { merge: true })
+                  .then(() => alert("Withdrawal system status toggled!"));
+            });
+        }
+
+        function toggleMaintenanceMode() {
+            verifyTxPinAction(() => {
+                db.collection("settings").doc("config").set({ maintenanceMode: !isMaintenanceOn }, { merge: true })
+                  .then(() => alert("Maintenance mode toggled!"));
+            });
+        }
+
+        function saveMaintenanceNotice() {
+            const msg = document.getElementById('maintenanceNoticeInput').value.trim();
+            verifyTxPinAction(() => {
+                db.collection("settings").doc("config").set({ maintenanceNotice: msg }, { merge: true })
+                  .then(() => alert("✅ Maintenance notice updated!"));
+            });
+        }
+
+        function saveMinWithdraw() {
+            const val = parseFloat(document.getElementById('minWithdrawInput').value);
+            if (!isNaN(val) && val > 0) {
+                verifyTxPinAction(() => {
+                    db.collection("settings").doc("config").set({ minWithdraw: val }, { merge: true })
+                      .then(() => alert("✅ Minimum withdrawal limit updated!"));
+                });
+            }
+        }
+
+        function updateAdminPassword() {
+            const newPass = document.getElementById('newAdminPass').value.trim();
+            if (newPass.length < 4) {
+                alert("Password must be at least 4 characters!");
+                return;
+            }
+            verifyTxPinAction(() => {
+                ADMIN_PASSWORD = newPass;
+                localStorage.setItem('mtr_admin_pass', newPass);
+                document.getElementById('newAdminPass').value = "";
+                alert("✅ Admin password updated successfully!");
+            });
+        }
+
+        function updateTxPin() {
+            const newPin = document.getElementById('newTxPin').value.trim();
+            if (newPin.length !== 4 || isNaN(newPin)) {
+                alert("Transaction PIN must be a 4-digit number!");
+                return;
+            }
+            verifyTxPinAction(() => {
+                TRANSACTION_PIN = newPin;
+                localStorage.setItem('mtr_tx_pin', newPin);
+                document.getElementById('newTxPin').value = "";
+                alert("✅ Transaction PIN updated successfully!");
+            });
+        }
+
+        function switchAdminTab(tabName, el) {
+            document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
+            document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+            document.getElementById('tab-' + tabName).classList.add('active');
+            el.classList.add('active');
+        }
+    </script>
 </body>
-                                                                                       </html>
+                    </html>
