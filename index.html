@@ -83,6 +83,10 @@ button{font-family:inherit;cursor:pointer}
 .id-check{color:var(--green);font-size:12px;font-weight:800;margin-top:4px;line-height:1.2}
 .withdraw-box{background:linear-gradient(145deg,#17243A,#101827);border:1px solid rgba(245,197,66,.25);border-radius:17px;padding:18px;display:none;flex-direction:column;gap:12px;width:100%}
 .withdraw-box.active{display:flex}
+.withdraw-closed-card{display:none;width:100%;padding:16px;border-radius:17px;background:linear-gradient(145deg,rgba(239,68,68,.14),rgba(17,27,44,.96));border:1px solid rgba(239,68,68,.38);text-align:center}
+.withdraw-closed-card.active{display:block}
+.withdraw-closed-title{font-size:14px;font-weight:800;color:#FF7B7B;margin-bottom:6px}
+.withdraw-closed-text{font-size:12px;color:#DCE4F0;line-height:1.6}
 .withdraw-input{width:100%;padding:13px;background:#080D18;border:1px solid var(--border);border-radius:10px;color:white;font-size:14px;outline:none}
 .withdraw-input:focus{border-color:var(--gold)}
 .history-switch{display:flex;gap:8px;width:100%;background:#080D18;padding:6px;border-radius:13px;border:1px solid var(--border)}
@@ -262,6 +266,10 @@ button{font-family:inherit;cursor:pointer}
     <div class="list-card"><div class="list-left"><div class="task-icon">💰</div><div><div class="list-sub">Total Mined Balance</div><div class="list-title" id="profileBalance">0.00000001 MTR</div></div></div></div>
     <div class="list-card" onclick="handleWalletClick()"><div class="list-left"><div class="task-icon">💎</div><div><div class="list-sub">Connected Wallet</div><div class="list-title" id="profileWalletAddr">Not Connected</div></div></div><div class="list-value">VIEW</div></div>
     <button class="main-btn btn-gold" id="toggleWithdrawBtn" onclick="toggleWithdrawBox()">📤 WITHDRAW MTR</button>
+    <div class="withdraw-closed-card" id="withdrawClosedCard">
+        <div class="withdraw-closed-title">🔒 Withdrawals Currently Paused</div>
+        <div class="withdraw-closed-text">Withdrawal requests are temporarily closed by the admin. Please check back later.</div>
+    </div>
     <div class="withdraw-box" id="withdrawSectionBox">
         <div class="list-title" style="color:var(--gold);margin-bottom:0">📤 Withdraw MTR</div>
         <div class="list-sub" id="withdrawMinLabel">Minimum withdraw: 10 MTR</div>
@@ -486,6 +494,36 @@ return {
 "'": "&#39;"
 }[char];
 });
+}
+
+function parseWithdrawOpenFlag(data = {}) {
+const rawVal =
+    data.withdrawOpen !== undefined ? data.withdrawOpen :
+    data.withdrawEnabled !== undefined ? data.withdrawEnabled :
+    data.isWithdrawOpen !== undefined ? data.isWithdrawOpen :
+    data.withdrawStatus !== undefined ? data.withdrawStatus :
+    false;
+
+if (typeof rawVal === "boolean") return rawVal;
+if (typeof rawVal === "number") return rawVal === 1;
+if (typeof rawVal === "string") {
+    const normalized = rawVal.trim().toLowerCase();
+    if (["true", "open", "on", "enabled", "active", "1"].includes(normalized)) return true;
+    if (["false", "off", "closed", "disabled", "inactive", "0"].includes(normalized)) return false;
+}
+return false;
+}
+
+function syncWithdrawBoxAvailability() {
+const box = document.getElementById("withdrawSectionBox");
+const closedCard = document.getElementById("withdrawClosedCard");
+const btn = document.getElementById("toggleWithdrawBtn");
+if (!isWithdrawOpen) {
+    if (box) box.classList.remove("active");
+    if (btn) btn.textContent = "📤 WITHDRAW MTR";
+} else if (closedCard) {
+    closedCard.classList.remove("active");
+}
 }
 
 function applyBanState(status) {
@@ -2057,7 +2095,8 @@ oneTimeAdminCodeValue = String(data.oneTimeAdminCode || data.ownerReferralCode |
 oneTimeAdminCodeUsed = data.oneTimeCodeUsed === true;
 oneTimeClaimedByUserId = String(data.claimedByUserId || "").trim();
 
-isWithdrawOpen = data.withdrawOpen === true;
+isWithdrawOpen = parseWithdrawOpenFlag(data);
+syncWithdrawBoxAvailability();
 
 minWithdrawLimit = Number(data.minWithdraw ?? 10);
 maxWithdrawLimit = Number(data.maxWithdraw ?? 1000000);
@@ -2143,8 +2182,9 @@ maintenanceActive = data.maintenanceMode === true;
 const minLabel = document.getElementById("withdrawMinLabel");
 
 if (minLabel) {
+    const statusText = isWithdrawOpen ? "Open" : "Closed";
     minLabel.textContent =
-        `Min: ${minWithdrawLimit} MTR • Max: ${maxWithdrawLimit} MTR`;
+        `Min: ${minWithdrawLimit} MTR • Max: ${maxWithdrawLimit} MTR (${statusText})`;
 }
 
 if (maintenanceActive) {
@@ -2839,7 +2879,21 @@ function toggleWithdrawBox() {
 if (isBanned) return;
 
 const box = document.getElementById("withdrawSectionBox");
+const closedCard = document.getElementById("withdrawClosedCard");
 const btn = document.getElementById("toggleWithdrawBtn");
+
+if (!isWithdrawOpen) {
+    if (box) box.classList.remove("active");
+    if (closedCard) {
+        const isNowShown = closedCard.classList.toggle("active");
+        if (btn) {
+            btn.textContent = isNowShown ? "🔒 HIDE WITHDRAW NOTICE" : "📤 WITHDRAW MTR";
+        }
+    }
+    return;
+}
+
+if (closedCard) closedCard.classList.remove("active");
 if (!box) return;
 
 const isOpen = box.classList.toggle("active");
@@ -2858,7 +2912,8 @@ async function handleWithdraw() {
 if (isBanned) return;
 
 if (!isWithdrawOpen) {
-    alert("Withdrawal system is currently closed by admin.");
+    syncWithdrawBoxAvailability();
+    document.getElementById("withdrawClosedCard")?.classList.add("active");
     return;
 }
 
@@ -2951,6 +3006,8 @@ function updateUI() {
 applyBanState(isBanned);
 
 if (isBanned || maintenanceActive) return;
+
+syncWithdrawBoxAvailability();
 
 const liveRaw = getLiveWalletRawAddress();
 
