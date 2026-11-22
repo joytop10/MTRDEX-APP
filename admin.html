@@ -76,6 +76,54 @@
             display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px;
         }
 
+        .withdraw-mode-switch {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 14px;
+            flex-wrap: wrap;
+        }
+        .withdraw-mode-btn {
+            padding: 10px 18px;
+            border-radius: 10px;
+            border: 1px solid rgba(0, 212, 255, 0.35);
+            background: #060B14;
+            color: var(--text-muted);
+            font-size: 13px;
+            font-weight: 700;
+            cursor: pointer;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .withdraw-mode-btn.active {
+            background: linear-gradient(90deg, var(--gold-light), var(--gold-dark));
+            color: #000;
+            border-color: var(--gold-light);
+        }
+        .withdraw-sub-card {
+            background: #060B14;
+            border: 1px solid rgba(0, 119, 255, 0.25);
+            border-radius: 12px;
+            padding: 14px;
+            min-width: 0;
+        }
+        .withdraw-sub-card.incomplete-box {
+            border-color: rgba(255, 159, 10, 0.45);
+        }
+        .withdraw-sub-card.completed-box {
+            border-color: rgba(50, 215, 75, 0.45);
+        }
+        .withdraw-sub-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 8px;
+            margin-bottom: 10px;
+            padding-bottom: 8px;
+            border-bottom: 1px solid rgba(255,255,255,0.08);
+        }
+
         .form-control {
             width: 100%; padding: 11px 12px; background: #060B14; border: 1px solid rgba(0, 119, 255, 0.4);
             border-radius: 8px; color: #FFF; font-size: 13px; margin-bottom: 10px;
@@ -127,6 +175,7 @@
         .badge-verified { background: rgba(50, 215, 75, 0.15); color: var(--success); }
         .badge-unverified { background: rgba(255, 69, 58, 0.15); color: var(--danger); }
         .badge-banned { background: #FF453A; color: #FFF; }
+        .badge-master { background: rgba(245, 196, 67, 0.18); color: var(--gold-light); border: 1px solid rgba(245, 196, 67, 0.45); }
 
         .target-row-card {
             display: flex; justify-content: space-between; align-items: center;
@@ -155,8 +204,8 @@
     <div id="loginOverlay">
         <div class="login-box">
             <h2 style="color: var(--gold-light); margin-bottom: 8px;">🔐 Admin Access</h2>
-            <p style="font-size: 12px; color: var(--text-muted); margin-bottom: 18px;">Enter Admin Password to manage MTR Master</p>
-            <input type="password" id="adminPassInput" class="form-control" placeholder="Enter Admin Password...">
+            <p style="font-size: 12px; color: var(--text-muted); margin-bottom: 18px;">Enter Admin Password or Withdraw Section Password</p>
+            <input type="password" id="adminPassInput" class="form-control" placeholder="Enter Password...">
             <button class="main-btn btn-gold" style="width: 100%; padding: 12px;" onclick="checkAdminLogin()">Unlock Panel</button>
         </div>
     </div>
@@ -164,7 +213,7 @@
     <!-- MAIN DASHBOARD -->
     <div id="adminDashboard" style="display: none;">
         <div class="header">
-            <h2>👑 MTR Master Admin Panel</h2>
+            <h2 id="dashboardHeaderTitle">👑 MTR Master Admin Panel</h2>
             <div style="display: flex; align-items: center; gap: 10px;">
                 <span style="font-size: 12px; color: var(--success);">● Live Sync</span>
                 <button class="main-btn btn-danger" style="padding: 6px 10px;" onclick="logoutAdmin()">Logout</button>
@@ -172,7 +221,7 @@
         </div>
 
         <!-- LIVE ANALYTICS -->
-        <div class="stats-grid">
+        <div class="stats-grid" id="adminStatsGrid">
             <div class="stat-card">
                 <div class="stat-label">Total Users</div>
                 <div class="stat-value" id="statTotalUsers">0</div>
@@ -212,14 +261,14 @@
         </div>
 
         <!-- NAVIGATION TABS -->
-        <div class="admin-tabs">
-            <button class="tab-btn active" onclick="switchAdminTab('users', this)">👥 Users Search & Manage</button>
-            <button class="tab-btn" onclick="switchAdminTab('deposits', this)">💎 TON Deposit Address</button>
-            <button class="tab-btn" onclick="switchAdminTab('withdrawals', this)">💸 Withdrawals</button>
-            <button class="tab-btn" onclick="switchAdminTab('referrals', this)">🎁 Referral Targets</button>
-            <button class="tab-btn" onclick="switchAdminTab('owner-referral', this)">👑 One-Time Admin Code</button>
-            <button class="tab-btn" onclick="switchAdminTab('tasks', this)">📋 Tasks Manager</button>
-            <button class="tab-btn" onclick="switchAdminTab('settings', this)">⚙️ Admin & Site Settings</button>
+        <div class="admin-tabs" id="adminTabsBar">
+            <button class="tab-btn active" data-tab="users" onclick="switchAdminTab('users', this)">👥 Users Search & Manage</button>
+            <button class="tab-btn" data-tab="deposits" onclick="switchAdminTab('deposits', this)">💎 TON Deposit Address</button>
+            <button class="tab-btn" data-tab="withdrawals" onclick="switchAdminTab('withdrawals', this)">💸 Withdrawals</button>
+            <button class="tab-btn" data-tab="referrals" onclick="switchAdminTab('referrals', this)">🎁 Referral Targets</button>
+            <button class="tab-btn" data-tab="owner-referral" onclick="switchAdminTab('owner-referral', this)">👑 One-Time Admin Code</button>
+            <button class="tab-btn" data-tab="tasks" onclick="switchAdminTab('tasks', this)">📋 Tasks Manager</button>
+            <button class="tab-btn" data-tab="settings" onclick="switchAdminTab('settings', this)">⚙️ Admin & Site Settings</button>
         </div>
 
         <!-- TAB 1: USERS MANAGEMENT & SEARCH -->
@@ -229,7 +278,7 @@
                     <span>🔍 Advanced User Search</span>
                     <span id="filteredCountText" style="font-size: 12px; color: var(--cyan-glow);">Showing all users</span>
                 </div>
-                <input type="text" id="userSearchInput" class="form-control" placeholder="Search by Telegram ID (UID_...), Username (@...), Name, or Wallet Address..." onkeyup="renderUsersTable()">
+                <input type="text" id="userSearchInput" class="form-control" placeholder="Search by Telegram ID (UID_...), Username (@...), Name, Referred By, or Wallet Address..." onkeyup="renderUsersTable()">
                 <div class="filter-bar">
                     <span class="filter-chip active" onclick="setUserFilter('all', this)">All Users</span>
                     <span class="filter-chip" onclick="setUserFilter('verified', this)">Verified Only ✓</span>
@@ -242,6 +291,7 @@
                         <thead>
                             <tr>
                                 <th>User Info (Name / Username / ID)</th>
+                                <th>Referred By</th>
                                 <th>Balance</th>
                                 <th>Status</th>
                                 <th>Referrals</th>
@@ -250,7 +300,7 @@
                             </tr>
                         </thead>
                         <tbody id="usersTableBody">
-                            <tr><td colspan="6" style="text-align:center;">Loading users...</td></tr>
+                            <tr><td colspan="7" style="text-align:center;">Loading users...</td></tr>
                         </tbody>
                     </table>
                 </div>
@@ -286,12 +336,27 @@
         <!-- TAB 3: WITHDRAWALS -->
         <div id="tab-withdrawals" class="tab-content">
             <div class="section-card">
-                <div class="section-title">📤 Withdrawal Requests Queue & Date Calendar</div>
+                <div class="section-title">
+                    <span>📤 Withdrawal Requests Queue & Payment Search</span>
+                    <span id="withdrawSearchMatchBadge" style="font-size:12px; color:var(--cyan-glow);">All requests</span>
+                </div>
+
+                <input type="text" id="withdrawSearchInput" class="form-control" placeholder="Search user payment status by User ID (UID_...), Username (@...), Name, Wallet, or Referrer..." onkeyup="renderWithdrawalsTable()">
+
+                <div class="withdraw-mode-switch">
+                    <button type="button" id="btnWithdrawPending" class="withdraw-mode-btn active" onclick="switchWithdrawListMode('pending', this)">
+                        ⏳ Pending <span id="pendingModeCount" class="badge badge-unverified">0</span>
+                    </button>
+                    <button type="button" id="btnWithdrawComplete" class="withdraw-mode-btn" onclick="switchWithdrawListMode('complete', this)">
+                        ✅ Complete <span id="completeModeCount" class="badge badge-verified">0</span>
+                    </button>
+                </div>
 
                 <div class="date-filter-bar">
                     <label for="withdrawDateFilter" style="font-size:12px; color:var(--gold-light); font-weight:bold;">📅 Select Date:</label>
                     <input type="date" id="withdrawDateFilter" class="form-control" style="width:auto; margin-bottom:0;" onchange="renderWithdrawalsTable()">
                     <button class="main-btn btn-primary" style="padding:8px 12px;" onclick="clearWithdrawDateFilter()">All Dates</button>
+                    <button class="main-btn btn-warning" style="padding:8px 12px;" onclick="clearWithdrawSearchAndDate()">Reset Search</button>
                 </div>
 
                 <div class="date-summary-box" id="withdrawDateSummary">
@@ -299,22 +364,56 @@
                     <span>Total Requests: 0</span>
                 </div>
 
-                <div class="table-responsive">
-                    <table>
-                        <thead>
-                            <tr>
-                                <th>User ID & Details</th>
-                                <th>Date & Time</th>
-                                <th>Amount (MTR)</th>
-                                <th>TON Wallet Address</th>
-                                <th>Status</th>
-                                <th>Secure Action</th>
-                            </tr>
-                        </thead>
-                        <tbody id="withdrawTableBody">
-                            <tr><td colspan="6" style="text-align:center;">No withdrawal requests found</td></tr>
-                        </tbody>
-                    </table>
+                <!-- PENDING / INCOMPLETE LIST -->
+                <div id="withdrawPanelPending" class="withdraw-sub-card incomplete-box">
+                    <div class="withdraw-sub-header">
+                        <span style="color: var(--warning); font-weight: 700; font-size: 13px;">⏳ Pending Withdrawals</span>
+                        <span id="incompleteWithdrawCount" class="badge badge-unverified">0</span>
+                    </div>
+                    <div class="table-responsive">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>User ID & Details</th>
+                                    <th>Referred By</th>
+                                    <th>Date & Time</th>
+                                    <th>Amount (MTR)</th>
+                                    <th>TON Wallet Address</th>
+                                    <th>Status</th>
+                                    <th>Secure Action</th>
+                                </tr>
+                            </thead>
+                            <tbody id="incompleteWithdrawTableBody">
+                                <tr><td colspan="7" style="text-align:center;">No pending withdrawal requests</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- COMPLETE / APPROVED LIST -->
+                <div id="withdrawPanelComplete" class="withdraw-sub-card completed-box" style="display: none;">
+                    <div class="withdraw-sub-header">
+                        <span style="color: var(--success); font-weight: 700; font-size: 13px;">✅ Complete Withdrawals</span>
+                        <span id="completedWithdrawCount" class="badge badge-verified">0</span>
+                    </div>
+                    <div class="table-responsive">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>User ID & Details</th>
+                                    <th>Referred By</th>
+                                    <th>Date & Time</th>
+                                    <th>Amount (MTR)</th>
+                                    <th>TON Wallet Address</th>
+                                    <th>Status</th>
+                                    <th>Secure Action</th>
+                                </tr>
+                            </thead>
+                            <tbody id="completedWithdrawTableBody">
+                                <tr><td colspan="7" style="text-align:center;">No completed withdrawal requests</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
                 </div>
             </div>
         </div>
@@ -505,6 +604,10 @@
                 <input type="password" id="newAdminPass" class="form-control" placeholder="New Admin Password">
                 <button class="main-btn btn-gold" style="margin-bottom: 15px;" onclick="updateAdminPassword()">Update Admin Password</button>
 
+                <p style="font-size: 12px; color: var(--text-muted); margin-bottom: 10px;">Change Withdraw Section Only Password (Access only Withdrawals tab):</p>
+                <input type="password" id="newWithdrawPass" class="form-control" placeholder="New Withdraw Section Password">
+                <button class="main-btn btn-warning" style="margin-bottom: 15px;" onclick="updateWithdrawPassword()">Update Withdraw Section Password</button>
+
                 <p style="font-size: 12px; color: var(--text-muted); margin-bottom: 10px;">Change Transaction PIN (Required for user actions):</p>
                 <input type="password" id="newTxPin" class="form-control" placeholder="New 4-digit PIN (e.g. 5678)">
                 <button class="main-btn btn-success" onclick="updateTxPin()">Update Transaction PIN</button>
@@ -537,11 +640,14 @@
         const db = firebase.firestore();
 
         const DEFAULT_UNIQUE_OWNER_CODE = "MTR_OWNER_8492X";
+        const INITIAL_FALLBACK_ADMIN_PASS = "admin123";
+        const INITIAL_FALLBACK_WITHDRAW_PASS = "withdraw123";
 
         let allUsersData = [];
         let allWithdrawalsData = [];
         let adminRefTargets = [];
         let currentFilter = 'all';
+        let currentWithdrawMode = 'pending';
         let isWithdrawOpen = false;
         let isMaintenanceOn = false;
         let currentTotalSupply = 0;
@@ -554,7 +660,6 @@
         let claimedByUserId = "";
         let claimedByUserName = "";
 
-        let ADMIN_PASSWORD = localStorage.getItem('mtr_admin_pass') || "admin123";
         let TRANSACTION_PIN = localStorage.getItem('mtr_tx_pin') || "1234";
 
         function escapeAttr(str) {
@@ -565,6 +670,49 @@
             return String(str || "").replace(/[&<>"']/g, c => ({
                 '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;'
             }[c]));
+        }
+
+        function getReferrerDisplayInfo(refIdRaw, withdrawRefRaw = "", targetUserId = "") {
+            const cleanTargetId = String(targetUserId || "").trim();
+            if (cleanTargetId && claimedByUserId && cleanTargetId === String(claimedByUserId).trim()) {
+                return {
+                    hasRef: true,
+                    isMasterCode: true,
+                    label: "👑 Master (Admin Code)",
+                    subText: `Code: ${ownerReferralCode}`
+                };
+            }
+
+            const refId = String(refIdRaw || withdrawRefRaw || "").trim();
+            if (!refId) {
+                return {
+                    hasRef: false,
+                    isMasterCode: false,
+                    label: "No Ref (Direct)",
+                    subText: "No referral"
+                };
+            }
+
+            const referrerUser = allUsersData.find(u => String(u.id || "").trim() === refId);
+            if (referrerUser) {
+                const refName = referrerUser.name || "User";
+                const refUsername = referrerUser.username
+                    ? (referrerUser.username.startsWith("@") ? referrerUser.username : "@" + referrerUser.username)
+                    : "";
+                return {
+                    hasRef: true,
+                    isMasterCode: false,
+                    label: refName,
+                    subText: refUsername ? `${refUsername} • ${refId}` : refId
+                };
+            }
+
+            return {
+                hasRef: true,
+                isMasterCode: false,
+                label: refId,
+                subText: "Referrer ID"
+            };
         }
 
         async function copyToClipboard(text, label = "Copied") {
@@ -583,26 +731,93 @@
             }
         }
 
-        function checkAdminLogin() {
-            const input = document.getElementById('adminPassInput').value;
-            if (input === ADMIN_PASSWORD) {
-                sessionStorage.setItem('mtr_admin_auth', 'true');
-                document.getElementById('loginOverlay').style.display = 'none';
-                document.getElementById('adminDashboard').style.display = 'block';
-                initAdminListeners();
+        async function getAuthCredentialsFromFirestore() {
+            const docSnap = await db.collection("settings").doc("adminAuth").get();
+            const data = docSnap.exists ? docSnap.data() : {};
+            const hasAdminPass = typeof data.adminPassword === "string" && data.adminPassword.length > 0;
+            const hasWithdrawPass = typeof data.withdrawPassword === "string" && data.withdrawPassword.length > 0;
+
+            return {
+                exists: docSnap.exists,
+                hasAdminPass,
+                hasWithdrawPass,
+                adminPassword: hasAdminPass ? data.adminPassword : INITIAL_FALLBACK_ADMIN_PASS,
+                withdrawPassword: hasWithdrawPass ? data.withdrawPassword : INITIAL_FALLBACK_WITHDRAW_PASS
+            };
+        }
+
+        function applyAccessRoleUI(role) {
+            const isWithdrawOnly = role === "withdraw_only";
+            const headerTitle = document.getElementById("dashboardHeaderTitle");
+            const statsGrid = document.getElementById("adminStatsGrid");
+            const tabsBar = document.getElementById("adminTabsBar");
+
+            if (isWithdrawOnly) {
+                if (headerTitle) headerTitle.innerText = "💸 MTR Master - Withdraw Section Only";
+                if (statsGrid) statsGrid.style.display = "none";
+                if (tabsBar) tabsBar.style.display = "none";
+
+                document.querySelectorAll(".tab-content").forEach(t => t.classList.remove("active"));
+                const withdrawTab = document.getElementById("tab-withdrawals");
+                if (withdrawTab) withdrawTab.classList.add("active");
             } else {
-                alert("❌ Wrong Admin Password!");
+                if (headerTitle) headerTitle.innerText = "👑 MTR Master Admin Panel";
+                if (statsGrid) statsGrid.style.display = "";
+                if (tabsBar) tabsBar.style.display = "";
+            }
+        }
+
+        async function checkAdminLogin() {
+            const input = document.getElementById('adminPassInput').value.trim();
+            if (!input) {
+                alert("❌ Please enter Password!");
+                return;
+            }
+
+            try {
+                const creds = await getAuthCredentialsFromFirestore();
+                let matchedRole = null;
+
+                if (input === creds.adminPassword) {
+                    matchedRole = "full_admin";
+                } else if (input === creds.withdrawPassword) {
+                    matchedRole = "withdraw_only";
+                }
+
+                if (matchedRole) {
+                    if (!creds.exists || !creds.hasAdminPass || !creds.hasWithdrawPass) {
+                        await db.collection("settings").doc("adminAuth").set({
+                            adminPassword: creds.adminPassword,
+                            withdrawPassword: creds.withdrawPassword,
+                            updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+                        }, { merge: true });
+                    }
+
+                    sessionStorage.setItem('mtr_admin_auth', 'true');
+                    sessionStorage.setItem('mtr_admin_role', matchedRole);
+                    document.getElementById('loginOverlay').style.display = 'none';
+                    document.getElementById('adminDashboard').style.display = 'block';
+                    applyAccessRoleUI(matchedRole);
+                    initAdminListeners();
+                } else {
+                    alert("❌ Wrong or outdated Password! Only the latest valid password works.");
+                }
+            } catch (err) {
+                alert("Error verifying password: " + err);
             }
         }
 
         function logoutAdmin() {
             sessionStorage.removeItem('mtr_admin_auth');
+            sessionStorage.removeItem('mtr_admin_role');
             location.reload();
         }
 
         if (sessionStorage.getItem('mtr_admin_auth') === 'true') {
+            const savedRole = sessionStorage.getItem('mtr_admin_role') || 'full_admin';
             document.getElementById('loginOverlay').style.display = 'none';
             document.getElementById('adminDashboard').style.display = 'block';
+            applyAccessRoleUI(savedRole);
             initAdminListeners();
         }
 
@@ -721,6 +936,8 @@
                     claimedByUserId = "";
                     claimedByUserName = "";
                     renderOneTimeCodeUI();
+                    renderUsersTable();
+                    renderWithdrawalsTable();
                     alert("✅ One-Time code reset! It can now be claimed once by a Master account.");
                 }).catch(err => alert("Error resetting code: " + err));
             });
@@ -763,7 +980,6 @@
                     : `Master ID: Not claimed yet`;
             }
 
-            // All accounts whose referredBy matches the claimed Master account ID
             const underMaster = claimedByUserId
                 ? allUsersData.filter(u => u.id !== claimedByUserId && String(u.referredBy || "").trim() === String(claimedByUserId).trim())
                 : [];
@@ -795,6 +1011,19 @@
             }).join("");
         }
 
+        function switchWithdrawListMode(mode, el) {
+            currentWithdrawMode = mode === 'complete' ? 'complete' : 'pending';
+            document.querySelectorAll('.withdraw-mode-btn').forEach(btn => btn.classList.remove('active'));
+            if (el) el.classList.add('active');
+
+            const pendingBox = document.getElementById('withdrawPanelPending');
+            const completeBox = document.getElementById('withdrawPanelComplete');
+            if (pendingBox) pendingBox.style.display = currentWithdrawMode === 'pending' ? 'block' : 'none';
+            if (completeBox) completeBox.style.display = currentWithdrawMode === 'complete' ? 'block' : 'none';
+
+            renderWithdrawalsTable();
+        }
+
         function getWithdrawDateObj(w) {
             if (w.createdAt && typeof w.createdAt.toDate === "function") {
                 return w.createdAt.toDate();
@@ -821,84 +1050,163 @@
             renderWithdrawalsTable();
         }
 
+        function clearWithdrawSearchAndDate() {
+            const searchEl = document.getElementById('withdrawSearchInput');
+            const dateEl = document.getElementById('withdrawDateFilter');
+            if (searchEl) searchEl.value = "";
+            if (dateEl) dateEl.value = "";
+            renderWithdrawalsTable();
+        }
+
+        function matchesWithdrawSearch(w, query) {
+            if (!query) return true;
+            const userName = String(w.userName || "").toLowerCase();
+            const userUsername = String(w.userUsername || "").toLowerCase();
+            const userId = String(w.userId || "").toLowerCase();
+            const wallet = String(w.walletAddress || "").toLowerCase();
+            const status = String(w.status || "pending").toLowerCase();
+            const refRaw = String(w.referredBy || w.referrerId || "").toLowerCase();
+
+            const matchedUser = allUsersData.find(u => String(u.id || "").trim() === String(w.userId || "").trim());
+            const uRef = matchedUser ? String(matchedUser.referredBy || "").toLowerCase() : "";
+            const refInfo = getReferrerDisplayInfo(matchedUser ? matchedUser.referredBy : "", w.referredBy || w.referrerId || "", w.userId || "");
+
+            return (
+                userName.includes(query) ||
+                userUsername.includes(query) ||
+                userId.includes(query) ||
+                wallet.includes(query) ||
+                status.includes(query) ||
+                refRaw.includes(query) ||
+                uRef.includes(query) ||
+                String(refInfo.label || "").toLowerCase().includes(query) ||
+                String(refInfo.subText || "").toLowerCase().includes(query)
+            );
+        }
+
+        function buildWithdrawRowHtml(w) {
+            const status = (w.status || "pending").toLowerCase();
+            const statusColor = status === 'approved' ? 'var(--success)' : (status === 'rejected' ? 'var(--danger)' : 'var(--warning)');
+            const dObj = getWithdrawDateObj(w);
+            const dateTimeText = dObj && !isNaN(dObj.getTime())
+                ? dObj.toLocaleString([], { year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })
+                : "N/A";
+
+            const matchedUser = allUsersData.find(u => String(u.id || "").trim() === String(w.userId || "").trim());
+            const refInfo = getReferrerDisplayInfo(matchedUser ? matchedUser.referredBy : "", w.referredBy || w.referrerId || "", w.userId || "");
+
+            let actionButtonsHtml = "";
+            if (!w.status || status === 'pending') {
+                actionButtonsHtml = `
+                    <button class="main-btn btn-success" style="padding:4px 8px;" onclick="verifyTxPinAction(() => handleWithdrawAction('${escapeAttr(w.id)}', '${escapeAttr(w.userId)}', ${Number(w.amount || 0)}, 'approved'))">Approve</button>
+                    <button class="main-btn btn-danger" style="padding:4px 8px;" onclick="verifyTxPinAction(() => handleWithdrawAction('${escapeAttr(w.id)}', '${escapeAttr(w.userId)}', ${Number(w.amount || 0)}, 'rejected'))">Reject</button>
+                `;
+            } else if (status === 'rejected') {
+                actionButtonsHtml = `
+                    <button class="main-btn btn-danger" style="padding:4px 8px;" onclick="verifyTxPinAction(() => deleteRejectedWithdrawal('${escapeAttr(w.id)}'))">🗑️ Delete</button>
+                `;
+            } else {
+                actionButtonsHtml = `<span style="color:var(--success); font-weight:bold;">Completed ✓</span>`;
+            }
+
+            const refBadgeClass = refInfo.isMasterCode
+                ? "badge badge-master"
+                : (refInfo.hasRef ? "badge badge-verified" : "badge badge-unverified");
+            const refBadgeStyle = refInfo.hasRef && !refInfo.isMasterCode
+                ? "background:rgba(0,212,255,0.14); color:var(--cyan-glow);"
+                : "";
+
+            return `
+                <tr>
+                    <td>
+                        <strong>${escapeHTML(w.userName || "User")}</strong><br>
+                        <span style="font-size:10px; color:var(--cyan-glow);">${escapeHTML(w.userUsername || "")}</span><br>
+                        <code>${escapeHTML(w.userId || "")}</code>
+                    </td>
+                    <td>
+                        <span class="${refBadgeClass}" style="${refBadgeStyle}">${escapeHTML(refInfo.label)}</span><br>
+                        <span style="font-size:10px; color:var(--text-muted);">${escapeHTML(refInfo.subText)}</span>
+                    </td>
+                    <td style="font-size:11px; color:var(--text-muted);">${escapeHTML(dateTimeText)}</td>
+                    <td style="color:var(--gold-light); font-weight:bold;">${Number(w.amount || 0).toFixed(4)} MTR</td>
+                    <td style="font-size:11px;">
+                        ${escapeHTML(w.walletAddress || "None")}
+                        ${w.walletAddress ? `<button class="copy-mini-btn" onclick="copyToClipboard('${escapeAttr(w.walletAddress)}', 'Wallet Address')">Copy</button>` : ""}
+                    </td>
+                    <td style="color:${statusColor}; font-weight:bold; text-transform:uppercase;">${escapeHTML(status)}</td>
+                    <td><div class="action-btns">${actionButtonsHtml}</div></td>
+                </tr>
+            `;
+        }
+
         function renderWithdrawalsTable() {
+            const searchQuery = (document.getElementById('withdrawSearchInput')?.value || "").toLowerCase().trim();
             const selectedDate = document.getElementById('withdrawDateFilter').value;
             const summaryEl = document.getElementById('withdrawDateSummary');
-            const tbody = document.getElementById('withdrawTableBody');
+            const matchBadgeEl = document.getElementById('withdrawSearchMatchBadge');
+            const incompleteTbody = document.getElementById('incompleteWithdrawTableBody');
+            const completedTbody = document.getElementById('completedWithdrawTableBody');
+            const incompleteCountEl = document.getElementById('incompleteWithdrawCount');
+            const completedCountEl = document.getElementById('completedWithdrawCount');
+            const pendingModeCountEl = document.getElementById('pendingModeCount');
+            const completeModeCountEl = document.getElementById('completeModeCount');
 
             const filtered = allWithdrawalsData.filter(w => {
+                if (!matchesWithdrawSearch(w, searchQuery)) return false;
                 if (!selectedDate) return true;
                 const dObj = getWithdrawDateObj(w);
                 return formatDateInputValue(dObj) === selectedDate;
             });
 
-            const uniqueUsers = new Set(filtered.map(w => w.userId).filter(Boolean));
-            const sumAmount = filtered.reduce((acc, item) => acc + Number(item.amount || 0), 0);
+            const completedList = filtered.filter(w => (w.status || "pending").toLowerCase() === "approved");
+            const incompleteList = filtered.filter(w => (w.status || "pending").toLowerCase() !== "approved");
+            const activeList = currentWithdrawMode === 'complete' ? completedList : incompleteList;
+
+            const uniqueUsers = new Set(activeList.map(w => w.userId).filter(Boolean));
+            const sumAmount = activeList.reduce((acc, item) => acc + Number(item.amount || 0), 0);
+            const paidMatchAmount = completedList.reduce((acc, item) => acc + Number(item.amount || 0), 0);
+            const modeLabel = currentWithdrawMode === 'complete' ? 'Complete' : 'Pending';
+
+            if (matchBadgeEl) {
+                if (searchQuery) {
+                    matchBadgeEl.innerHTML = `Paid: <strong style="color:var(--success);">${completedList.length} (${paidMatchAmount.toFixed(2)} MTR)</strong> • Pending: <strong style="color:var(--warning);">${incompleteList.length}</strong>`;
+                } else {
+                    matchBadgeEl.innerText = `Total matched: ${filtered.length}`;
+                }
+            }
 
             if (selectedDate) {
                 summaryEl.innerHTML = `
-                    <span>📅 Date: <strong>${escapeHTML(selectedDate)}</strong></span>
-                    <span>👥 Users Withdrew: <strong>${uniqueUsers.size}</strong></span>
+                    <span>📅 Date: <strong>${escapeHTML(selectedDate)}</strong> (${escapeHTML(modeLabel)})</span>
+                    <span>👥 Users: <strong>${uniqueUsers.size}</strong></span>
                     <span>💰 Total MTR: <strong>${sumAmount.toFixed(4)} MTR</strong></span>
-                    <span>📄 Requests: <strong>${filtered.length}</strong></span>
+                    <span>📄 Requests: <strong>${activeList.length}</strong></span>
                 `;
             } else {
                 summaryEl.innerHTML = `
-                    <span>📊 Showing All Dates</span>
+                    <span>📊 Showing All Dates (${escapeHTML(modeLabel)})</span>
                     <span>👥 Unique Users: <strong>${uniqueUsers.size}</strong></span>
                     <span>💰 Total MTR: <strong>${sumAmount.toFixed(4)} MTR</strong></span>
-                    <span>📄 Total Requests: <strong>${filtered.length}</strong></span>
+                    <span>📄 Requests: <strong>${activeList.length}</strong></span>
                 `;
             }
 
-            if (!filtered.length) {
-                tbody.innerHTML = "<tr><td colspan='6' style='text-align:center;'>No withdrawal requests found for this selection</td></tr>";
-                return;
+            if (incompleteCountEl) incompleteCountEl.innerText = String(incompleteList.length);
+            if (completedCountEl) completedCountEl.innerText = String(completedList.length);
+            if (pendingModeCountEl) pendingModeCountEl.innerText = String(incompleteList.length);
+            if (completeModeCountEl) completeModeCountEl.innerText = String(completedList.length);
+
+            if (!incompleteList.length) {
+                incompleteTbody.innerHTML = `<tr><td colspan='7' style='text-align:center; color:var(--text-muted);'>${searchQuery ? 'No pending payment found for this search' : 'No pending withdrawal requests'}</td></tr>`;
+            } else {
+                incompleteTbody.innerHTML = incompleteList.map(buildWithdrawRowHtml).join("");
             }
 
-            let html = "";
-            filtered.forEach(w => {
-                const status = (w.status || "pending").toLowerCase();
-                const statusColor = status === 'approved' ? 'var(--success)' : (status === 'rejected' ? 'var(--danger)' : 'var(--warning)');
-                const dObj = getWithdrawDateObj(w);
-                const dateTimeText = dObj && !isNaN(dObj.getTime())
-                    ? dObj.toLocaleString([], { year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })
-                    : "N/A";
-
-                let actionButtonsHtml = "";
-                if (!w.status || status === 'pending') {
-                    actionButtonsHtml = `
-                        <button class="main-btn btn-success" style="padding:4px 8px;" onclick="verifyTxPinAction(() => handleWithdrawAction('${escapeAttr(w.id)}', '${escapeAttr(w.userId)}', ${Number(w.amount || 0)}, 'approved'))">Approve</button>
-                        <button class="main-btn btn-danger" style="padding:4px 8px;" onclick="verifyTxPinAction(() => handleWithdrawAction('${escapeAttr(w.id)}', '${escapeAttr(w.userId)}', ${Number(w.amount || 0)}, 'rejected'))">Reject</button>
-                    `;
-                } else if (status === 'rejected') {
-                    actionButtonsHtml = `
-                        <button class="main-btn btn-danger" style="padding:4px 8px;" onclick="verifyTxPinAction(() => deleteRejectedWithdrawal('${escapeAttr(w.id)}'))">🗑️ Delete</button>
-                    `;
-                } else {
-                    actionButtonsHtml = `<span style="color:var(--text-muted);">-</span>`;
-                }
-
-                html += `
-                    <tr>
-                        <td>
-                            <strong>${escapeHTML(w.userName || "User")}</strong><br>
-                            <span style="font-size:10px; color:var(--cyan-glow);">${escapeHTML(w.userUsername || "")}</span><br>
-                            <code>${escapeHTML(w.userId || "")}</code>
-                        </td>
-                        <td style="font-size:11px; color:var(--text-muted);">${escapeHTML(dateTimeText)}</td>
-                        <td style="color:var(--gold-light); font-weight:bold;">${Number(w.amount || 0).toFixed(4)} MTR</td>
-                        <td style="font-size:11px;">
-                            ${escapeHTML(w.walletAddress || "None")}
-                            ${w.walletAddress ? `<button class="copy-mini-btn" onclick="copyToClipboard('${escapeAttr(w.walletAddress)}', 'Wallet Address')">Copy</button>` : ""}
-                        </td>
-                        <td style="color:${statusColor}; font-weight:bold; text-transform:uppercase;">${escapeHTML(status)}</td>
-                        <td><div class="action-btns">${actionButtonsHtml}</div></td>
-                    </tr>
-                `;
-            });
-
-            tbody.innerHTML = html;
+            if (!completedList.length) {
+                completedTbody.innerHTML = `<tr><td colspan='7' style='text-align:center; color:var(--text-muted);'>${searchQuery ? 'No completed payment found for this search' : 'No completed withdrawal requests'}</td></tr>`;
+            } else {
+                completedTbody.innerHTML = completedList.map(buildWithdrawRowHtml).join("");
+            }
         }
 
         function deleteRejectedWithdrawal(docId) {
@@ -985,6 +1293,7 @@
                 updateSupplyStatusBanner();
                 renderUsersTable();
                 renderOneTimeCodeUI();
+                renderWithdrawalsTable();
             });
 
             db.collection("settings").doc("config").onSnapshot((doc) => {
@@ -1026,6 +1335,8 @@
                         ownerCodeInput.value = ownerReferralCode;
                     }
                     renderOneTimeCodeUI();
+                    renderUsersTable();
+                    renderWithdrawalsTable();
 
                     const wDesc = document.getElementById('withdrawStatusDesc');
                     const wBtn = document.getElementById('toggleWithdrawBtn');
@@ -1141,8 +1452,10 @@
                 const uid = (u.id || "").toLowerCase();
                 const username = (u.username || "").toLowerCase();
                 const wallet = (u.walletAddress || "").toLowerCase();
+                const referredBy = (u.referredBy || "").toLowerCase();
+                const masterTag = (claimedByUserId && u.id === claimedByUserId) ? "master admin code" : "";
 
-                const matchSearch = name.includes(query) || uid.includes(query) || username.includes(query) || wallet.includes(query);
+                const matchSearch = name.includes(query) || uid.includes(query) || username.includes(query) || wallet.includes(query) || referredBy.includes(query) || masterTag.includes(query);
                 if (!matchSearch) return false;
 
                 if (currentFilter === 'verified') return u.verified === true;
@@ -1161,6 +1474,13 @@
                                   (u.verified ? `<span class="badge badge-verified">Verified ✓</span>` : `<span class="badge badge-unverified">Unverified</span>`);
 
                 const cleanUsername = u.username ? (u.username.startsWith("@") ? u.username : "@" + u.username) : "";
+                const refInfo = getReferrerDisplayInfo(u.referredBy, "", u.id);
+                const refBadgeClass = refInfo.isMasterCode
+                    ? "badge badge-master"
+                    : (refInfo.hasRef ? "badge badge-verified" : "badge badge-unverified");
+                const refBadgeStyle = refInfo.hasRef && !refInfo.isMasterCode
+                    ? "background:rgba(0,212,255,0.14); color:var(--cyan-glow);"
+                    : "";
 
                 html += `
                     <tr>
@@ -1169,6 +1489,10 @@
                             <span style="font-size:11px; color:var(--cyan-glow);">${escapeHTML(cleanUsername || '@no_username')}</span>
                             ${cleanUsername ? `<button class="copy-mini-btn" onclick="copyToClipboard('${escapeAttr(cleanUsername)}', 'Username')">Copy</button>` : ""}<br>
                             <span style="font-size:10px; color:var(--text-muted);">${escapeHTML(u.id)}</span>
+                        </td>
+                        <td>
+                            <span class="${refBadgeClass}" style="${refBadgeStyle}">${escapeHTML(refInfo.label)}</span><br>
+                            <span style="font-size:10px; color:var(--text-muted);">${escapeHTML(refInfo.subText)}</span>
                         </td>
                         <td style="color:var(--gold-light); font-weight:bold;">${bal} MTR</td>
                         <td>${statusBadge}</td>
@@ -1197,7 +1521,7 @@
                 `;
             });
 
-            document.getElementById('usersTableBody').innerHTML = html || "<tr><td colspan='6' style='text-align:center;'>No matching users found</td></tr>";
+            document.getElementById('usersTableBody').innerHTML = html || "<tr><td colspan='7' style='text-align:center;'>No matching users found</td></tr>";
         }
 
         function deleteUserAccount(uid) {
@@ -1361,10 +1685,30 @@
                 return;
             }
             verifyTxPinAction(() => {
-                ADMIN_PASSWORD = newPass;
-                localStorage.setItem('mtr_admin_pass', newPass);
-                document.getElementById('newAdminPass').value = "";
-                alert("✅ Admin password updated successfully!");
+                db.collection("settings").doc("adminAuth").set({
+                    adminPassword: newPass,
+                    updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+                }, { merge: true }).then(() => {
+                    document.getElementById('newAdminPass').value = "";
+                    alert("✅ Admin password updated! Old password is now blocked across all devices.");
+                }).catch(err => alert("Error updating admin password: " + err));
+            });
+        }
+
+        function updateWithdrawPassword() {
+            const newWithdrawPass = document.getElementById('newWithdrawPass').value.trim();
+            if (newWithdrawPass.length < 4) {
+                alert("Withdraw password must be at least 4 characters!");
+                return;
+            }
+            verifyTxPinAction(() => {
+                db.collection("settings").doc("adminAuth").set({
+                    withdrawPassword: newWithdrawPass,
+                    withdrawPassUpdatedAt: firebase.firestore.FieldValue.serverTimestamp()
+                }, { merge: true }).then(() => {
+                    document.getElementById('newWithdrawPass').value = "";
+                    alert("✅ Withdraw section password updated! Old withdraw password is now blocked.");
+                }).catch(err => alert("Error updating withdraw password: " + err));
             });
         }
 
@@ -1383,6 +1727,9 @@
         }
 
         function switchAdminTab(tabName, el) {
+            if ((sessionStorage.getItem('mtr_admin_role') || 'full_admin') === 'withdraw_only' && tabName !== 'withdrawals') {
+                return;
+            }
             document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
             document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
             document.getElementById('tab-' + tabName).classList.add('active');
@@ -1390,4 +1737,4 @@
         }
     </script>
 </body>
-                </html>
+                    </html>
