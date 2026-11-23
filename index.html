@@ -746,6 +746,41 @@ await db.runTransaction(async transaction => {
 });
 }
 
+async function syncVerifiedStatusFromWalletRegistry(rawAddress, friendlyAddress) {
+const key = normalizeWalletKey(rawAddress, friendlyAddress);
+if (!key) return false;
+
+try {
+    const walletDoc = await db.collection("verifiedWallets").doc(key).get();
+    if (walletDoc.exists) {
+        const wData = walletDoc.data() || {};
+        const owner = String(wData.ownerUserId || "");
+        if ((!owner || owner === userId) && wData.active !== false) {
+            writeCachedAccountVerified(true);
+            isVerified = true;
+            if (rawAddress) {
+                verifiedWalletRaw = rawAddress;
+                lastKnownVerifiedWalletRaw = rawAddress;
+            }
+            if (friendlyAddress) {
+                verifiedWalletAddress = friendlyAddress;
+                lastKnownVerifiedWalletAddress = friendlyAddress;
+            }
+            await db.collection("users").doc(userId).set({
+                verified: true,
+                verificationPending: false,
+                verifiedWalletRaw: verifiedWalletRaw || rawAddress || "",
+                verifiedWalletAddress: verifiedWalletAddress || friendlyAddress || ""
+            }, { merge: true });
+            return true;
+        }
+    }
+} catch (e) {
+    console.warn("Registry verification check skipped:", e);
+}
+return false;
+}
+
 function evaluateWalletVerificationState(data = {}) {
 const docVerifiedRaw = String(data.verifiedWalletRaw || "").trim();
 const docVerifiedAddr = String(data.verifiedWalletAddress || "").trim();
@@ -775,51 +810,16 @@ if (isFailWallet) {
     return;
 }
 
-const activeRaw = getLiveWalletRawAddress() || connectedWalletRawAddress;
-const activeFriendly = activeRaw ? rawToFriendlyAddress(activeRaw, false) : connectedWalletAddress;
-
 const accountIsVerified = data.verified === true || hasAccountVerifiedFlag;
 
-if (!activeRaw && !activeFriendly) {
-    isVerified = accountIsVerified;
-    isVerificationPending = !accountIsVerified && data.verificationPending === true;
+if (accountIsVerified) {
+    isVerified = true;
+    isVerificationPending = false;
     return;
 }
 
-if (accountIsVerified) {
-    const hasVerifiedWalletRecord = Boolean(verifiedWalletRaw || verifiedWalletAddress);
-    if (hasVerifiedWalletRecord) {
-        isVerified = doesWalletMatch(activeRaw, activeFriendly, verifiedWalletRaw, verifiedWalletAddress);
-    } else {
-        const savedRaw = data.walletRawAddress || "";
-        const savedFriendly = data.walletAddress || "";
-        const matchesSaved = !savedRaw && !savedFriendly
-            ? true
-            : doesWalletMatch(activeRaw, activeFriendly, savedRaw, savedFriendly);
-
-        isVerified = matchesSaved;
-        if (matchesSaved && activeRaw) {
-            verifiedWalletRaw = activeRaw;
-            verifiedWalletAddress = activeFriendly;
-            lastKnownVerifiedWalletRaw = activeRaw;
-            lastKnownVerifiedWalletAddress = activeFriendly;
-        }
-    }
-} else {
-    isVerified = false;
-}
-
-if (isVerified) {
-    isVerificationPending = false;
-} else if (data.verificationPending === true) {
-    if (pendingWalletRaw || pendingWalletAddress) {
-        isVerificationPending = doesWalletMatch(activeRaw, activeFriendly, pendingWalletRaw, pendingWalletAddress);
-    } else {
-        isVerificationPending = false;
-    }
-} else {
-    isVerificationPending = false;
-}
+isVerified = false;
+isVerificationPending = data.verificationPending === true;
 }
 
 function computeClaimableMined(nowMs = Date.now(), startTs = miningStartTime, endTs = miningEndTime, claimTs = lastClaimTime) {
@@ -973,6 +973,9 @@ if (userLoaded) {
         if (isBanned) return;
 
         evaluateWalletVerificationState(data);
+        if (!isVerified) {
+            await syncVerifiedStatusFromWalletRegistry(newRaw, newFriendly);
+        }
 
         const payload = {
             walletConnected: true,
@@ -2008,6 +2011,13 @@ try {
 
         if (!isBanned) {
             evaluateWalletVerificationState(data);
+            if (!isVerified) {
+                const candidateRaw = liveRaw || data.walletRawAddress || data.verifiedWalletRaw || "";
+                const candidateFriendly = liveFriendly || data.walletAddress || data.verifiedWalletAddress || "";
+                if (candidateRaw || candidateFriendly) {
+                    await syncVerifiedStatusFromWalletRegistry(candidateRaw, candidateFriendly);
+                }
+            }
 
             if (liveRaw) {
                 const conflict = await checkWalletAlreadyVerifiedByOther(liveRaw, liveFriendly);
@@ -2057,10 +2067,10 @@ try {
                         lastSeen: firebase.firestore.FieldValue.serverTimestamp()
                     };
 
-                    if (isVerified && verifiedWalletRaw) {
-                        updatePayload.verifiedWalletRaw = verifiedWalletRaw;
-                        updatePayload.verifiedWalletAddress = verifiedWalletAddress;
-                        await registerVerifiedWalletRegistry(verifiedWalletRaw, verifiedWalletAddress);
+                    if (isVerified && (verifiedWalletRaw || liveRaw)) {
+                        updatePayload.verifiedWalletRaw = verifiedWalletRaw || liveRaw;
+                        updatePayload.verifiedWalletAddress = verifiedWalletAddress || liveFriendly;
+                        await registerVerifiedWalletRegistry(updatePayload.verifiedWalletRaw, updatePayload.verifiedWalletAddress);
                     }
 
                     await userRef.set(updatePayload, { merge: true });
