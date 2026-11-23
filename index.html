@@ -472,8 +472,7 @@ localStorage.removeItem("mtr_acc_ver_" + userId);
 } catch (e) {}
 }
 
-let isVerified = readCachedAccountVerified();
-hasAccountVerifiedFlag = isVerified;
+let isVerified = false;
 let isVerificationPending = false;
 let isBanned = false;
 
@@ -498,6 +497,8 @@ let historyListenersStarted = false;
 let miningStartTime = 0;
 let miningEndTime = 0;
 let lastClaimTime = 0;
+let miningPausedAtMs = 0;
+let isMiningPausedForWallet = false;
 
 let allTeamMembers = [];
 let teamLoading = false;
@@ -746,7 +747,13 @@ await db.runTransaction(async transaction => {
 });
 }
 
-async function syncVerifiedStatusFromWalletRegistry(rawAddress, friendlyAddress) {
+async function isCurrentWalletVerifiedForUser(rawAddress, friendlyAddress) {
+if (!rawAddress && !friendlyAddress) return false;
+if (!verifiedWalletRaw && !verifiedWalletAddress) return false;
+if (!doesWalletMatch(rawAddress, friendlyAddress, verifiedWalletRaw, verifiedWalletAddress)) {
+return false;
+}
+
 const key = normalizeWalletKey(rawAddress, friendlyAddress);
 if (!key) return false;
 
@@ -754,34 +761,18 @@ try {
     const walletDoc = await db.collection("verifiedWallets").doc(key).get();
     if (walletDoc.exists) {
         const wData = walletDoc.data() || {};
-        const owner = String(wData.ownerUserId || "");
-        if ((!owner || owner === userId) && wData.active !== false) {
-            writeCachedAccountVerified(true);
-            isVerified = true;
-            if (rawAddress) {
-                verifiedWalletRaw = rawAddress;
-                lastKnownVerifiedWalletRaw = rawAddress;
-            }
-            if (friendlyAddress) {
-                verifiedWalletAddress = friendlyAddress;
-                lastKnownVerifiedWalletAddress = friendlyAddress;
-            }
-            await db.collection("users").doc(userId).set({
-                verified: true,
-                verificationPending: false,
-                verifiedWalletRaw: verifiedWalletRaw || rawAddress || "",
-                verifiedWalletAddress: verifiedWalletAddress || friendlyAddress || ""
-            }, { merge: true });
-            return true;
-        }
+        if (wData.active === false) return false;
+        if (wData.ownerUserId && wData.ownerUserId !== userId) return false;
+        return true;
     }
 } catch (e) {
-    console.warn("Registry verification check skipped:", e);
-}
-return false;
+    console.warn("Wallet registry check error:", e);
 }
 
-function evaluateWalletVerificationState(data = {}) {
+return true;
+}
+
+function evaluateWalletVerificationState(data = {}, activeRaw = "", activeFriendly = "") {
 const docVerifiedRaw = String(data.verifiedWalletRaw || "").trim();
 const docVerifiedAddr = String(data.verifiedWalletAddress || "").trim();
 
@@ -792,44 +783,111 @@ if (docVerifiedAddr) {
     lastKnownVerifiedWalletAddress = docVerifiedAddr;
 }
 
-verifiedWalletRaw = docVerifiedRaw || lastKnownVerifiedWalletRaw;
-verifiedWalletAddress = docVerifiedAddr || lastKnownVerifiedWalletAddress;
+verifiedWalletRaw = docVerifiedRaw;
+verifiedWalletAddress = docVerifiedAddr;
 
 pendingWalletRaw = String(data.verificationWalletRaw || data.pendingWalletRaw || "").trim();
 pendingWalletAddress = String(data.verificationWalletAddress || data.pendingWalletAddress || "").trim();
 
-if (data.verified === true) {
-    writeCachedAccountVerified(true);
-} else if (data.verified === false && !hasAccountVerifiedFlag) {
-    writeCachedAccountVerified(false);
-}
+hasAccountVerifiedFlag = data.verified === true;
+writeCachedAccountVerified(hasAccountVerifiedFlag);
 
-if (isFailWallet) {
+if (isFailWallet || !walletConnected || (!activeRaw && !activeFriendly)) {
     isVerified = false;
     isVerificationPending = false;
     return;
 }
 
-const accountIsVerified = data.verified === true || hasAccountVerifiedFlag;
+const matchesVerifiedWallet =
+    data.verified === true &&
+    Boolean(verifiedWalletRaw || verifiedWalletAddress) &&
+    doesWalletMatch(activeRaw, activeFriendly, verifiedWalletRaw, verifiedWalletAddress);
 
-if (accountIsVerified) {
+if (matchesVerifiedWallet) {
     isVerified = true;
     isVerificationPending = false;
     return;
 }
 
 isVerified = false;
-isVerificationPending = data.verificationPending === true;
+isVerificationPending =
+    data.verificationPending === true &&
+    doesWalletMatch(activeRaw, activeFriendly, pendingWalletRaw, pendingWalletAddress);
 }
 
 function computeClaimableMined(nowMs = Date.now(), startTs = miningStartTime, endTs = miningEndTime, claimTs = lastClaimTime) {
+if (!walletConnected || !isVerified) {
+    return 0;
+}
 const baseTs = claimTs > 0 ? claimTs : startTs;
 if (!baseTs || baseTs <= 0 || miningRatePerSec <= 0) {
-return 0;
+    return 0;
 }
 const effectiveNow = endTs > 0 ? Math.min(nowMs, endTs) : nowMs;
 const elapsedSec = Math.max(0, (effectiveNow - baseTs) / 1000);
 return elapsedSec * miningRatePerSec;
+}
+
+async function pauseOrResumeMiningForWalletState(shouldPause, nowMs = Date.now()) {
+if (!userLoaded || isBanned) return;
+const userRef = db.collection("users").doc(userId);
+
+try {
+    await db.runTransaction(async transaction => {
+        const snap = await transaction.get(userRef);
+        if (!snap.exists) return;
+        const data = snap.data() || {};
+
+        let curStart = Number(data.miningStartTime || 0);
+        let curEnd = Number(data.miningEndTime || 0);
+        let curClaim = Number(data.lastClaimTime || curStart || 0);
+        let curPausedAt = Number(data.miningPausedAt || 0);
+        let curPausedFlag = data.miningPaused === true;
+
+        if (shouldPause) {
+            if (curStart > 0 && !curPausedFlag) {
+                const effectiveNow = curEnd > 0 ? Math.min(nowMs, curEnd) : nowMs;
+                curPausedAt = Math.max(curClaim || curStart, effectiveNow);
+                curPausedFlag = true;
+
+                transaction.set(userRef, {
+                    miningPaused: true,
+                    miningPausedAt: curPausedAt
+                }, { merge: true });
+            }
+            isMiningPausedForWallet = curPausedFlag || isMiningPausedForWallet;
+            miningPausedAtMs = curPausedAt || miningPausedAtMs;
+        } else {
+            if (curStart > 0 && curPausedFlag && curPausedAt > 0) {
+                const pausedDuration = Math.max(0, nowMs - curPausedAt);
+                if (curClaim > 0) curClaim += pausedDuration;
+                if (curStart > 0) curStart += pausedDuration;
+                if (curEnd > 0) curEnd += pausedDuration;
+
+                transaction.set(userRef, {
+                    miningStartTime: curStart,
+                    miningEndTime: curEnd,
+                    lastClaimTime: curClaim,
+                    miningPaused: false,
+                    miningPausedAt: 0
+                }, { merge: true });
+            } else if (curPausedFlag) {
+                transaction.set(userRef, {
+                    miningPaused: false,
+                    miningPausedAt: 0
+                }, { merge: true });
+            }
+
+            miningStartTime = curStart;
+            miningEndTime = curEnd;
+            lastClaimTime = curClaim;
+            isMiningPausedForWallet = false;
+            miningPausedAtMs = 0;
+        }
+    });
+} catch (e) {
+    console.warn("Mining pause/resume sync skipped:", e);
+}
 }
 
 function setAvatar(element) {
@@ -939,6 +997,8 @@ if (conflict.blocked) {
         console.warn("Auto disconnect on fail wallet:", e);
     }
 
+    await pauseOrResumeMiningForWalletState(true, Date.now());
+
     if (userLoaded) {
         try {
             await db.collection("users").doc(userId).set({
@@ -972,9 +1032,12 @@ if (userLoaded) {
         applyBanState(data.banned === true);
         if (isBanned) return;
 
-        evaluateWalletVerificationState(data);
-        if (!isVerified) {
-            await syncVerifiedStatusFromWalletRegistry(newRaw, newFriendly);
+        evaluateWalletVerificationState(data, newRaw, newFriendly);
+        if (isVerified) {
+            const stillValid = await isCurrentWalletVerifiedForUser(newRaw, newFriendly);
+            if (!stillValid) {
+                isVerified = false;
+            }
         }
 
         const payload = {
@@ -985,13 +1048,13 @@ if (userLoaded) {
             verificationPending: isVerificationPending
         };
 
-        if (isVerified && newRaw) {
-            payload.verifiedWalletRaw = verifiedWalletRaw || newRaw;
-            payload.verifiedWalletAddress = verifiedWalletAddress || newFriendly;
-            await registerVerifiedWalletRegistry(payload.verifiedWalletRaw, payload.verifiedWalletAddress);
-        }
-
         await db.collection("users").doc(userId).set(payload, { merge: true });
+
+        if (isVerified) {
+            await pauseOrResumeMiningForWalletState(false, Date.now());
+        } else {
+            await pauseOrResumeMiningForWalletState(true, Date.now());
+        }
 
         updateUI();
     } catch (e) {
@@ -1023,6 +1086,7 @@ tonConnectUI.onStatusChange(async wallet => {
                 walletConnected = false;
                 connectedWalletAddress = "";
                 connectedWalletRawAddress = "";
+                isVerified = false;
                 updateUI();
                 return;
             }
@@ -1032,6 +1096,10 @@ tonConnectUI.onStatusChange(async wallet => {
             walletConnected = false;
             connectedWalletAddress = "";
             connectedWalletRawAddress = "";
+            isVerified = false;
+            isVerificationPending = false;
+
+            await pauseOrResumeMiningForWalletState(true, Date.now());
 
             if (userLoaded) {
                 try {
@@ -1145,6 +1213,10 @@ try {
     connectedWalletRawAddress = "";
     isFailWallet = false;
     failWalletOwnerId = "";
+    isVerified = false;
+    isVerificationPending = false;
+
+    await pauseOrResumeMiningForWalletState(true, Date.now());
 
     await db.collection("users").doc(userId).set({
         walletConnected: false,
@@ -1155,7 +1227,7 @@ try {
     closeWalletModal();
     updateUI();
 
-    alert("Wallet disconnected! Reconnect your verified wallet anytime to continue mining.");
+    alert("Wallet disconnected! Mining is paused until you reconnect your verified wallet.");
 } catch (e) {
     console.error(e);
     alert("Unable to disconnect wallet.");
@@ -1579,12 +1651,6 @@ if (isFailWallet) {
     return;
 }
 
-if (isVerified || hasAccountVerifiedFlag) {
-    isVerified = true;
-    updateUI();
-    return;
-}
-
 if (!walletConnected || !tonConnectUI) {
     alert("Please connect your wallet first!");
     await handleWalletClick();
@@ -1671,6 +1737,8 @@ try {
     verifiedWalletAddress = currentFriendly;
     lastKnownVerifiedWalletRaw = currentRaw;
     lastKnownVerifiedWalletAddress = currentFriendly;
+
+    await pauseOrResumeMiningForWalletState(false, Date.now());
 
     updateUI();
 
@@ -1942,6 +2010,8 @@ const data = doc.data();
         miningStartTime = Number(data.miningStartTime || 0);
         miningEndTime = Number(data.miningEndTime || 0);
         lastClaimTime = Number(data.lastClaimTime || data.miningStartTime || 0);
+        isMiningPausedForWallet = data.miningPaused === true;
+        miningPausedAtMs = Number(data.miningPausedAt || 0);
 
         if (data.tasks) completedTasks = data.tasks;
         if (data.visitedTasks) visitedTasks = data.visitedTasks;
@@ -1956,7 +2026,9 @@ const data = doc.data();
         isMasterOwnerAccount = data.isMasterOwner === true;
         updateReferralCodeUI();
 
-        evaluateWalletVerificationState(data);
+        const activeRaw = getLiveWalletRawAddress() || (walletConnected ? connectedWalletRawAddress : "");
+        const activeFriendly = activeRaw ? rawToFriendlyAddress(activeRaw, false) : "";
+        evaluateWalletVerificationState(data, activeRaw, activeFriendly);
 
         claimedTargets = Array.isArray(data.claimedTargets)
             ? data.claimedTargets
@@ -1993,6 +2065,8 @@ try {
             miningStartTime = Number(data.miningStartTime || 0);
             miningEndTime = Number(data.miningEndTime || 0);
             lastClaimTime = Number(data.lastClaimTime || data.miningStartTime || 0);
+            isMiningPausedForWallet = data.miningPaused === true;
+            miningPausedAtMs = Number(data.miningPausedAt || 0);
         }
 
         refRewardBalance = Number(data.refReward || 0);
@@ -2010,15 +2084,6 @@ try {
         isMasterOwnerAccount = data.isMasterOwner === true;
 
         if (!isBanned) {
-            evaluateWalletVerificationState(data);
-            if (!isVerified) {
-                const candidateRaw = liveRaw || data.walletRawAddress || data.verifiedWalletRaw || "";
-                const candidateFriendly = liveFriendly || data.walletAddress || data.verifiedWalletAddress || "";
-                if (candidateRaw || candidateFriendly) {
-                    await syncVerifiedStatusFromWalletRegistry(candidateRaw, candidateFriendly);
-                }
-            }
-
             if (liveRaw) {
                 const conflict = await checkWalletAlreadyVerifiedByOther(liveRaw, liveFriendly);
 
@@ -2052,7 +2117,11 @@ try {
                     connectedWalletAddress = liveFriendly;
                     walletConnected = true;
 
-                    evaluateWalletVerificationState(data);
+                    evaluateWalletVerificationState(data, liveRaw, liveFriendly);
+                    if (isVerified) {
+                        const validWallet = await isCurrentWalletVerifiedForUser(liveRaw, liveFriendly);
+                        if (!validWallet) isVerified = false;
+                    }
 
                     const updatePayload = {
                         walletConnected: true,
@@ -2067,25 +2136,21 @@ try {
                         lastSeen: firebase.firestore.FieldValue.serverTimestamp()
                     };
 
-                    if (isVerified && (verifiedWalletRaw || liveRaw)) {
-                        updatePayload.verifiedWalletRaw = verifiedWalletRaw || liveRaw;
-                        updatePayload.verifiedWalletAddress = verifiedWalletAddress || liveFriendly;
-                        await registerVerifiedWalletRegistry(updatePayload.verifiedWalletRaw, updatePayload.verifiedWalletAddress);
-                    }
-
                     await userRef.set(updatePayload, { merge: true });
                 }
             } else {
                 walletConnected = false;
                 connectedWalletAddress = "";
                 connectedWalletRawAddress = "";
-                evaluateWalletVerificationState(data);
+                isVerified = false;
+                isVerificationPending = false;
+                evaluateWalletVerificationState(data, "", "");
 
                 await userRef.set({
                     walletConnected: false,
                     walletAddress: "",
                     walletRawAddress: "",
-                    verified: isVerified,
+                    verified: false,
                     userId,
                     telegramId: telegramIdNumber,
                     name: userName,
@@ -2130,6 +2195,8 @@ try {
             miningStartTime: 0,
             miningEndTime: 0,
             lastClaimTime: 0,
+            miningPaused: false,
+            miningPausedAt: 0,
             referredBy: null,
             isMasterOwner: false,
             createdAt: firebase.firestore.FieldValue.serverTimestamp()
@@ -2139,6 +2206,8 @@ try {
         miningStartTime = 0;
         miningEndTime = 0;
         lastClaimTime = 0;
+        isMiningPausedForWallet = false;
+        miningPausedAtMs = 0;
         referrerId = null;
         referrerCode = "";
         isMasterOwnerAccount = false;
@@ -2149,6 +2218,11 @@ try {
 
     if (!isBanned) {
         await ensurePersonalReferralCode();
+        if (walletConnected && isVerified) {
+            await pauseOrResumeMiningForWalletState(false, Date.now());
+        } else {
+            await pauseOrResumeMiningForWalletState(true, Date.now());
+        }
     }
 
     updateReferralCodeUI();
@@ -2852,12 +2926,12 @@ if (isFailWallet) {
 
 const liveAddress = getLiveWalletAddress();
 
-if (!isVerified && !hasAccountVerifiedFlag && !liveAddress) {
+if (!walletConnected && !liveAddress) {
     await handleWalletClick();
     return;
 }
 
-if (!isVerified && !hasAccountVerifiedFlag) {
+if (!isVerified) {
     if (isVerificationPending) {
         alert("Your verification for this wallet is pending admin confirmation.");
         return;
@@ -2895,12 +2969,21 @@ try {
         const data = snap.data();
 
         if (data.banned === true) throw new Error("BANNED");
-        if (data.verified !== true && !hasAccountVerifiedFlag) throw new Error("NOT_VERIFIED");
+        if (data.verified !== true || !data.walletConnected) throw new Error("NOT_VERIFIED");
 
         const currentBalance = Number(data.balance || 0);
-        const startTs = Number(data.miningStartTime || 0);
-        const endTs = Number(data.miningEndTime || 0);
-        const claimTs = Number(data.lastClaimTime || startTs || 0);
+        let startTs = Number(data.miningStartTime || 0);
+        let endTs = Number(data.miningEndTime || 0);
+        let claimTs = Number(data.lastClaimTime || startTs || 0);
+        const wasPaused = data.miningPaused === true;
+        const pausedAtTs = Number(data.miningPausedAt || 0);
+
+        if (wasPaused && pausedAtTs > 0 && now > pausedAtTs) {
+            const pausedSpan = now - pausedAtTs;
+            if (startTs > 0) startTs += pausedSpan;
+            if (endTs > 0) endTs += pausedSpan;
+            if (claimTs > 0) claimTs += pausedSpan;
+        }
 
         const hadActiveSession = startTs > 0;
         const pendingEarned = hadActiveSession
@@ -2921,6 +3004,8 @@ try {
             miningStartTime: nextStart,
             miningEndTime: nextEnd,
             lastClaimTime: nextStart,
+            miningPaused: false,
+            miningPausedAt: 0,
             updatedAt: firebase.firestore.FieldValue.serverTimestamp()
         }, { merge: true });
 
@@ -2928,6 +3013,8 @@ try {
         miningStartTime = nextStart;
         miningEndTime = nextEnd;
         lastClaimTime = nextStart;
+        isMiningPausedForWallet = false;
+        miningPausedAtMs = 0;
         claimedAmount = toAdd;
         startedSession = !hadActiveSession;
     });
@@ -2951,7 +3038,7 @@ try {
     if (e.message === "BANNED") {
         applyBanState(true);
     } else if (e.message === "NOT_VERIFIED") {
-        alert("Your account is not verified.");
+        alert("Connect your verified wallet to mine or claim.");
     } else {
         alert("Failed to process mining action.");
     }
@@ -3021,7 +3108,7 @@ if (amount > maxWithdrawLimit) {
     return;
 }
 
-const address = getLiveWalletAddress() || connectedWalletAddress || verifiedWalletAddress;
+const address = getLiveWalletAddress() || connectedWalletAddress;
 
 if (!address) {
     await handleWalletClick();
@@ -3107,16 +3194,18 @@ if (liveRaw && !isFailWallet) {
         walletConnected = false;
     }
 
-    if (hasAccountVerifiedFlag) {
-        isVerified = true;
+    if (
+        !verifiedWalletRaw && !verifiedWalletAddress ||
+        !doesWalletMatch(liveRaw, connectedWalletAddress, verifiedWalletRaw, verifiedWalletAddress)
+    ) {
+        isVerified = false;
     }
 } else if (!isFailWallet) {
     walletConnected = false;
     connectedWalletRawAddress = "";
     connectedWalletAddress = "";
-    if (hasAccountVerifiedFlag) {
-        isVerified = true;
-    }
+    isVerified = false;
+    isVerificationPending = false;
 }
 
 const now = Date.now();
@@ -3183,8 +3272,7 @@ if (isFailWallet) {
     return;
 }
 
-if (isVerified || hasAccountVerifiedFlag) {
-    isVerified = true;
+if (walletConnected && isVerified) {
     badge.textContent = "Verified ✓";
     badge.className = "status-badge verified";
 
@@ -3238,7 +3326,7 @@ if (isVerified || hasAccountVerifiedFlag) {
     badge.className = "status-badge";
 
     document.getElementById("miningStatus").textContent =
-        isVerificationPending ? "Verification Pending" : "Pending Verification";
+        isVerificationPending ? "Verification Pending" : "Stopped (Unverified)";
 
     document.getElementById("miningRateText").textContent =
         isVerificationPending
@@ -3260,11 +3348,11 @@ if (isVerified || hasAccountVerifiedFlag) {
     badge.textContent = "Unverified";
     badge.className = "status-badge";
 
-    document.getElementById("miningStatus").textContent = "Inactive";
+    document.getElementById("miningStatus").textContent = "Stopped";
     document.getElementById("miningRateText").textContent =
-        "Connect TON Wallet to begin";
+        "Wallet disconnected — Mining stopped";
 
-    sessionText.textContent = "Wallet not connected";
+    sessionText.textContent = "Connect your verified wallet to resume mining";
 
     button.className = "main-btn btn-connect";
     button.textContent = "CONNECT WALLET";
@@ -3589,7 +3677,8 @@ if (
     activeTabName === "mine" &&
     !isBanned &&
     !isFailWallet &&
-    (isVerified || hasAccountVerifiedFlag) &&
+    walletConnected &&
+    isVerified &&
     !isSupplyLimitReached() &&
     miningStartTime > 0 &&
     !isClaimingMining
