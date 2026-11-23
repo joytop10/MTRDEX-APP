@@ -453,7 +453,27 @@ let lastKnownVerifiedWalletRaw = "";
 let lastKnownVerifiedWalletAddress = "";
 let hasAccountVerifiedFlag = false;
 
-let isVerified = false;
+function readCachedAccountVerified() {
+try {
+return localStorage.getItem("mtr_acc_ver_" + userId) === "1";
+} catch (e) {
+return false;
+}
+}
+
+function writeCachedAccountVerified(val) {
+hasAccountVerifiedFlag = val === true;
+try {
+if (val === true) {
+localStorage.setItem("mtr_acc_ver_" + userId, "1");
+} else {
+localStorage.removeItem("mtr_acc_ver_" + userId);
+}
+} catch (e) {}
+}
+
+let isVerified = readCachedAccountVerified();
+hasAccountVerifiedFlag = isVerified;
 let isVerificationPending = false;
 let isBanned = false;
 
@@ -744,11 +764,10 @@ pendingWalletRaw = String(data.verificationWalletRaw || data.pendingWalletRaw ||
 pendingWalletAddress = String(data.verificationWalletAddress || data.pendingWalletAddress || "").trim();
 
 if (data.verified === true) {
-    hasAccountVerifiedFlag = true;
+    writeCachedAccountVerified(true);
+} else if (data.verified === false && !hasAccountVerifiedFlag) {
+    writeCachedAccountVerified(false);
 }
-
-const dbVerified = data.verified === true || (hasAccountVerifiedFlag && !isFailWallet);
-const hasVerifiedWalletRecord = Boolean(verifiedWalletRaw || verifiedWalletAddress);
 
 if (isFailWallet) {
     isVerified = false;
@@ -759,13 +778,16 @@ if (isFailWallet) {
 const activeRaw = getLiveWalletRawAddress() || connectedWalletRawAddress;
 const activeFriendly = activeRaw ? rawToFriendlyAddress(activeRaw, false) : connectedWalletAddress;
 
+const accountIsVerified = data.verified === true || hasAccountVerifiedFlag;
+
 if (!activeRaw && !activeFriendly) {
-    isVerified = dbVerified;
-    isVerificationPending = !dbVerified && data.verificationPending === true;
+    isVerified = accountIsVerified;
+    isVerificationPending = !accountIsVerified && data.verificationPending === true;
     return;
 }
 
-if (dbVerified) {
+if (accountIsVerified) {
+    const hasVerifiedWalletRecord = Boolean(verifiedWalletRaw || verifiedWalletAddress);
     if (hasVerifiedWalletRecord) {
         isVerified = doesWalletMatch(activeRaw, activeFriendly, verifiedWalletRaw, verifiedWalletAddress);
     } else {
@@ -1554,6 +1576,12 @@ if (isFailWallet) {
     return;
 }
 
+if (isVerified || hasAccountVerifiedFlag) {
+    isVerified = true;
+    updateUI();
+    return;
+}
+
 if (!walletConnected || !tonConnectUI) {
     alert("Please connect your wallet first!");
     await handleWalletClick();
@@ -1634,7 +1662,7 @@ try {
     }, { merge: true });
 
     isVerified = true;
-    hasAccountVerifiedFlag = true;
+    writeCachedAccountVerified(true);
     isVerificationPending = false;
     verifiedWalletRaw = currentRaw;
     verifiedWalletAddress = currentFriendly;
@@ -2061,7 +2089,7 @@ try {
         connectedWalletRawAddress = "";
         connectedWalletAddress = "";
         isVerified = false;
-        hasAccountVerifiedFlag = false;
+        writeCachedAccountVerified(false);
         lastKnownVerifiedWalletRaw = "";
         lastKnownVerifiedWalletAddress = "";
         isVerificationPending = false;
@@ -2814,12 +2842,12 @@ if (isFailWallet) {
 
 const liveAddress = getLiveWalletAddress();
 
-if (!liveAddress) {
+if (!isVerified && !hasAccountVerifiedFlag && !liveAddress) {
     await handleWalletClick();
     return;
 }
 
-if (!isVerified) {
+if (!isVerified && !hasAccountVerifiedFlag) {
     if (isVerificationPending) {
         alert("Your verification for this wallet is pending admin confirmation.");
         return;
@@ -3069,13 +3097,8 @@ if (liveRaw && !isFailWallet) {
         walletConnected = false;
     }
 
-    if (hasAccountVerifiedFlag && (verifiedWalletRaw || verifiedWalletAddress)) {
-        isVerified = doesWalletMatch(
-            connectedWalletRawAddress,
-            connectedWalletAddress,
-            verifiedWalletRaw,
-            verifiedWalletAddress
-        );
+    if (hasAccountVerifiedFlag) {
+        isVerified = true;
     }
 } else if (!isFailWallet) {
     walletConnected = false;
@@ -3150,7 +3173,8 @@ if (isFailWallet) {
     return;
 }
 
-if (isVerified && walletConnected) {
+if (isVerified || hasAccountVerifiedFlag) {
+    isVerified = true;
     badge.textContent = "Verified ✓";
     badge.className = "status-badge verified";
 
@@ -3223,8 +3247,8 @@ if (isVerified && walletConnected) {
     button.disabled = isVerificationPending;
 
 } else {
-    badge.textContent = isVerified ? "Verified ✓" : "Unverified";
-    badge.className = isVerified ? "status-badge verified" : "status-badge";
+    badge.textContent = "Unverified";
+    badge.className = "status-badge";
 
     document.getElementById("miningStatus").textContent = "Inactive";
     document.getElementById("miningRateText").textContent =
@@ -3555,8 +3579,7 @@ if (
     activeTabName === "mine" &&
     !isBanned &&
     !isFailWallet &&
-    isVerified &&
-    walletConnected &&
+    (isVerified || hasAccountVerifiedFlag) &&
     !isSupplyLimitReached() &&
     miningStartTime > 0 &&
     !isClaimingMining
