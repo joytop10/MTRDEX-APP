@@ -6,6 +6,7 @@
     <title>MTR Master - Secure Admin Panel</title>
     <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore-compat.js"></script>
+    <script src="https://unpkg.com/@tonconnect/ui@latest/dist/tonconnect-ui.min.js"></script>
     <style>
         :root {
             --bg-dark: #060B14;
@@ -77,50 +78,26 @@
         }
 
         .withdraw-mode-switch {
-            display: flex;
-            gap: 10px;
-            margin-bottom: 14px;
-            flex-wrap: wrap;
+            display: flex; gap: 10px; margin-bottom: 14px; flex-wrap: wrap;
         }
         .withdraw-mode-btn {
-            padding: 10px 18px;
-            border-radius: 10px;
-            border: 1px solid rgba(0, 212, 255, 0.35);
-            background: #060B14;
-            color: var(--text-muted);
-            font-size: 13px;
-            font-weight: 700;
-            cursor: pointer;
-            display: inline-flex;
-            align-items: center;
-            gap: 8px;
+            padding: 10px 18px; border-radius: 10px; border: 1px solid rgba(0, 212, 255, 0.35);
+            background: #060B14; color: var(--text-muted); font-size: 13px; font-weight: 700;
+            cursor: pointer; display: inline-flex; align-items: center; gap: 8px;
         }
         .withdraw-mode-btn.active {
             background: linear-gradient(90deg, var(--gold-light), var(--gold-dark));
-            color: #000;
-            border-color: var(--gold-light);
+            color: #000; border-color: var(--gold-light);
         }
         .withdraw-sub-card {
-            background: #060B14;
-            border: 1px solid rgba(0, 119, 255, 0.25);
-            border-radius: 12px;
-            padding: 14px;
-            min-width: 0;
+            background: #060B14; border: 1px solid rgba(0, 119, 255, 0.25);
+            border-radius: 12px; padding: 14px; min-width: 0;
         }
-        .withdraw-sub-card.incomplete-box {
-            border-color: rgba(255, 159, 10, 0.45);
-        }
-        .withdraw-sub-card.completed-box {
-            border-color: rgba(50, 215, 75, 0.45);
-        }
+        .withdraw-sub-card.incomplete-box { border-color: rgba(255, 159, 10, 0.45); }
+        .withdraw-sub-card.completed-box { border-color: rgba(50, 215, 75, 0.45); }
         .withdraw-sub-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            flex-wrap: wrap;
-            gap: 8px;
-            margin-bottom: 10px;
-            padding-bottom: 8px;
+            display: flex; justify-content: space-between; align-items: center;
+            flex-wrap: wrap; gap: 8px; margin-bottom: 10px; padding-bottom: 8px;
             border-bottom: 1px solid rgba(255,255,255,0.08);
         }
 
@@ -239,9 +216,10 @@
     <div id="adminDashboard" style="display: none;">
         <div class="header">
             <h2 id="dashboardHeaderTitle">👑 MTR Master Admin Panel</h2>
-            <div style="display: flex; align-items: center; gap: 10px;">
+            <div style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap;">
                 <span style="font-size: 12px; color: var(--success);">● Live Sync</span>
-                <button class="main-btn btn-danger" style="padding: 6px 10px;" onclick="logoutAdmin()">Logout</button>
+                <button type="button" class="main-btn btn-primary" id="adminWalletBtn" onclick="toggleAdminWallet()">💎 Connect Payout Wallet</button>
+                <button type="button" class="main-btn btn-danger" style="padding: 6px 10px;" onclick="logoutAdmin()">Logout</button>
             </div>
         </div>
 
@@ -359,6 +337,17 @@
                 <div class="section-title">
                     <span>📤 Withdrawal Requests Queue & Payment Search</span>
                     <span id="withdrawSearchMatchBadge" style="font-size:12px; color:var(--cyan-glow);">All requests</span>
+                </div>
+
+                <div class="info-highlight-box" style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px;">
+                    <div>
+                        <strong style="color:var(--gold-light);">Payout Wallet Status:</strong>
+                        <span id="adminPayoutWalletStatus" style="color:var(--warning); margin-left:6px;">Not connected (Approve will mark status only unless wallet is connected)</span>
+                    </div>
+                    <label style="font-size:12px; color:var(--cyan-glow); display:inline-flex; align-items:center; gap:6px; cursor:pointer;">
+                        <input type="checkbox" id="sendOnChainOnApprove" checked>
+                        <span>Send TON/MTR transaction on Approve when wallet connected</span>
+                    </label>
                 </div>
 
                 <input type="text" id="withdrawSearchInput" class="form-control" placeholder="Search user payment status by User ID (UID_...), Username (@...), Name, Wallet, or Referrer..." onkeyup="renderWithdrawalsTable()">
@@ -634,7 +623,6 @@
         </div>
     </div>
 
-    <!-- Custom Admin Toast & Dialog (Replaces native alert / confirm / prompt) -->
     <div class="admin-toast" id="adminToast">Action completed</div>
     <div class="admin-dialog-backdrop" id="adminDialogBackdrop">
         <div class="admin-dialog-card">
@@ -750,6 +738,88 @@
 
         let TRANSACTION_PIN = localStorage.getItem('mtr_tx_pin') || "1234";
 
+        /* ================= ADMIN TON CONNECT ================= */
+        let adminTonConnectUI = null;
+        let adminConnectedWalletAddr = "";
+
+        function rawToFriendlyAddress(rawAddress, bounceable = false) {
+            if (!rawAddress) return "";
+            const match = rawAddress.match(/^(-?\d+):([0-9a-fA-F]{64})$/);
+            if (!match) return rawAddress;
+            const workchain = Number(match[1]);
+            const hashBytes = match[2].match(/.{2}/g).map(byte => parseInt(byte, 16));
+            const addressBytes = [bounceable ? 0x11 : 0x51, workchain & 0xff, ...hashBytes];
+            let crc = 0x0000;
+            for (const byte of addressBytes) {
+                crc ^= byte << 8;
+                for (let i = 0; i < 8; i++) {
+                    crc = (crc & 0x8000) ? ((crc << 1) ^ 0x1021) : (crc << 1);
+                    crc &= 0xffff;
+                }
+            }
+            addressBytes.push((crc >> 8) & 0xff, crc & 0xff);
+            return btoa(String.fromCharCode(...addressBytes))
+                .replace(/\+/g, "-")
+                .replace(/\//g, "_")
+                .replace(/=/g, "");
+        }
+
+        function updateAdminWalletBadge() {
+            const btn = document.getElementById("adminWalletBtn");
+            const statusEl = document.getElementById("adminPayoutWalletStatus");
+            if (adminConnectedWalletAddr) {
+                const shortAddr = adminConnectedWalletAddr.slice(0, 6) + "..." + adminConnectedWalletAddr.slice(-4);
+                if (btn) btn.textContent = "💎 " + shortAddr;
+                if (statusEl) {
+                    statusEl.textContent = "Connected (" + shortAddr + ")";
+                    statusEl.style.color = "var(--success)";
+                }
+            } else {
+                if (btn) btn.textContent = "💎 Connect Payout Wallet";
+                if (statusEl) {
+                    statusEl.textContent = "Not connected (Approve will mark status only unless wallet is connected)";
+                    statusEl.style.color = "var(--warning)";
+                }
+            }
+        }
+
+        try {
+            if (window.TON_CONNECT_UI?.TonConnectUI) {
+                adminTonConnectUI = new TON_CONNECT_UI.TonConnectUI({
+                    manifestUrl: "https://mtrdex-app.vercel.app/tonconnect-manifest.json"
+                });
+                adminTonConnectUI.onStatusChange(wallet => {
+                    if (wallet?.account?.address) {
+                        adminConnectedWalletAddr = rawToFriendlyAddress(wallet.account.address, false);
+                    } else {
+                        adminConnectedWalletAddr = "";
+                    }
+                    updateAdminWalletBadge();
+                });
+            }
+        } catch (e) {
+            console.warn("Admin TonConnect init error:", e);
+        }
+
+        async function toggleAdminWallet() {
+            if (!adminTonConnectUI) {
+                adminAlert("TON Connect is not available.", "Error");
+                return;
+            }
+            try {
+                if (adminConnectedWalletAddr) {
+                    await adminTonConnectUI.disconnect();
+                    adminConnectedWalletAddr = "";
+                    updateAdminWalletBadge();
+                    showAdminToast("Payout wallet disconnected");
+                } else {
+                    await adminTonConnectUI.openModal();
+                }
+            } catch (e) {
+                adminAlert("Wallet action failed: " + e, "Wallet Error");
+            }
+        }
+
         function escapeAttr(str) {
             return String(str || "").replace(/\\/g, "\\\\").replace(/'/g, "\\'").replace(/"/g, "&quot;");
         }
@@ -824,6 +894,10 @@
             const data = docSnap.exists ? docSnap.data() : {};
             const hasAdminPass = typeof data.adminPassword === "string" && data.adminPassword.length > 0;
             const hasWithdrawPass = typeof data.withdrawPassword === "string" && data.withdrawPassword.length > 0;
+            if (typeof data.txPin === "string" && data.txPin.length >= 4) {
+                TRANSACTION_PIN = data.txPin;
+                localStorage.setItem("mtr_tx_pin", data.txPin);
+            }
 
             return {
                 exists: docSnap.exists,
@@ -1199,8 +1273,8 @@
             let actionButtonsHtml = "";
             if (!w.status || status === 'pending') {
                 actionButtonsHtml = `
-                    <button class="main-btn btn-success" style="padding:4px 8px;" onclick="verifyTxPinAction(() => handleWithdrawAction('${escapeAttr(w.id)}', '${escapeAttr(w.userId)}', ${Number(w.amount || 0)}, 'approved'))">Approve</button>
-                    <button class="main-btn btn-danger" style="padding:4px 8px;" onclick="verifyTxPinAction(() => handleWithdrawAction('${escapeAttr(w.id)}', '${escapeAttr(w.userId)}', ${Number(w.amount || 0)}, 'rejected'))">Reject</button>
+                    <button class="main-btn btn-success" style="padding:4px 8px;" onclick="verifyTxPinAction(() => handleWithdrawAction('${escapeAttr(w.id)}', '${escapeAttr(w.userId)}', ${Number(w.amount || 0)}, 'approved', '${escapeAttr(w.walletAddress || '')}'))">Approve</button>
+                    <button class="main-btn btn-danger" style="padding:4px 8px;" onclick="verifyTxPinAction(() => handleWithdrawAction('${escapeAttr(w.id)}', '${escapeAttr(w.userId)}', ${Number(w.amount || 0)}, 'rejected', '${escapeAttr(w.walletAddress || '')}'))">Reject</button>
                 `;
             } else if (status === 'rejected') {
                 actionButtonsHtml = `
@@ -1370,6 +1444,7 @@
 
         function initAdminListeners() {
             renderOneTimeCodeUI();
+            updateAdminWalletBadge();
 
             db.collection("users").onSnapshot((snapshot) => {
                 allUsersData = [];
@@ -1705,22 +1780,45 @@
             document.getElementById('refModal').style.display = "none";
         }
 
-        function handleWithdrawAction(docId, uid, amount, action) {
-            db.collection("withdrawals").doc(docId).update({
-                status: action,
-                processedAt: firebase.firestore.FieldValue.serverTimestamp()
-            }).then(() => {
-                if (action === 'rejected' && uid) {
-                    return db.collection("users").doc(uid).get().then((doc) => {
-                        if (doc.exists) {
-                            let currentBal = Number(doc.data().balance || 0);
-                            return db.collection("users").doc(uid).update({ balance: currentBal + amount });
-                        }
+        async function handleWithdrawAction(docId, uid, amount, action, userWalletAddr = "") {
+            try {
+                let txBoc = "";
+                const sendOnChain = document.getElementById("sendOnChainOnApprove")?.checked === true;
+
+                if (action === "approved" && sendOnChain && adminTonConnectUI && adminConnectedWalletAddr) {
+                    if (!userWalletAddr) {
+                        adminAlert("User wallet address is missing for on-chain payout.", "Missing Wallet");
+                        return;
+                    }
+                    const txResult = await adminTonConnectUI.sendTransaction({
+                        validUntil: Math.floor(Date.now() / 1000) + 600,
+                        messages: [{
+                            address: userWalletAddr,
+                            amount: "20000000"
+                        }]
                     });
+                    txBoc = txResult?.boc || "";
                 }
-            }).then(() => {
+
+                await db.collection("withdrawals").doc(docId).update({
+                    status: action,
+                    txBoc: txBoc,
+                    processedByWallet: adminConnectedWalletAddr || "",
+                    processedAt: firebase.firestore.FieldValue.serverTimestamp()
+                });
+
+                if (action === 'rejected' && uid) {
+                    const userSnap = await db.collection("users").doc(uid).get();
+                    if (userSnap.exists) {
+                        let currentBal = Number(userSnap.data().balance || 0);
+                        await db.collection("users").doc(uid).update({ balance: currentBal + amount });
+                    }
+                }
+
                 showAdminToast(action === 'approved' ? "Withdrawal approved" : "Withdrawal rejected & refunded");
-            }).catch(err => adminAlert("Error: " + err, "Error"));
+            } catch (err) {
+                adminAlert("Error processing withdrawal: " + err, "Error");
+            }
         }
 
         function addNewTask() {
@@ -1878,10 +1976,18 @@
                 adminAlert("Transaction PIN must be at least 4 characters.", "Weak PIN");
                 return;
             }
-            TRANSACTION_PIN = newPin;
-            localStorage.setItem('mtr_tx_pin', newPin);
-            document.getElementById('newTxPin').value = "";
-            showAdminToast("Transaction PIN updated");
+            verifyTxPinAction(async () => {
+                TRANSACTION_PIN = newPin;
+                localStorage.setItem('mtr_tx_pin', newPin);
+                try {
+                    await db.collection("settings").doc("adminAuth").set({
+                        txPin: newPin,
+                        updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+                    }, { merge: true });
+                } catch (e) {}
+                document.getElementById('newTxPin').value = "";
+                showAdminToast("Transaction PIN updated");
+            });
         }
 
         function switchAdminTab(tabId, el) {
@@ -1895,4 +2001,4 @@
         }
     </script>
 </body>
-                </html>
+                        </html>
