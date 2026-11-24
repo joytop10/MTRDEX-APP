@@ -375,7 +375,6 @@ button{font-family:inherit;cursor:pointer}
   padding:9px 10px;border-radius:9px;font-size:10px;font-weight:800;
 }
 
-/* Professional Custom Toast & Notice Modal (Replaces native alert) */
 .mtr-toast{
   position:fixed;bottom:86px;left:50%;
   transform:translateX(-50%) translateY(14px);
@@ -616,7 +615,6 @@ button{font-family:inherit;cursor:pointer}
     </div>
 </div>
 
-<!-- Custom Toast & Notice Modal -->
 <div class="mtr-toast" id="mtrToast" role="status" aria-live="polite">
     <span class="mtr-toast-icon" id="mtrToastIcon">✓</span>
     <span id="mtrToastText">Copied to clipboard</span>
@@ -822,6 +820,7 @@ let taskClaimTimes = {};
 let userLoaded = false;
 let walletStatusSequence = 0;
 let isClaimingMining = false;
+let isVerifyingFee = false;
 
 let activeHistoryFilter = "all";
 let claimActivities = [];
@@ -878,18 +877,6 @@ for (const val of candidates) {
     if (cleaned) return cleaned;
 }
 return "";
-}
-
-function encodeTonCommentPayload(commentText) {
-const bytes = new TextEncoder().encode(String(commentText || ""));
-const payloadBytes = new Uint8Array(4 + bytes.length);
-payloadBytes.set(bytes, 4);
-
-let binary = "";
-for (let i = 0; i < payloadBytes.length; i++) {
-    binary += String.fromCharCode(payloadBytes[i]);
-}
-return btoa(binary);
 }
 
 function isTelegramChannelOrGroupTask(task = {}) {
@@ -1371,7 +1358,7 @@ if (!telegramIdNumber) return;
 await copyText(telegramIdNumber, "Telegram ID copied");
 }
 
-/* ================= TON CONNECT (FIXED) ================= */
+/* ================= TON CONNECT ================= */
 let tonConnectUI = null;
 
 function getLiveWalletRawAddress() {
@@ -2051,9 +2038,9 @@ try {
 }
 }
 
-/* ================= VERIFICATION ================= */
+/* ================= VERIFICATION (FIXED) ================= */
 async function verifyAccountWithFee() {
-if (isBanned) return;
+if (isBanned || isVerifyingFee) return;
 
 if (isFailWallet) {
     showNotice("This wallet is already verified on another account.", "Wallet Conflict");
@@ -2117,21 +2104,24 @@ if (!activeAdminAddress) {
     return;
 }
 
+isVerifyingFee = true;
+const actionBtn = document.getElementById("actionBtn");
+if (actionBtn) actionBtn.disabled = true;
+
 try {
-    const nanoAmount = Math.round(verifyFeeAmount * 1e9).toString();
+    const feeToSend = Number(verifyFeeAmount) > 0 ? Number(verifyFeeAmount) : 0.1;
+    const nanoAmount = Math.round(feeToSend * 1e9).toString();
     const commentText = `MTR-VERIFY-${telegramIdNumber}`;
-    const commentPayload = encodeTonCommentPayload(commentText);
 
     const transaction = {
         validUntil: Math.floor(Date.now() / 1000) + 600,
         messages: [{
             address: activeAdminAddress,
-            amount: nanoAmount,
-            payload: commentPayload
+            amount: nanoAmount
         }]
     };
 
-    showToast(`Confirm ${verifyFeeAmount} TON in your wallet`, "warn");
+    showToast(`Confirm ${feeToSend} TON in your wallet`, "warn");
 
     const result = await tonConnectUI.sendTransaction(transaction);
 
@@ -2145,7 +2135,7 @@ try {
         verified: true,
         verificationPending: false,
         verificationBoc: result.boc,
-        verificationFee: verifyFeeAmount,
+        verificationFee: feeToSend,
         verificationComment: commentText,
         verificationTelegramId: telegramIdNumber,
         verificationWalletRaw: currentRaw,
@@ -2178,8 +2168,14 @@ try {
         updateUI();
         showNotice("This wallet is already verified on another account.", "Wallet Conflict");
     } else {
-        showNotice("Transaction was cancelled or could not be completed.", "Transaction Cancelled");
+        showNotice(
+            "Transaction was cancelled or could not be completed. Make sure your wallet has slightly more than 0.1 TON for network fee.",
+            "Transaction Cancelled"
+        );
     }
+} finally {
+    isVerifyingFee = false;
+    updateUI();
 }
 }
 
@@ -3620,7 +3616,7 @@ tg.openTelegramLink(url);
 
 /* ================= MINING ================= */
 async function handleMainAction() {
-if (isBanned || isClaimingMining) return;
+if (isBanned || isClaimingMining || isVerifyingFee) return;
 
 if (isFailWallet) {
     showNotice("This wallet is already verified on another account.", "Wallet Conflict");
@@ -4023,7 +4019,7 @@ if (walletConnected && isVerified) {
 
     button.className = "main-btn btn-gold";
     button.textContent = miningStartTime > 0 ? "CLAIM" : "START MINING";
-    button.disabled = miningRatePerHour <= 0;
+    button.disabled = miningRatePerHour <= 0 || isVerifyingFee;
 
 } else if (walletConnected) {
     badge.textContent = isVerificationPending
@@ -4049,7 +4045,7 @@ if (walletConnected && isVerified) {
         ? "VERIFICATION PENDING"
         : `VERIFY ACCOUNT (${verifyFeeAmount} TON)`;
 
-    button.disabled = isVerificationPending;
+    button.disabled = isVerificationPending || isVerifyingFee;
 
 } else {
     badge.textContent = "Unverified";
@@ -4063,7 +4059,7 @@ if (walletConnected && isVerified) {
 
     button.className = "main-btn btn-connect";
     button.textContent = "CONNECT WALLET";
-    button.disabled = false;
+    button.disabled = isVerifyingFee;
 }
 }
 
@@ -4418,7 +4414,7 @@ if (
         }
     }
 
-    if (button && miningRatePerHour > 0) {
+    if (button && miningRatePerHour > 0 && !isVerifyingFee) {
         button.disabled = false;
     }
 }
