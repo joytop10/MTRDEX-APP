@@ -196,11 +196,37 @@
             background: var(--card-bg); border: 1px solid var(--gold-light);
             border-radius: 14px; width: 100%; max-width: 420px; padding: 20px; max-height: 80vh; overflow-y: auto;
         }
+
+        .admin-toast {
+            position: fixed; bottom: 22px; left: 50%;
+            transform: translateX(-50%) translateY(12px);
+            background: #132138; color: #FFF;
+            border: 1px solid var(--gold-light);
+            padding: 10px 18px; border-radius: 10px;
+            font-size: 12.5px; font-weight: 700;
+            opacity: 0; pointer-events: none;
+            transition: opacity .2s ease, transform .2s ease;
+            z-index: 12000; white-space: nowrap;
+        }
+        .admin-toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+        .admin-dialog-backdrop {
+            position: fixed; inset: 0; z-index: 11500;
+            display: none; align-items: center; justify-content: center;
+            padding: 20px; background: rgba(6, 11, 20, 0.85); backdrop-filter: blur(5px);
+        }
+        .admin-dialog-backdrop.active { display: flex; }
+        .admin-dialog-card {
+            width: 100%; max-width: 380px; background: var(--card-bg);
+            border: 1px solid var(--gold-light); border-radius: 16px; padding: 20px;
+        }
+        .admin-dialog-title { font-size: 16px; font-weight: 800; color: var(--gold-light); margin-bottom: 8px; }
+        .admin-dialog-msg { font-size: 13px; color: #DCE4F0; line-height: 1.5; margin-bottom: 14px; }
+        .admin-dialog-actions { display: flex; gap: 8px; justify-content: flex-end; margin-top: 12px; }
     </style>
 </head>
 <body>
 
-    <!-- ADMIN LOGIN SCREEN -->
     <div id="loginOverlay">
         <div class="login-box">
             <h2 style="color: var(--gold-light); margin-bottom: 8px;">🔐 Admin Access</h2>
@@ -210,7 +236,6 @@
         </div>
     </div>
 
-    <!-- MAIN DASHBOARD -->
     <div id="adminDashboard" style="display: none;">
         <div class="header">
             <h2 id="dashboardHeaderTitle">👑 MTR Master Admin Panel</h2>
@@ -220,7 +245,6 @@
             </div>
         </div>
 
-        <!-- LIVE ANALYTICS -->
         <div class="stats-grid" id="adminStatsGrid">
             <div class="stat-card">
                 <div class="stat-label">Total Users</div>
@@ -260,7 +284,6 @@
             </div>
         </div>
 
-        <!-- NAVIGATION TABS -->
         <div class="admin-tabs" id="adminTabsBar">
             <button class="tab-btn active" data-tab="users" onclick="switchAdminTab('users', this)">👥 Users Search & Manage</button>
             <button class="tab-btn" data-tab="deposits" onclick="switchAdminTab('deposits', this)">💎 TON Deposit Address</button>
@@ -271,7 +294,6 @@
             <button class="tab-btn" data-tab="settings" onclick="switchAdminTab('settings', this)">⚙️ Admin & Site Settings</button>
         </div>
 
-        <!-- TAB 1: USERS MANAGEMENT & SEARCH -->
         <div id="tab-users" class="tab-content active">
             <div class="section-card">
                 <div class="section-title">
@@ -307,7 +329,6 @@
             </div>
         </div>
 
-        <!-- TAB 2: TON DEPOSIT ADDRESS MANAGEMENT -->
         <div id="tab-deposits" class="tab-content">
             <div class="section-card" style="border-color: var(--gold-light);">
                 <div class="section-title">
@@ -315,7 +336,7 @@
                     <span style="font-size:11px; color:var(--success);">● TON Network Only</span>
                 </div>
                 <p style="font-size: 12px; color: var(--text-muted); margin-bottom: 12px;">
-                    Set or change the TON deposit address used by your automatic transaction system. Whenever you save a new address, it updates in Firestore immediately.
+                    Set or change the TON deposit address used by the verification system. Updates sync to Firestore immediately.
                 </p>
 
                 <label style="font-size:12px; color:var(--text-muted); display:block; margin-bottom:4px;">TON Deposit Address</label>
@@ -333,7 +354,6 @@
             </div>
         </div>
 
-        <!-- TAB 3: WITHDRAWALS -->
         <div id="tab-withdrawals" class="tab-content">
             <div class="section-card">
                 <div class="section-title">
@@ -364,7 +384,6 @@
                     <span>Total Requests: 0</span>
                 </div>
 
-                <!-- PENDING / INCOMPLETE LIST -->
                 <div id="withdrawPanelPending" class="withdraw-sub-card incomplete-box">
                     <div class="withdraw-sub-header">
                         <span style="color: var(--warning); font-weight: 700; font-size: 13px;">⏳ Pending Withdrawals</span>
@@ -390,7 +409,6 @@
                     </div>
                 </div>
 
-                <!-- COMPLETE / APPROVED LIST -->
                 <div id="withdrawPanelComplete" class="withdraw-sub-card completed-box" style="display: none;">
                     <div class="withdraw-sub-header">
                         <span style="color: var(--success); font-weight: 700; font-size: 13px;">✅ Complete Withdrawals</span>
@@ -418,12 +436,11 @@
             </div>
         </div>
 
-        <!-- TAB 4: REFERRAL TARGETS -->
         <div id="tab-referrals" class="tab-content">
             <div class="section-card">
                 <div class="section-title">➕ Add New Referral Target Milestone</div>
                 <p style="font-size: 12px; color: var(--text-muted); margin-bottom: 12px;">
-                    Add multiple referral targets (e.g. 3 referrals = 5 MTR, 10 referrals = 20 MTR). Click "Save All Referral Targets" after adding.
+                    Add referral milestones (e.g. 3 referrals = 5 MTR, 10 referrals = 20 MTR). Click "Save All Referral Targets" after adding.
                 </p>
                 <label style="font-size:12px; color:var(--text-muted); display:block; margin-bottom:4px;">Required Verified Referrals</label>
                 <input type="number" id="refTargetInput" class="form-control" placeholder="e.g. 5">
@@ -445,7 +462,6 @@
             </div>
         </div>
 
-        <!-- TAB 5: ONE-TIME ADMIN / OWNER REFERRAL CODE -->
         <div id="tab-owner-referral" class="tab-content">
             <div class="section-card" style="border-color: var(--gold-light);">
                 <div class="section-title">
@@ -453,7 +469,7 @@
                     <span id="oneTimeCodeStatusBadge" class="badge badge-verified">AVAILABLE (1 USE)</span>
                 </div>
                 <p style="font-size: 12px; color: var(--text-muted); margin-bottom: 12px;">
-                    This single unique code can be used <strong>only once</strong>. Once a user claims it, the code locks and that account becomes the <strong>Master / Owner Account</strong> under which all subsequent accounts are tracked.
+                    This single unique code can be used <strong>only once</strong>. Once claimed, it locks and that account becomes the <strong>Master / Owner Account</strong>.
                 </p>
 
                 <label style="font-size:12px; color:var(--text-muted); display:block; margin-bottom:4px;">Single One-Time Admin Referral Code</label>
@@ -506,7 +522,6 @@
             </div>
         </div>
 
-        <!-- TAB 6: TASKS MANAGER -->
         <div id="tab-tasks" class="tab-content">
             <div class="section-card">
                 <div class="section-title">➕ Add New Earn Task</div>
@@ -536,45 +551,40 @@
             </div>
         </div>
 
-        <!-- TAB 7: ADMIN SETTINGS & SITE MAINTENANCE -->
         <div id="tab-settings" class="tab-content">
-            <!-- MAX TOTAL SUPPLY STOP MINING & NOTICE -->
             <div class="section-card" style="border-color: var(--danger);">
                 <div class="section-title">🛑 Max Total Supply Limit & Mining Stop Notice</div>
                 <p style="font-size: 12px; color: var(--text-muted); margin-bottom: 10px;" id="maxSupplyStatusDesc">
-                    Set 0 or leave blank for unlimited supply. When Total MTR Supply reaches or exceeds this limit, mining stops for all users and the notice is displayed.
+                    Set 0 or leave blank for unlimited supply. When Total MTR Supply reaches or exceeds this limit, mining pauses for users and the notice displays.
                 </p>
                 <label style="font-size:12px; color:var(--text-muted); display:block; margin-bottom:4px;">Max Total Supply Limit (MTR)</label>
                 <input type="number" step="any" min="0" id="maxSupplyLimitInput" class="form-control" placeholder="e.g. 100000 (0 = Unlimited)">
 
                 <label style="font-size:12px; color:var(--text-muted); display:block; margin-bottom:4px;">Notice Message When Supply Limit Reached</label>
-                <input type="text" id="supplyStopNoticeInput" class="form-control" placeholder="e.g. Total MTR supply limit has been reached! Mining is now stopped.">
+                <input type="text" id="supplyStopNoticeInput" class="form-control" placeholder="e.g. Total MTR supply limit has been reached. Mining is currently paused.">
 
                 <button class="main-btn btn-danger" onclick="saveMaxSupplyConfig()">Save Supply Limit & Notice</button>
             </div>
 
-            <!-- MINING SPEED CONTROL -->
             <div class="section-card" style="border-color: var(--cyan-glow);">
                 <div class="section-title">⚡ Mining Speed Control (MTR / Hour)</div>
-                <p style="font-size: 13px; color: var(--text-muted); margin-bottom: 12px;">Set the active global mining rate per hour for users (Default is 0.1).</p>
+                <p style="font-size: 13px; color: var(--text-muted); margin-bottom: 12px;">Set the active global mining rate per hour for users.</p>
                 <div style="display: flex; gap: 10px;">
                     <input type="number" step="0.0001" id="miningRateInput" class="form-control" style="margin-bottom:0;" placeholder="e.g. 0.1">
                     <button class="main-btn btn-success" onclick="saveMiningRate()">Save Speed</button>
                 </div>
             </div>
 
-            <!-- MAINTENANCE MODE CONTROL -->
             <div class="section-card" style="border-color: var(--warning);">
                 <div class="section-title">🛑 Site Maintenance Mode (Off Switch)</div>
                 <p style="font-size: 13px; color: var(--text-muted); margin-bottom: 12px;" id="maintenanceStatusDesc">Checking status...</p>
-                <input type="text" id="maintenanceNoticeInput" class="form-control" placeholder="Notice message to show users when site is offline">
+                <input type="text" id="maintenanceNoticeInput" class="form-control" placeholder="Notice message to show users during maintenance">
                 <div style="display: flex; gap: 10px;">
                     <button class="main-btn btn-primary" onclick="saveMaintenanceNotice()">Save Notice</button>
                     <button class="main-btn" id="toggleMaintenanceBtn" onclick="toggleMaintenanceMode()">Toggle Maintenance</button>
                 </div>
             </div>
 
-            <!-- WITHDRAWAL CONTROL -->
             <div class="section-card">
                 <div class="section-title">⚙️ Withdrawal System Control</div>
                 <p style="font-size: 13px; color: var(--text-muted); margin-bottom: 12px;" id="withdrawStatusDesc">Checking status...</p>
@@ -597,14 +607,13 @@
                 </div>
             </div>
 
-            <!-- ADMIN PASSWORD & PIN SETTINGS -->
             <div class="section-card">
                 <div class="section-title">🔐 Admin Security & Credentials</div>
                 <p style="font-size: 12px; color: var(--text-muted); margin-bottom: 10px;">Change Admin Panel Login Password:</p>
                 <input type="password" id="newAdminPass" class="form-control" placeholder="New Admin Password">
                 <button class="main-btn btn-gold" style="margin-bottom: 15px;" onclick="updateAdminPassword()">Update Admin Password</button>
 
-                <p style="font-size: 12px; color: var(--text-muted); margin-bottom: 10px;">Change Withdraw Section Only Password (Access only Withdrawals tab):</p>
+                <p style="font-size: 12px; color: var(--text-muted); margin-bottom: 10px;">Change Withdraw Section Only Password:</p>
                 <input type="password" id="newWithdrawPass" class="form-control" placeholder="New Withdraw Section Password">
                 <button class="main-btn btn-warning" style="margin-bottom: 15px;" onclick="updateWithdrawPassword()">Update Withdraw Section Password</button>
 
@@ -615,7 +624,6 @@
         </div>
     </div>
 
-    <!-- REFERRAL INSPECTOR MODAL -->
     <div class="modal" id="refModal">
         <div class="modal-content">
             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
@@ -623,6 +631,17 @@
                 <button class="main-btn btn-danger" style="padding: 4px 8px;" onclick="closeRefModal()">X</button>
             </div>
             <div id="refModalList" style="font-size: 12px; text-align: left;">Loading...</div>
+        </div>
+    </div>
+
+    <!-- Custom Admin Toast & Dialog (Replaces native alert / confirm / prompt) -->
+    <div class="admin-toast" id="adminToast">Action completed</div>
+    <div class="admin-dialog-backdrop" id="adminDialogBackdrop">
+        <div class="admin-dialog-card">
+            <div class="admin-dialog-title" id="adminDialogTitle">Notice</div>
+            <div class="admin-dialog-msg" id="adminDialogMsg"></div>
+            <input type="text" id="adminDialogInput" class="form-control" style="display:none; margin-bottom:8px;">
+            <div class="admin-dialog-actions" id="adminDialogActions"></div>
         </div>
     </div>
 
@@ -639,6 +658,76 @@
         if (!firebase.apps.length) firebase.initializeApp(firebaseConfig);
         const db = firebase.firestore();
 
+        let adminToastTimer = null;
+        function showAdminToast(message) {
+            const toast = document.getElementById("adminToast");
+            if (!toast) return;
+            toast.textContent = String(message || "");
+            toast.classList.add("show");
+            clearTimeout(adminToastTimer);
+            adminToastTimer = setTimeout(() => toast.classList.remove("show"), 2200);
+        }
+
+        function openAdminDialog({ title = "Notice", message = "", inputType = null, defaultValue = "", placeholder = "", buttons = [] }) {
+            const backdrop = document.getElementById("adminDialogBackdrop");
+            const titleEl = document.getElementById("adminDialogTitle");
+            const msgEl = document.getElementById("adminDialogMsg");
+            const inputEl = document.getElementById("adminDialogInput");
+            const actionsEl = document.getElementById("adminDialogActions");
+
+            titleEl.textContent = title;
+            msgEl.textContent = message;
+            actionsEl.replaceChildren();
+
+            if (inputType) {
+                inputEl.style.display = "block";
+                inputEl.type = inputType;
+                inputEl.value = defaultValue;
+                inputEl.placeholder = placeholder;
+            } else {
+                inputEl.style.display = "none";
+                inputEl.value = "";
+            }
+
+            const closeDialog = () => backdrop.classList.remove("active");
+
+            buttons.forEach(btnCfg => {
+                const btn = document.createElement("button");
+                btn.className = "main-btn " + (btnCfg.cls || "btn-primary");
+                btn.textContent = btnCfg.label;
+                btn.onclick = () => {
+                    const val = inputEl.value;
+                    closeDialog();
+                    if (typeof btnCfg.onClick === "function") btnCfg.onClick(val);
+                };
+                actionsEl.append(btn);
+            });
+
+            backdrop.classList.add("active");
+            if (inputType) {
+                setTimeout(() => inputEl.focus(), 50);
+            }
+        }
+
+        function adminAlert(message, title = "Notice") {
+            openAdminDialog({
+                title,
+                message,
+                buttons: [{ label: "OK", cls: "btn-gold" }]
+            });
+        }
+
+        function adminConfirm(message, onConfirm, title = "Confirm Action") {
+            openAdminDialog({
+                title,
+                message,
+                buttons: [
+                    { label: "Cancel", cls: "btn-primary" },
+                    { label: "Confirm", cls: "btn-danger", onClick: onConfirm }
+                ]
+            });
+        }
+
         const DEFAULT_UNIQUE_OWNER_CODE = "MTR_OWNER_8492X";
         const INITIAL_FALLBACK_ADMIN_PASS = "admin123";
         const INITIAL_FALLBACK_WITHDRAW_PASS = "withdraw123";
@@ -652,9 +741,8 @@
         let isMaintenanceOn = false;
         let currentTotalSupply = 0;
         let maxSupplyLimit = 0;
-        let supplyStopNotice = "Total MTR supply limit has been reached! Mining is now stopped.";
+        let supplyStopNotice = "Total MTR supply limit has been reached. Mining is currently paused.";
 
-        // One-time admin referral code state
         let ownerReferralCode = DEFAULT_UNIQUE_OWNER_CODE;
         let oneTimeCodeUsed = false;
         let claimedByUserId = "";
@@ -715,11 +803,11 @@
             };
         }
 
-        async function copyToClipboard(text, label = "Copied") {
+        async function copyToClipboard(text, label = "Copied to clipboard") {
             if (!text) return;
             try {
                 await navigator.clipboard.writeText(text);
-                alert(`✅ ${label} copied!`);
+                showAdminToast(`${label} copied`);
             } catch (e) {
                 const ta = document.createElement("textarea");
                 ta.value = text;
@@ -727,7 +815,7 @@
                 ta.select();
                 document.execCommand("copy");
                 ta.remove();
-                alert(`✅ ${label} copied!`);
+                showAdminToast(`${label} copied`);
             }
         }
 
@@ -770,7 +858,7 @@
         async function checkAdminLogin() {
             const input = document.getElementById('adminPassInput').value.trim();
             if (!input) {
-                alert("❌ Please enter Password!");
+                adminAlert("Please enter a password.", "Login Required");
                 return;
             }
 
@@ -800,10 +888,10 @@
                     applyAccessRoleUI(matchedRole);
                     initAdminListeners();
                 } else {
-                    alert("❌ Wrong or outdated Password! Only the latest valid password works.");
+                    adminAlert("Invalid password.", "Access Denied");
                 }
             } catch (err) {
-                alert("Error verifying password: " + err);
+                adminAlert("Error verifying password: " + err, "Error");
             }
         }
 
@@ -822,13 +910,26 @@
         }
 
         function verifyTxPinAction(actionCallback) {
-            let pinInput = prompt("🔒 Enter Transaction PIN to confirm action:");
-            if (pinInput === null) return;
-            if (pinInput === TRANSACTION_PIN) {
-                actionCallback();
-            } else {
-                alert("❌ Incorrect Transaction PIN! Action aborted.");
-            }
+            openAdminDialog({
+                title: "Transaction PIN Required",
+                message: "Enter your 4-digit Transaction PIN to confirm this action.",
+                inputType: "password",
+                placeholder: "Enter PIN",
+                buttons: [
+                    { label: "Cancel", cls: "btn-primary" },
+                    {
+                        label: "Verify PIN",
+                        cls: "btn-gold",
+                        onClick: (pinInput) => {
+                            if (pinInput === TRANSACTION_PIN) {
+                                actionCallback();
+                            } else {
+                                adminAlert("Incorrect Transaction PIN.", "PIN Mismatch");
+                            }
+                        }
+                    }
+                ]
+            });
         }
 
         function updateSupplyStatusBanner() {
@@ -836,7 +937,7 @@
             if (!descEl) return;
             if (maxSupplyLimit > 0) {
                 const reached = currentTotalSupply >= maxSupplyLimit;
-                descEl.innerHTML = `Current Supply: <strong>${currentTotalSupply.toFixed(4)} MTR</strong> / Limit: <strong>${maxSupplyLimit} MTR</strong> — Status: <strong style="color:${reached ? 'var(--danger)' : 'var(--success)'};">${reached ? 'LIMIT REACHED (MINING STOPPED)' : 'ACTIVE'}</strong>`;
+                descEl.innerHTML = `Current Supply: <strong>${currentTotalSupply.toFixed(4)} MTR</strong> / Limit: <strong>${maxSupplyLimit} MTR</strong> — Status: <strong style="color:${reached ? 'var(--danger)' : 'var(--success)'};">${reached ? 'LIMIT REACHED (MINING PAUSED)' : 'ACTIVE'}</strong>`;
             } else {
                 descEl.innerHTML = `Current Supply: <strong>${currentTotalSupply.toFixed(4)} MTR</strong> — Limit: <strong>Unlimited (0)</strong>`;
             }
@@ -846,19 +947,19 @@
             const limitVal = parseFloat(document.getElementById('maxSupplyLimitInput').value);
             const limit = (!isNaN(limitVal) && limitVal > 0) ? limitVal : 0;
             const notice = document.getElementById('supplyStopNoticeInput').value.trim() ||
-                "Total MTR supply limit has been reached! Mining is now stopped.";
+                "Total MTR supply limit has been reached. Mining is currently paused.";
 
             verifyTxPinAction(() => {
                 db.collection("settings").doc("config").set({
                     maxSupplyLimit: limit,
-                    supplyStopNotice: notice
+                    supplyStopNotice: notice,
+                    totalSupply: currentTotalSupply
                 }, { merge: true }).then(() => {
-                    alert("✅ Max supply limit and notice saved!");
-                }).catch(err => alert("Error saving supply settings: " + err));
+                    showAdminToast("Supply limit and notice saved");
+                }).catch(err => adminAlert("Error saving supply settings: " + err, "Error"));
             });
         }
 
-        /* ================= TON DEPOSIT ADDRESS LOGIC ================= */
         function renderActiveTonDepositSummary(tonAddr = "") {
             const box = document.getElementById('activeTonDepositSummary');
             if (!box) return;
@@ -879,21 +980,21 @@
             verifyTxPinAction(() => {
                 db.collection("settings").doc("config").set({
                     tonDepositAddress: tonAddress,
+                    adminWallet: tonAddress,
                     depositAddresses: {
                         ton: tonAddress,
                         updatedAt: firebase.firestore.FieldValue.serverTimestamp()
                     }
                 }, { merge: true }).then(() => {
                     renderActiveTonDepositSummary(tonAddress);
-                    alert("✅ TON deposit address updated & saved!");
-                }).catch(err => alert("Error saving TON deposit address: " + err));
+                    showAdminToast("TON deposit address updated");
+                }).catch(err => adminAlert("Error saving TON address: " + err, "Error"));
             });
         }
 
-        /* ================= ONE-TIME ADMIN REFERRAL CODE LOGIC ================= */
         function generateOwnerReferralCode() {
             if (oneTimeCodeUsed) {
-                alert("⚠️ This code is already claimed/locked. Click 'Reset Code' first if you want to issue a fresh one-time code.");
+                adminAlert("This code is already claimed. Click 'Reset Code' first to issue a fresh code.", "Code Locked");
                 return;
             }
             const chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
@@ -917,8 +1018,8 @@
                 }, { merge: true }).then(() => {
                     ownerReferralCode = code;
                     renderOneTimeCodeUI();
-                    alert("✅ One-Time Admin Referral Code saved!");
-                }).catch(err => alert("Error saving one-time code: " + err));
+                    showAdminToast("One-Time Admin Code saved");
+                }).catch(err => adminAlert("Error saving code: " + err, "Error"));
             });
         }
 
@@ -938,8 +1039,8 @@
                     renderOneTimeCodeUI();
                     renderUsersTable();
                     renderWithdrawalsTable();
-                    alert("✅ One-Time code reset! It can now be claimed once by a Master account.");
-                }).catch(err => alert("Error resetting code: " + err));
+                    showAdminToast("One-Time Admin Code reset");
+                }).catch(err => adminAlert("Error resetting code: " + err, "Error"));
             });
         }
 
@@ -964,9 +1065,9 @@
 
             if (details) {
                 if (oneTimeCodeUsed) {
-                    details.innerHTML = `<strong style="color:var(--warning);">Already Used Once</strong> by <strong>${escapeHTML(claimedByUserName || "Master User")}</strong> (${escapeHTML(claimedByUserId || "")}). Code is now locked.`;
+                    details.innerHTML = `<strong style="color:var(--warning);">Already Used Once</strong> by <strong>${escapeHTML(claimedByUserName || "Master User")}</strong> (${escapeHTML(claimedByUserId || "")}). Code is locked.`;
                 } else {
-                    details.innerHTML = `Not claimed yet — first account to use code <code>${escapeHTML(ownerReferralCode)}</code> becomes the Master account.`;
+                    details.innerHTML = `Not claimed yet — first account to use code <code>${escapeHTML(ownerReferralCode)}</code> becomes Master Owner.`;
                 }
             }
 
@@ -1211,8 +1312,8 @@
 
         function deleteRejectedWithdrawal(docId) {
             db.collection("withdrawals").doc(docId).delete()
-                .then(() => alert("✅ Rejected withdrawal record deleted!"))
-                .catch(err => alert("Error deleting withdrawal: " + err));
+                .then(() => showAdminToast("Rejected withdrawal deleted"))
+                .catch(err => adminAlert("Error deleting withdrawal: " + err, "Error"));
         }
 
         function renderAdminRefTargetsList() {
@@ -1238,7 +1339,7 @@
             const rewardVal = parseFloat(document.getElementById('refRewardInput').value);
 
             if (isNaN(targetVal) || targetVal <= 0 || isNaN(rewardVal) || rewardVal <= 0) {
-                alert("Please enter valid Required Verified Referrals and Reward MTR!");
+                adminAlert("Please enter valid Required Verified Referrals and Reward MTR.", "Invalid Target");
                 return;
             }
 
@@ -1262,8 +1363,8 @@
                     refTargets: adminRefTargets,
                     refCommission: refCommission
                 }, { merge: true }).then(() => {
-                    alert("✅ All referral targets saved to Firestore!");
-                }).catch(err => alert("Error saving targets: " + err));
+                    showAdminToast("Referral targets saved");
+                }).catch(err => adminAlert("Error saving targets: " + err, "Error"));
             });
         }
 
@@ -1289,6 +1390,12 @@
                 document.getElementById('statVerifiedUsers').innerText = verifiedCount;
                 document.getElementById('statTonRevenue').innerText = (verifiedCount * 0.1).toFixed(1) + " TON";
                 document.getElementById('statTotalMtr').innerText = totalMtr.toFixed(2);
+
+                if ((sessionStorage.getItem('mtr_admin_role') || 'full_admin') === 'full_admin') {
+                    db.collection("settings").doc("config").set({
+                        totalSupply: Number(totalMtr.toFixed(8))
+                    }, { merge: true }).catch(() => {});
+                }
 
                 updateSupplyStatusBanner();
                 renderUsersTable();
@@ -1316,15 +1423,13 @@
                     }
                     updateSupplyStatusBanner();
 
-                    // TON deposit address sync
-                    const tonAddr = data.tonDepositAddress || (data.depositAddresses && data.depositAddresses.ton) || "";
+                    const tonAddr = data.tonDepositAddress || (data.depositAddresses && data.depositAddresses.ton) || data.adminWallet || "";
                     const tonInput = document.getElementById('depositTonInput');
                     if (tonInput && document.activeElement !== tonInput) {
                         tonInput.value = tonAddr;
                     }
                     renderActiveTonDepositSummary(tonAddr);
 
-                    // One-time admin referral code sync
                     ownerReferralCode = data.oneTimeAdminCode || data.ownerReferralCode || DEFAULT_UNIQUE_OWNER_CODE;
                     oneTimeCodeUsed = Boolean(data.oneTimeCodeUsed);
                     claimedByUserId = data.claimedByUserId || "";
@@ -1385,7 +1490,7 @@
                 let html = "";
                 snapshot.forEach((doc) => {
                     let t = doc.data();
-                    const resetHours = Number(t.resetHours || 0);
+                    const resetHours = Number(t.resetHours ?? t.taskCooldownHours ?? 0);
                     const resetLabel = resetHours > 0 ? `Every ${resetHours}h` : "One-time";
                     html += `
                         <tr>
@@ -1507,14 +1612,10 @@
                         </td>
                         <td>
                             <div class="action-btns">
-                                <button class="main-btn btn-gold" style="padding:5px 7px;" onclick="verifyTxPinAction(() => editUserBalance('${escapeAttr(u.id)}', ${Number(u.balance || 0)}))">💰 Bal</button>
-                                <button class="main-btn ${u.verified ? 'btn-warning' : 'btn-success'}" style="padding:5px 7px;" onclick="verifyTxPinAction(() => toggleUserVerify('${escapeAttr(u.id)}', ${!!u.verified}))">
-                                    ${u.verified ? 'Unverify' : 'Verify'}
-                                </button>
-                                <button class="main-btn ${u.banned ? 'btn-primary' : 'btn-danger'}" style="padding:5px 7px;" onclick="verifyTxPinAction(() => toggleUserBan('${escapeAttr(u.id)}', ${!!u.banned}))">
-                                    ${u.banned ? 'Unban' : 'Ban'}
-                                </button>
-                                <button class="main-btn btn-danger" style="padding:5px 7px;" onclick="verifyTxPinAction(() => deleteUserAccount('${escapeAttr(u.id)}'))">🗑️ Delete</button>
+                                <button class="main-btn btn-success" style="padding:4px 8px;" onclick="verifyTxPinAction(() => toggleVerifyUser('${escapeAttr(u.id)}', ${!u.verified}))">${u.verified ? 'Unverify' : 'Verify'}</button>
+                                <button class="main-btn btn-warning" style="padding:4px 8px;" onclick="promptBalanceEdit('${escapeAttr(u.id)}', ${Number(u.balance || 0)})">+/- Bal</button>
+                                <button class="main-btn btn-danger" style="padding:4px 8px;" onclick="verifyTxPinAction(() => toggleBanUser('${escapeAttr(u.id)}', ${!u.banned}))">${u.banned ? 'Unban' : 'Ban'}</button>
+                                <button class="main-btn btn-danger" style="padding:4px 8px;" onclick="confirmDeleteUser('${escapeAttr(u.id)}')">🗑️ Del</button>
                             </div>
                         </td>
                     </tr>
@@ -1524,71 +1625,102 @@
             document.getElementById('usersTableBody').innerHTML = html || "<tr><td colspan='7' style='text-align:center;'>No matching users found</td></tr>";
         }
 
+        function promptBalanceEdit(uid, currentBal) {
+            openAdminDialog({
+                title: "Adjust User Balance",
+                message: `Current balance: ${currentBal.toFixed(4)} MTR. Enter amount to ADD (e.g. 50) or SUBTRACT (e.g. -20).`,
+                inputType: "number",
+                defaultValue: "",
+                placeholder: "e.g. 50 or -20",
+                buttons: [
+                    { label: "Cancel", cls: "btn-primary" },
+                    {
+                        label: "Next (PIN)",
+                        cls: "btn-gold",
+                        onClick: (rawDelta) => {
+                            let delta = parseFloat(rawDelta);
+                            if (isNaN(delta) || delta === 0) {
+                                adminAlert("Please enter a valid non-zero number.", "Invalid Amount");
+                                return;
+                            }
+                            verifyTxPinAction(() => adjustBalance(uid, currentBal, delta));
+                        }
+                    }
+                ]
+            });
+        }
+
+        function confirmDeleteUser(uid) {
+            adminConfirm(`Delete user record ${uid} permanently?`, () => {
+                verifyTxPinAction(() => deleteUserAccount(uid));
+            }, "Delete User");
+        }
+
+        function toggleVerifyUser(uid, status) {
+            db.collection("users").doc(uid).update({ verified: status })
+                .then(() => showAdminToast(status ? "User verified" : "User unverified"))
+                .catch(err => adminAlert("Error: " + err, "Error"));
+        }
+
+        function adjustBalance(uid, currentBal, delta) {
+            let newBal = Math.max(0, currentBal + delta);
+            db.collection("users").doc(uid).update({ balance: newBal })
+                .then(() => showAdminToast(`Balance updated to ${newBal.toFixed(4)} MTR`))
+                .catch(err => adminAlert("Error: " + err, "Error"));
+        }
+
+        function toggleBanUser(uid, status) {
+            db.collection("users").doc(uid).update({ banned: status })
+                .then(() => showAdminToast(status ? "User banned" : "User unbanned"))
+                .catch(err => adminAlert("Error: " + err, "Error"));
+        }
+
         function deleteUserAccount(uid) {
-            if (confirm(`Are you sure you want to completely delete account ${uid}? This action is irreversible and allows the user to re-register fresh.`)) {
-                db.collection("users").doc(uid).delete()
-                  .then(() => alert("✅ User account successfully deleted!"))
-                  .catch(err => alert("Error deleting user: " + err));
-            }
-        }
-
-        function editUserBalance(uid, currentBal) {
-            let val = prompt(`Edit MTR Balance for ${uid}:`, currentBal);
-            if (val !== null && !isNaN(val) && val.trim() !== "") {
-                db.collection("users").doc(uid).update({ balance: parseFloat(val) })
-                  .then(() => alert("✅ Balance successfully updated!"));
-            }
-        }
-
-        function toggleUserVerify(uid, currentStatus) {
-            db.collection("users").doc(uid).update({ verified: !currentStatus })
-              .then(() => alert("✅ Verification status changed!"));
-        }
-
-        function toggleUserBan(uid, currentBan) {
-            db.collection("users").doc(uid).update({ banned: !currentBan })
-              .then(() => alert("✅ Ban status updated!"));
+            db.collection("users").doc(uid).delete()
+                .then(() => showAdminToast("User deleted"))
+                .catch(err => adminAlert("Error deleting user: " + err, "Error"));
         }
 
         function inspectReferrals(uid, name) {
             document.getElementById('refModalTitle').innerText = `Referrals of ${name}`;
-            document.getElementById('refModalList').innerHTML = "Loading team...";
-            document.getElementById('refModal').style.display = 'flex';
+            document.getElementById('refModalList').innerHTML = "Loading...";
+            document.getElementById('refModal').style.display = "flex";
 
-            const team = allUsersData.filter(u => u.referredBy === uid);
-            if (team.length === 0) {
-                document.getElementById('refModalList').innerHTML = "<p style='color:var(--text-muted);'>No referrals found for this user.</p>";
+            let directRefs = allUsersData.filter(u => u.referredBy === uid);
+            if (!directRefs.length) {
+                document.getElementById('refModalList').innerHTML = "<p style='color:var(--text-muted);'>No direct referrals yet.</p>";
                 return;
             }
 
-            let listHtml = `<p style="margin-bottom:8px; color:var(--cyan-glow);">Total Invited: ${team.length}</p>`;
-            team.forEach(m => {
-                listHtml += `
-                    <div style="padding:8px; border-bottom:1px solid rgba(255,255,255,0.1); display:flex; justify-content:space-between;">
-                        <span>${escapeHTML(m.name)} (${escapeHTML(m.id)})</span>
-                        <span style="color:${m.verified ? 'var(--success)' : 'var(--danger)'};">${m.verified ? 'Verified ✓' : 'Unverified'}</span>
-                    </div>
-                `;
-            });
-            document.getElementById('refModalList').innerHTML = listHtml;
+            let html = directRefs.map(r => `
+                <div style="padding:8px; border-bottom:1px solid rgba(255,255,255,0.1); display:flex; justify-content:space-between;">
+                    <div><strong>${escapeHTML(r.name || "User")}</strong><br><span style="color:var(--text-muted); font-size:10px;">${escapeHTML(r.id)}</span></div>
+                    <span class="badge ${r.verified ? 'badge-verified' : 'badge-unverified'}">${r.verified ? 'Verified ✓' : 'Unverified'}</span>
+                </div>
+            `).join("");
+            document.getElementById('refModalList').innerHTML = html;
         }
 
         function closeRefModal() {
-            document.getElementById('refModal').style.display = 'none';
+            document.getElementById('refModal').style.display = "none";
         }
 
-        function handleWithdrawAction(docId, uid, amount, newStatus) {
-            db.collection("withdrawals").doc(docId).update({ status: newStatus }).then(() => {
-                if (newStatus === 'rejected') {
-                    db.collection("users").doc(uid).get().then(doc => {
+        function handleWithdrawAction(docId, uid, amount, action) {
+            db.collection("withdrawals").doc(docId).update({
+                status: action,
+                processedAt: firebase.firestore.FieldValue.serverTimestamp()
+            }).then(() => {
+                if (action === 'rejected' && uid) {
+                    return db.collection("users").doc(uid).get().then((doc) => {
                         if (doc.exists) {
-                            let curBal = Number(doc.data().balance || 0);
-                            db.collection("users").doc(uid).update({ balance: curBal + Number(amount || 0) });
+                            let currentBal = Number(doc.data().balance || 0);
+                            return db.collection("users").doc(uid).update({ balance: currentBal + amount });
                         }
                     });
                 }
-                alert(`Withdrawal ${newStatus}!`);
-            });
+            }).then(() => {
+                showAdminToast(action === 'approved' ? "Withdrawal approved" : "Withdrawal rejected & refunded");
+            }).catch(err => adminAlert("Error: " + err, "Error"));
         }
 
         function addNewTask() {
@@ -1596,10 +1728,10 @@
             const reward = parseFloat(document.getElementById('taskReward').value);
             const link = document.getElementById('taskLink').value.trim();
             const resetHoursRaw = parseFloat(document.getElementById('taskResetHours').value);
-            const resetHours = isNaN(resetHoursRaw) || resetHoursRaw < 0 ? 0 : resetHoursRaw;
+            const resetHours = (!isNaN(resetHoursRaw) && resetHoursRaw > 0) ? resetHoursRaw : 0;
 
-            if (!title || isNaN(reward) || !link) {
-                alert("Please fill all task fields properly!");
+            if (!title || isNaN(reward) || reward <= 0 || !link) {
+                adminAlert("Please complete Title, Reward MTR, and Link URL.", "Incomplete Task");
                 return;
             }
 
@@ -1609,132 +1741,158 @@
                     reward,
                     link,
                     resetHours,
+                    taskCooldownHours: resetHours,
                     createdAt: firebase.firestore.FieldValue.serverTimestamp()
                 }).then(() => {
-                    alert("✅ Task added!");
                     document.getElementById('taskTitle').value = "";
                     document.getElementById('taskReward').value = "";
                     document.getElementById('taskLink').value = "";
                     document.getElementById('taskResetHours').value = "";
-                });
+                    showAdminToast("Task published");
+                }).catch(err => adminAlert("Error adding task: " + err, "Error"));
             });
         }
 
-        function deleteTask(taskId) {
-            db.collection("tasks").doc(taskId).delete()
-              .then(() => alert("Task deleted!"));
+        function deleteTask(id) {
+            db.collection("tasks").doc(id).delete()
+                .then(() => showAdminToast("Task deleted"))
+                .catch(err => adminAlert("Error deleting task: " + err, "Error"));
         }
 
         function saveMiningRate() {
-            const rate = parseFloat(document.getElementById('miningRateInput').value);
-            if (!isNaN(rate) && rate > 0) {
-                verifyTxPinAction(() => {
-                    db.collection("settings").doc("config").set({ miningRate: rate }, { merge: true })
-                      .then(() => alert("✅ Global mining rate updated successfully!"));
-                });
-            } else {
-                alert("Please enter a valid mining rate!");
+            let rate = parseFloat(document.getElementById('miningRateInput').value);
+            if (isNaN(rate) || rate < 0) {
+                adminAlert("Please enter a valid mining rate.", "Invalid Rate");
+                return;
             }
+
+            verifyTxPinAction(() => {
+                db.collection("settings").doc("config").set({ miningRate: rate }, { merge: true })
+                    .then(() => showAdminToast(`Mining rate set to ${rate} MTR/hour`))
+                    .catch(err => adminAlert("Error: " + err, "Error"));
+            });
         }
 
         function toggleWithdrawSystem() {
             verifyTxPinAction(() => {
                 db.collection("settings").doc("config").set({ withdrawOpen: !isWithdrawOpen }, { merge: true })
-                  .then(() => alert("Withdrawal system status toggled!"));
+                    .then(() => showAdminToast("Withdrawal status updated"))
+                    .catch(err => adminAlert("Error: " + err, "Error"));
+            });
+        }
+
+        function saveMinWithdraw() {
+            let minVal = parseFloat(document.getElementById('minWithdrawInput').value);
+            if (isNaN(minVal) || minVal < 0) {
+                adminAlert("Enter a valid minimum withdrawal limit.", "Invalid Limit");
+                return;
+            }
+
+            verifyTxPinAction(() => {
+                db.collection("settings").doc("config").set({ minWithdraw: minVal }, { merge: true })
+                    .then(() => showAdminToast(`Minimum withdrawal set to ${minVal} MTR`))
+                    .catch(err => adminAlert("Error: " + err, "Error"));
+            });
+        }
+
+        function saveMaxWithdraw() {
+            let maxVal = parseFloat(document.getElementById('maxWithdrawInput').value);
+            if (isNaN(maxVal) || maxVal < 0) {
+                adminAlert("Enter a valid maximum withdrawal limit (0 for unlimited).", "Invalid Limit");
+                return;
+            }
+
+            verifyTxPinAction(() => {
+                db.collection("settings").doc("config").set({ maxWithdraw: maxVal }, { merge: true })
+                    .then(() => showAdminToast(`Maximum withdrawal set to ${maxVal} MTR`))
+                    .catch(err => adminAlert("Error: " + err, "Error"));
+            });
+        }
+
+        function saveMaintenanceNotice() {
+            let notice = document.getElementById('maintenanceNoticeInput').value.trim() || "We will be back shortly.";
+            verifyTxPinAction(() => {
+                db.collection("settings").doc("config").set({ maintenanceNotice: notice }, { merge: true })
+                    .then(() => showAdminToast("Maintenance notice saved"))
+                    .catch(err => adminAlert("Error: " + err, "Error"));
             });
         }
 
         function toggleMaintenanceMode() {
             verifyTxPinAction(() => {
                 db.collection("settings").doc("config").set({ maintenanceMode: !isMaintenanceOn }, { merge: true })
-                  .then(() => alert("Maintenance mode toggled!"));
+                    .then(() => showAdminToast(!isMaintenanceOn ? "Site set to OFFLINE" : "Site set to ONLINE"))
+                    .catch(err => adminAlert("Error: " + err, "Error"));
             });
         }
 
-        function saveMaintenanceNotice() {
-            const msg = document.getElementById('maintenanceNoticeInput').value.trim();
-            verifyTxPinAction(() => {
-                db.collection("settings").doc("config").set({ maintenanceNotice: msg }, { merge: true })
-                  .then(() => alert("✅ Maintenance notice updated!"));
-            });
-        }
-
-        function saveMinWithdraw() {
-            const val = parseFloat(document.getElementById('minWithdrawInput').value);
-            if (!isNaN(val) && val > 0) {
-                verifyTxPinAction(() => {
-                    db.collection("settings").doc("config").set({ minWithdraw: val }, { merge: true })
-                      .then(() => alert("✅ Minimum withdrawal limit updated!"));
-                });
-            }
-        }
-
-        function saveMaxWithdraw() {
-            const rawVal = parseFloat(document.getElementById('maxWithdrawInput').value);
-            const val = (!isNaN(rawVal) && rawVal >= 0) ? rawVal : 0;
-            verifyTxPinAction(() => {
-                db.collection("settings").doc("config").set({ maxWithdraw: val }, { merge: true })
-                  .then(() => alert("✅ Maximum withdrawal limit updated!"));
-            });
-        }
-
-        function updateAdminPassword() {
-            const newPass = document.getElementById('newAdminPass').value.trim();
+        async function updateAdminPassword() {
+            let newPass = document.getElementById('newAdminPass').value.trim();
             if (newPass.length < 4) {
-                alert("Password must be at least 4 characters!");
+                adminAlert("Password must be at least 4 characters.", "Weak Password");
                 return;
             }
-            verifyTxPinAction(() => {
-                db.collection("settings").doc("adminAuth").set({
-                    adminPassword: newPass,
-                    updatedAt: firebase.firestore.FieldValue.serverTimestamp()
-                }, { merge: true }).then(() => {
+
+            verifyTxPinAction(async () => {
+                try {
+                    const creds = await getAuthCredentialsFromFirestore();
+                    await db.collection("settings").doc("adminAuth").set({
+                        adminPassword: newPass,
+                        withdrawPassword: creds.withdrawPassword,
+                        updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+                    }, { merge: true });
                     document.getElementById('newAdminPass').value = "";
-                    alert("✅ Admin password updated! Old password is now blocked across all devices.");
-                }).catch(err => alert("Error updating admin password: " + err));
+                    showAdminToast("Admin login password updated");
+                } catch (err) {
+                    adminAlert("Error updating password: " + err, "Error");
+                }
             });
         }
 
-        function updateWithdrawPassword() {
-            const newWithdrawPass = document.getElementById('newWithdrawPass').value.trim();
-            if (newWithdrawPass.length < 4) {
-                alert("Withdraw password must be at least 4 characters!");
+        async function updateWithdrawPassword() {
+            let newPass = document.getElementById('newWithdrawPass').value.trim();
+            if (newPass.length < 4) {
+                adminAlert("Password must be at least 4 characters.", "Weak Password");
                 return;
             }
-            verifyTxPinAction(() => {
-                db.collection("settings").doc("adminAuth").set({
-                    withdrawPassword: newWithdrawPass,
-                    withdrawPassUpdatedAt: firebase.firestore.FieldValue.serverTimestamp()
-                }, { merge: true }).then(() => {
+
+            verifyTxPinAction(async () => {
+                try {
+                    const creds = await getAuthCredentialsFromFirestore();
+                    await db.collection("settings").doc("adminAuth").set({
+                        adminPassword: creds.adminPassword,
+                        withdrawPassword: newPass,
+                        updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+                    }, { merge: true });
                     document.getElementById('newWithdrawPass').value = "";
-                    alert("✅ Withdraw section password updated! Old withdraw password is now blocked.");
-                }).catch(err => alert("Error updating withdraw password: " + err));
+                    showAdminToast("Withdraw section password updated");
+                } catch (err) {
+                    adminAlert("Error updating password: " + err, "Error");
+                }
             });
         }
 
         function updateTxPin() {
-            const newPin = document.getElementById('newTxPin').value.trim();
-            if (newPin.length !== 4 || isNaN(newPin)) {
-                alert("Transaction PIN must be a 4-digit number!");
+            let newPin = document.getElementById('newTxPin').value.trim();
+            if (newPin.length < 4) {
+                adminAlert("Transaction PIN must be at least 4 characters.", "Weak PIN");
                 return;
             }
-            verifyTxPinAction(() => {
-                TRANSACTION_PIN = newPin;
-                localStorage.setItem('mtr_tx_pin', newPin);
-                document.getElementById('newTxPin').value = "";
-                alert("✅ Transaction PIN updated successfully!");
-            });
+            TRANSACTION_PIN = newPin;
+            localStorage.setItem('mtr_tx_pin', newPin);
+            document.getElementById('newTxPin').value = "";
+            showAdminToast("Transaction PIN updated");
         }
 
-        function switchAdminTab(tabName, el) {
-            if ((sessionStorage.getItem('mtr_admin_role') || 'full_admin') === 'withdraw_only' && tabName !== 'withdrawals') {
+        function switchAdminTab(tabId, el) {
+            if ((sessionStorage.getItem('mtr_admin_role') || 'full_admin') === 'withdraw_only') {
                 return;
             }
-            document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
             document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
-            document.getElementById('tab-' + tabName).classList.add('active');
+            document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
             el.classList.add('active');
+            document.getElementById('tab-' + tabId).classList.add('active');
         }
     </script>
 </body>
-                    </html>
+                </html>
